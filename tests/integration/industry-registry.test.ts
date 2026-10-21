@@ -23,7 +23,7 @@ describe('the industry registry', () => {
   it('gives every industry its own module set and permissions without duplication', () => {
     expect(findRegistryProblems(INDUSTRIES)).toEqual([])
     const owned = (id: IndustryCode) => INDUSTRIES[id].modules.map((m) => m.code)
-    expect(owned('retail')).toEqual([])
+    expect(owned('retail').every((c) => c.startsWith('retail-'))).toBe(true)
     expect(owned('farm').every((c) => c.startsWith('farm-'))).toBe(true)
     expect(owned('bakery').every((c) => c.startsWith('bakery-'))).toBe(true)
     expect(new Set(ALL_MODULES.map((m) => m.code)).size).toBe(ALL_MODULES.length)

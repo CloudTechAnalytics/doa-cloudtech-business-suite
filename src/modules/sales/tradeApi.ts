@@ -2,6 +2,7 @@ import type { IndustryCode } from '@/shared/types/domain'
 import { ensureDemoInventory, getInv } from '@/demo/demoInventory'
 import { getDemoState } from '@/demo/demoStore'
 import * as demo from '@/demo/demoTrade'
+import * as martDemo from '@/demo/demoMart'
 import { loadInventory } from '@/modules/inventory/inventoryApi'
 import type { InventoryData } from '@/modules/inventory/inventoryApi'
 import { isDemoMode } from '@/shared/utilities/env'
@@ -120,17 +121,30 @@ export async function saleDetail(_businessId: string, saleId: string): Promise<S
   }
 }
 
-export interface CartLineInput { productId: string; quantity: number; unitPrice: number; discount: number }
+export interface CartLineInput { productId: string; quantity: number; unitPrice: number; discount: number; pack?: string | null }
+export interface PackDto { productId: string; name: string; units: number }
+
+/** Pack sizes (carton, dozen) for products sold by the pack. Empty for businesses that do not use them. */
+export async function loadPacks(b: string): Promise<PackDto[]> {
+  if (isDemoMode) { const ids = new Set(martDemo.demoMartProducts(b).map((p) => p.id)); return martDemo.getMart().packs.filter((k) => ids.has(k.productId)).map((k) => ({ productId: k.productId, name: k.name, units: k.units })) }
+  const r = await db().from('product_packs').select('product_id, name, units_per_pack').eq('business_id', b)
+  return r.error ? [] : (r.data ?? []).map((k) => ({ productId: k.product_id, name: k.name, units: Number(k.units_per_pack) }))
+}
 export interface TillPayment { method: string; amount: number; status?: 'pending' | 'successful'; reference?: string }
 
 export async function postSale(b: string, locationId: string, customerId: string | null, lines: CartLineInput[], payments: TillPayment[], key: string): Promise<{ saleId?: string; error?: string }> {
+  const packed = lines.some((l) => l.pack)
+  if (isDemoMode && packed) {
+    const r = martDemo.demoMartSale(b, locationId, customerId, lines.map((l) => ({ productId: l.productId, quantity: l.quantity, pack: l.pack ?? null, unitPrice: l.unitPrice, discount: l.discount })), payments, key)
+    return r.error ? { error: r.error } : { saleId: r.result!.saleId }
+  }
   if (isDemoMode) {
     const r = demo.demoPostSale(b, locationId, customerId, lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })), payments, key)
     return r.error ? { error: r.error } : { saleId: r.result!.saleId }
   }
-  const { data, error } = await db().rpc('post_sale', {
+  const { data, error } = await db().rpc(packed ? 'mart_post_sale' : 'post_sale', {
     p_business: b, p_location: locationId, p_customer: customerId, p_key: key,
-    p_items: lines.map((l) => ({ product_id: l.productId, quantity: l.quantity, unit_price: l.unitPrice, discount_amount: l.discount })),
+    p_items: lines.map((l) => ({ product_id: l.productId, quantity: l.quantity, unit_price: l.unitPrice, discount_amount: l.discount, ...(packed ? { pack: l.pack ?? null } : {}) })),
     p_payments: payments.map((p) => ({ method: p.method, amount: p.amount, status: p.status ?? 'successful', reference: p.reference ?? null })),
   })
   return error ? { error: error.message } : { saleId: (data as { sale_id: string }).sale_id }

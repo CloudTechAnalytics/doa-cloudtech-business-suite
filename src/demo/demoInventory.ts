@@ -8,7 +8,7 @@ import { rolePermissions } from '@/core/permissions/roles'
 
 export interface DProduct { id: string; businessId: string; sku: string | null; barcode: string | null; name: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; status: 'active' | 'archived'; kind?: 'ingredient' | 'finished_good' | 'goods' }
 /** A batch of finished goods with an expiry date; stock leaves the oldest-expiring lot first (mirrors bakery_lots). */
-export interface DLot { id: string; businessId: string; productId: string; batchId: string; quantity: number; remaining: number; producedOn: string; expiresOn: string | null; voided: boolean }
+export interface DLot { batchNumber?: string | null; id: string; businessId: string; productId: string; batchId: string; quantity: number; remaining: number; producedOn: string; expiresOn: string | null; voided: boolean }
 export interface DAlloc { lotId: string; movementId: string; quantity: number; restored: boolean }
 export interface DLocation { id: string; businessId: string; name: string }
 export interface DMovement { id: string; businessId: string; productId: string; locationId: string; type: string; delta: number; unitCost: number; reason: string | null; at: string; reversalOf: string | null; groupId: string }
@@ -23,16 +23,18 @@ export interface Inv {
   lots?: DLot[]
   allocs?: DAlloc[]
   lotProducts?: string[]
+  /** Mart products that track expiry: every receipt becomes a lot, completed with batch and expiry afterwards. */
+  martLotProducts?: string[]
 }
 
 const KEY = 'doa.demo.inv.v1'
 let uid = Date.now()
 const id = (p: string) => `${p}-${(uid++).toString(36)}`
-const empty = (): Inv => ({ products: [], locations: [], movements: [], balances: {}, keys: {}, seeded: [], lots: [], allocs: [], lotProducts: [] })
+const empty = (): Inv => ({ products: [], locations: [], movements: [], balances: {}, keys: {}, seeded: [], lots: [], allocs: [], lotProducts: [], martLotProducts: [] })
 
 /** A working copy for an operation that commits only if every step succeeds. */
 export function cloneInv(inv: Inv): Inv {
-  return { ...inv, balances: { ...inv.balances }, movements: [...inv.movements], keys: { ...inv.keys }, lots: (inv.lots ?? []).map((l) => ({ ...l })), allocs: (inv.allocs ?? []).map((a) => ({ ...a })), lotProducts: [...(inv.lotProducts ?? [])] }
+  return { ...inv, balances: { ...inv.balances }, movements: [...inv.movements], keys: { ...inv.keys }, lots: (inv.lots ?? []).map((l) => ({ ...l })), allocs: (inv.allocs ?? []).map((a) => ({ ...a })), lotProducts: [...(inv.lotProducts ?? [])], martLotProducts: [...(inv.martLotProducts ?? [])] }
 }
 
 function load(): Inv {
@@ -86,14 +88,20 @@ export function ensureDemoInventory(businessId: string, industry: string) {
 
 /** Mirrors bakery_allocate_lots(): outgoing stock takes from the oldest-expiring lot; a reversal gives it back to the same lots. */
 function allocateLots(inv: Inv, p: DProduct, m: DMovement) {
-  if (!inv.lotProducts?.includes(p.id) || ['production_output', 'transfer_in', 'transfer_out'].includes(m.type)) return
+  const mart = !!inv.martLotProducts?.includes(p.id)
+  if ((!inv.lotProducts?.includes(p.id) && !mart) || ['production_output', 'transfer_in', 'transfer_out'].includes(m.type)) return
   const lots = (inv.lots ??= []); const allocs = (inv.allocs ??= [])
   if (m.reversalOf) {
+    if (mart) { const l = lots.find((x) => x.batchId === `mv:${m.reversalOf}`); if (l) { l.remaining = 0; l.voided = true } }
     for (const a of allocs.filter((x) => x.movementId === m.reversalOf && !x.restored)) {
       const lot = lots.find((l) => l.id === a.lotId)
       if (lot && !lot.voided) lot.remaining = Math.round((lot.remaining + a.quantity) * 10000) / 10000
       a.restored = true
     }
+    return
+  }
+  if (mart && (m.type === 'receipt' || m.type === 'return_in') && m.delta > 0) {
+    lots.push({ id: id('lt'), businessId: p.businessId, productId: p.id, batchId: `mv:${m.id}`, batchNumber: null, quantity: m.delta, remaining: m.delta, producedOn: m.at.slice(0, 10), expiresOn: null, voided: false })
     return
   }
   if (m.delta >= 0) return

@@ -232,11 +232,12 @@ describe('stock counts', () => {
     const expected = await qty(bizA, rice, locA)
     const c = (await as(officer, () => q<{ r: { count_id: string } }>('select public.stock_count_start($1,$2,$3) as r', [bizA, locA, key()])))[0].r.count_id
     await as(officer, () => q('select public.stock_count_record($1,$2,$3)', [c, rice, expected - 4]))
-    await as(officer, () => q('select public.stock_count_post($1,$2)', [c, key()]))
+    await expect(as(officer, () => q('select public.stock_count_post($1,$2)', [c, key()]))).rejects.toThrow(/manager must approve/)
+    await as(owner, () => q('select public.stock_count_post($1,$2)', [c, key()]))
     expect(await qty(bizA, rice, locA)).toBe(expected - 4)
     const [item] = await q<{ expected_quantity: string }>('select expected_quantity from public.stock_count_items where stock_count_id=$1 and product_id=$2', [c, rice])
     expect(Number(item.expected_quantity)).toBe(expected)
-    await expect(as(officer, () => q('select public.stock_count_post($1,$2)', [c, key()]))).rejects.toThrow(/already posted/)
+    await expect(as(owner, () => q('select public.stock_count_post($1,$2)', [c, key()]))).rejects.toThrow(/already posted/)
   })
 })
 

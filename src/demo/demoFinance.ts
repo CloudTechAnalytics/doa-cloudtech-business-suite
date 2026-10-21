@@ -27,6 +27,8 @@ function commit(next: Fin) {
   try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* storage unavailable */ }
 }
 export const getFinance = () => state
+/** Credit notes against a purchase order; the mart module replaces this when it loads. */
+export const creditHook = { credit: (_purchaseId: string): number => 0 }
 export const resetDemoFinance = () => commit(empty())
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -107,9 +109,9 @@ export function demoReceivables(biz: string): ReceivableRow[] {
 
 export function demoPayables(biz: string): PayableRow[] {
   const t = getTrade()
-  return t.purchases.filter((p) => p.businessId === biz && p.status !== 'cancelled' && c(p.total) - c(p.amountPaid) > 0).map((p) => ({
+  return t.purchases.filter((p) => p.businessId === biz && p.status !== 'cancelled' && c(p.total) - c(p.amountPaid) - c(creditHook.credit(p.id)) > 0).map((p) => ({
     purchaseId: p.id, number: p.number, supplierId: p.supplierId, supplierName: t.suppliers.find((x) => x.id === p.supplierId)?.name ?? 'Unknown',
-    at: p.at, total: p.total, amountPaid: p.amountPaid, balanceDue: m(c(p.total) - c(p.amountPaid)), ageDays: ageDays(p.at),
+    at: p.at, total: p.total, amountPaid: p.amountPaid, balanceDue: m(Math.max(c(p.total) - c(p.amountPaid) - c(creditHook.credit(p.id)), 0)), ageDays: ageDays(p.at),
   }))
 }
 

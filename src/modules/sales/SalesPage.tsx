@@ -26,6 +26,7 @@ export function SalesPage() {
   const customers = useAsync(() => api.listCustomers(businessId).catch(() => [] as CustomerDto[]), [businessId])
   const sales = useAsync(() => api.listSales(businessId), [businessId])
   const perms = useAsync(() => api.myTradePermissions(businessId), [businessId])
+  const packs = useAsync(() => api.loadPacks(businessId).catch(() => [] as api.PackDto[]), [businessId])
   if (!active) return null
   const can = (p: string) => perms.data?.includes(p) ?? false
 
@@ -42,7 +43,7 @@ export function SalesPage() {
       </div>
       {catalog.error && <ErrorState message={catalog.error} />}
       {tab === 'New sale' && (catalog.data ? (
-        <Pos businessId={businessId} catalog={catalog.data} customers={customers.data ?? []} canDiscount={can('sales.discount')} canCreate={can('sales.create')}
+        <Pos businessId={businessId} catalog={catalog.data} packs={packs.data ?? []} customers={customers.data ?? []} canDiscount={can('sales.discount')} canCreate={can('sales.create')}
           onSold={async (id) => { await reloadAll(); setReceipt(id) }} />
       ) : <Spinner />)}
       {tab === 'History' && (
@@ -54,10 +55,11 @@ export function SalesPage() {
 }
 
 // ------------------------------------------------------------------------------------- POS
-interface CartLine { productId: string; quantity: number; discount: number }
+interface CartLine { productId: string; quantity: number; discount: number; pack: string | null }
+const lineKey = (l: { productId: string; pack: string | null }) => `${l.productId}|${l.pack ?? ''}`
 
-function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }: {
-  businessId: string; catalog: api.InventoryData; customers: CustomerDto[]; canDiscount: boolean; canCreate: boolean; onSold: (saleId: string) => Promise<void>
+function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, onSold }: {
+  businessId: string; catalog: api.InventoryData; packs: api.PackDto[]; customers: CustomerDto[]; canDiscount: boolean; canCreate: boolean; onSold: (saleId: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
@@ -77,20 +79,31 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
     return catalog.products.filter((p) => p.status === 'active' && (!t || [p.name, p.sku, p.barcode].some((v) => v?.toLowerCase().includes(t))))
   }, [catalog.products, search])
   const byId = (id: string) => catalog.products.find((p) => p.id === id)!
+  const packOf = (l: CartLine) => (l.pack ? packs.find((k) => k.productId === l.productId && k.name === l.pack) : undefined)
+  const priceOf = (l: CartLine) => { const k = packOf(l); return k ? Math.round(byId(l.productId).sellingPrice * k.units * 100) / 100 : byId(l.productId).sellingPrice }
 
   const priced = useMemo(() => {
-    try { return { ok: priceCart(cart.map((l) => ({ quantity: l.quantity, unitPrice: byId(l.productId).sellingPrice, discount: l.discount }))), err: null } }
+    try { return { ok: priceCart(cart.map((l) => ({ quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount }))), err: null } }
     catch (e) { return { ok: null, err: (e as Error).message } }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart, catalog.products])
+  }, [cart, catalog.products, packs])
 
   const total = priced.ok?.grandTotal ?? 0
   const paying = payNow === '' ? total : Number(payNow)
   const balance = Math.max(Math.round((total - paying) * 100) / 100, 0)
 
-  const add = (id: string) => setCart((c) => (c.some((l) => l.productId === id) ? c.map((l) => (l.productId === id ? { ...l, quantity: l.quantity + 1 } : l)) : [...c, { productId: id, quantity: 1, discount: 0 }]))
-  const setLine = (id: string, patch: Partial<CartLine>) => setCart((c) => c.map((l) => (l.productId === id ? { ...l, ...patch } : l)))
-  const remove = (id: string) => setCart((c) => c.filter((l) => l.productId !== id))
+  const add = (id: string) => setCart((c) => (c.some((l) => lineKey(l) === `${id}|`) ? c.map((l) => (lineKey(l) === `${id}|` ? { ...l, quantity: l.quantity + 1 } : l)) : [...c, { productId: id, quantity: 1, discount: 0, pack: null }]))
+  const setLine = (key: string, patch: Partial<CartLine>) => setCart((c) => c.map((l) => (lineKey(l) === key ? { ...l, ...patch } : l)))
+  const remove = (key: string) => setCart((c) => c.filter((l) => lineKey(l) !== key))
+  /** A barcode scanner types the code and presses Enter: add the exact match and clear the box for the next scan. */
+  function scan() {
+    const t = search.trim().toLowerCase()
+    if (!t) return
+    const hit = catalog.products.find((p) => p.status === 'active' && (p.barcode?.toLowerCase() === t || p.sku?.toLowerCase() === t))
+    if (!hit) return setError(`No product has the code ${search.trim()}.`)
+    if (onHand(hit.id) <= 0) return setError(`${hit.name} is out of stock.`)
+    setError(null); add(hit.id); setSearch('')
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -101,7 +114,7 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
     if (balance > 0 && !customerId) return setError('Select a customer to sell on credit, or take the full payment.')
     setBusy(true)
     const r = await api.postSale(businessId, locationId, customerId || null,
-      cart.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: byId(l.productId).sellingPrice, discount: l.discount })),
+      cart.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount, pack: l.pack })),
       paying > 0 ? [{ method, amount: paying }] : [], key.current())
     setBusy(false)
     if (r.error) return setError(r.error)
@@ -117,7 +130,7 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
         <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_200px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-9 size-4 text-ink/40" aria-hidden />
-            <TextField label="Find a product" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, SKU or barcode" className="pl-9" />
+            <TextField label="Find a product" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scan() } }} placeholder="Name, SKU or barcode (scan, then Enter)" className="pl-9" />
           </div>
           {catalog.locations.length > 1 && (
             <SelectField label="Sell from" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
@@ -151,20 +164,29 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
               const p = byId(l.productId)
               const line = priced.ok?.lines[i]
               return (
-                <li key={l.productId} className="py-2 text-sm">
+                <li key={lineKey(l)} className="py-2 text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-medium">{p.name}</span>
-                    <button type="button" onClick={() => remove(l.productId)} aria-label={`Remove ${p.name}`} className="text-ink/50 hover:text-danger"><X className="size-4" /></button>
+                    <button type="button" onClick={() => remove(lineKey(l))} aria-label={`Remove ${p.name}`} className="text-ink/50 hover:text-danger"><X className="size-4" /></button>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
-                    <button type="button" aria-label="Decrease" onClick={() => l.quantity > 1 && setLine(l.productId, { quantity: l.quantity - 1 })} className="rounded border border-ink/20 p-1"><Minus className="size-3.5" /></button>
-                    <input aria-label={`Quantity of ${p.name}`} type="number" min="0" step="any" value={l.quantity} onChange={(e) => setLine(l.productId, { quantity: Number(e.target.value) })} className="w-16 rounded border border-ink/20 px-2 py-1 text-center tabular" />
-                    <button type="button" aria-label="Increase" onClick={() => setLine(l.productId, { quantity: l.quantity + 1 })} className="rounded border border-ink/20 p-1"><Plus className="size-3.5" /></button>
+                    <button type="button" aria-label="Decrease" onClick={() => l.quantity > 1 && setLine(lineKey(l), { quantity: l.quantity - 1 })} className="rounded border border-ink/20 p-1"><Minus className="size-3.5" /></button>
+                    <input aria-label={`Quantity of ${p.name}`} type="number" min="0" step="any" value={l.quantity} onChange={(e) => setLine(lineKey(l), { quantity: Number(e.target.value) })} className="w-16 rounded border border-ink/20 px-2 py-1 text-center tabular" />
+                    <button type="button" aria-label="Increase" onClick={() => setLine(lineKey(l), { quantity: l.quantity + 1 })} className="rounded border border-ink/20 p-1"><Plus className="size-3.5" /></button>
                     <span className="ml-auto tabular">{naira(line?.total ?? 0)}</span>
                   </div>
+                  {packs.some((k) => k.productId === l.productId) && (
+                    <label className="mt-1 flex items-center gap-2 text-xs text-ink/70">Sold by
+                      <select aria-label={`Unit for ${p.name}`} value={l.pack ?? ''} onChange={(e) => { const pack = e.target.value || null; if (cart.some((x) => x !== l && lineKey(x) === lineKey({ productId: l.productId, pack }))) return setError(`${p.name} is already on the sale in that unit.`); setError(null); setLine(lineKey(l), { pack }) }} className="rounded border border-ink/20 px-2 py-1">
+                        <option value="">{p.unit}</option>
+                        {packs.filter((k) => k.productId === l.productId).map((k) => <option key={k.name} value={k.name}>{k.name} ({qty(k.units)})</option>)}
+                      </select>
+                      <span className="tabular">{naira(priceOf(l))} each</span>
+                    </label>
+                  )}
                   {canDiscount && (
                     <label className="mt-1 flex items-center gap-2 text-xs text-ink/70">Discount ₦
-                      <input type="number" min="0" step="0.01" value={l.discount || ''} onChange={(e) => setLine(l.productId, { discount: Number(e.target.value) || 0 })} className="w-24 rounded border border-ink/20 px-2 py-1 tabular" />
+                      <input type="number" min="0" step="0.01" value={l.discount || ''} onChange={(e) => setLine(lineKey(l), { discount: Number(e.target.value) || 0 })} className="w-24 rounded border border-ink/20 px-2 py-1 tabular" />
                     </label>
                   )}
                 </li>

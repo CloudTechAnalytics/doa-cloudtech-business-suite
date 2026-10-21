@@ -17,6 +17,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0011_requests_bills_orders` | purchase requests (approval, then a normal purchase order), supplier bills, sales orders (fulfilment posts a normal sale; "fulfilled" is derived) |
 | `…0012_farm_operations` | workers, tasks, health records with withdrawal-period enforcement, equipment and maintenance (costs become one expense), `farm_alerts`, `farm_batch_costs` |
 | `…0013_bakery` | `bakery_product_profiles`, immutable `recipes` / `recipe_versions` / `recipe_ingredients`, `production_batches` and `production_ingredient_usage`, `bakery_lots` with FEFO allocation triggered by the stock ledger, `waste_records`; costing functions, ingredient and finished-goods views, atomic production completion, reversal, waste, `bakery_overview`; `bakery.manage` |
+| `…0014_retail_mart` | `mart_product_profiles`, `product_packs` (pack/carton conversion to base units), `mart_lots` with FEFO triggers, `stock_loss_records`, `supplier_returns`, `cashier_shifts`, `cash_movements`; views `mart_products`, `mart_lot_status`, `shift_summary`; `mart_save_product`, `mart_receive_stock`, `mart_post_sale`, `mart_start_count`, losses, supplier returns, shifts, `mart_overview`; count posting now needs `retail.manage`; `payables` subtracts supplier credit; `retail.manage` |
 
 ## Tables named in the architecture brief
 

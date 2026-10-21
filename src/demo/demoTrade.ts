@@ -12,8 +12,8 @@ import { demoModuleStatuses, demoRoleIn, getDemoState } from '@/demo/demoStore'
  */
 export interface DCustomer { id: string; businessId: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; createdAt: string }
 export interface DSupplier { id: string; businessId: string; name: string; phone: string | null }
-export interface DPayment { id: string; businessId: string; saleId: string | null; purchaseId: string | null; returnId: string | null; type: 'sale_receipt' | 'refund' | 'purchase_payment'; method: string; amount: number; status: 'pending' | 'successful' | 'reversed'; reference: string | null; at: string }
-export interface DSale { id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null }
+export interface DPayment { by?: string | null; id: string; businessId: string; saleId: string | null; purchaseId: string | null; returnId: string | null; type: 'sale_receipt' | 'refund' | 'purchase_payment'; method: string; amount: number; status: 'pending' | 'successful' | 'reversed'; reference: string | null; at: string }
+export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null }
 export interface DSaleItem { id: string; saleId: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; unitCost: number | null; movementId: string | null }
 export interface DReturnItem { id: string; returnId: string; saleItemId: string; quantity: number; refund: number; disposition?: 'restock' | 'discard' }
 export interface DReturn { id: string; saleId: string; number: string; reason: string; total: number }
@@ -133,7 +133,7 @@ function addPayment(t: Trade, biz: string, spec: { saleId?: string; purchaseId?:
     const room = cents(p.total) - cents(p.amountPaid)
     if (cents(spec.amount) > room) throw new Error(`payment exceeds the amount due (${money(room)})`)
   }
-  const pay: DPayment = { id: newId('pay'), businessId: biz, saleId: spec.saleId ?? null, purchaseId: spec.purchaseId ?? null, returnId: spec.returnId ?? null, type: spec.type, method: spec.method, amount: spec.amount, status: spec.status, reference: spec.reference ?? null, at: new Date().toISOString() }
+  const pay: DPayment = { by: getDemoState().userId, id: newId('pay'), businessId: biz, saleId: spec.saleId ?? null, purchaseId: spec.purchaseId ?? null, returnId: spec.returnId ?? null, type: spec.type, method: spec.method, amount: spec.amount, status: spec.status, reference: spec.reference ?? null, at: new Date().toISOString() }
   t.payments.push(pay)
   if (spec.saleId) recomputeSale(t, spec.saleId); else recomputePurchase(t, spec.purchaseId!)
   return pay
@@ -187,7 +187,7 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
       priced = priceCart(lines.map((l, i) => ({ quantity: l.quantity, unitPrice: prods[i].sellingPrice, discount: l.discount ?? 0 })), rate)
     } catch { throw new Error('invalid discount') }
 
-    const sale: DSale = { id: newId('sal'), businessId: biz, number: nextNumber(t, biz, 'sale', 'SAL'), locationId, customerId, status: 'posted', paymentStatus: 'unpaid', subtotal: priced.subtotal, discountTotal: priced.discountTotal, taxTotal: priced.taxTotal, grandTotal: priced.grandTotal, amountPaid: 0, returnedTotal: 0, balanceDue: priced.grandTotal, refundDue: 0, soldAt: new Date().toISOString(), voidReason: null }
+    const sale: DSale = { by: getDemoState().userId, id: newId('sal'), businessId: biz, number: nextNumber(t, biz, 'sale', 'SAL'), locationId, customerId, status: 'posted', paymentStatus: 'unpaid', subtotal: priced.subtotal, discountTotal: priced.discountTotal, taxTotal: priced.taxTotal, grandTotal: priced.grandTotal, amountPaid: 0, returnedTotal: 0, balanceDue: priced.grandTotal, refundDue: 0, soldAt: new Date().toISOString(), voidReason: null }
     t.sales.push(sale)
     const group = newId('g')
     lines.forEach((l, i) => {

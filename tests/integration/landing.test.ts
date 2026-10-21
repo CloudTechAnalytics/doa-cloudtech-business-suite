@@ -8,8 +8,8 @@ describe('landing page content comes from the registries', () => {
     const { shared, industries } = landingApps()
     expect(shared.map((a) => a.id)).toEqual(['sales', 'crm', 'inventory', 'purchase', 'finance', 'staff'])
     expect(shared.every((a) => a.blurb.length > 0)).toBe(true)
-    expect(industries.map((a) => a.id)).toEqual(['farm', 'bakery'])
-    expect(industries.map((a) => a.label)).toEqual(['Farm operations', 'Bakery production'])
+    expect(industries.map((a) => a.id)).toEqual(['retail', 'farm', 'bakery'])
+    expect(industries.map((a) => a.label)).toEqual(['Mart', 'Farm operations', 'Bakery production'])
   })
 
   it('never advertises an unavailable industry', () => {
@@ -22,7 +22,7 @@ describe('the Apps and Industries menus come from the registries', () => {
   const labels = (id: string) => apps.find((c) => c.id === id)!.items.map((i) => i.label)
 
   it('groups shared modules by area and gives each active industry its own column', () => {
-    expect(apps.map((c) => c.title)).toEqual(['Sales', 'Stock and purchasing', 'Farm operations', 'Bakery production', 'Finance', 'Administration'])
+    expect(apps.map((c) => c.title)).toEqual(['Sales', 'Stock and purchasing', 'Mart', 'Farm operations', 'Bakery production', 'Finance', 'Administration'])
     expect(labels('Sales and customers')).toEqual(['Sales / POS', 'CRM'])
     expect(labels('farm')).toContain('Farm Batches')
     expect(labels('Stock and purchasing')).toEqual(['Inventory', 'Purchases', 'Suppliers'])
