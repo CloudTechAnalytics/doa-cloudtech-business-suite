@@ -15,7 +15,7 @@ export function SiteHeader() {
         <SiteNav />
         <div className="flex items-center gap-3">
           <Link to="/sign-in" className="text-sm font-medium text-ink/80 hover:text-ink">Sign in</Link>
-          <Link to="/start" className="inline-flex h-9 items-center rounded-md bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-dark">Try it free</Link>
+          <Link to="/start" className="inline-flex h-9 items-center rounded-md bg-amber px-4 text-sm font-bold text-ink shadow-card transition hover:-translate-y-px hover:bg-amber-dark">Try it free</Link>
         </div>
       </div>
     </header>

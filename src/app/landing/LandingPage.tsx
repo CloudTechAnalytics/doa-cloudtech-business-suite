@@ -6,14 +6,15 @@ import type { LandingApp } from '@/app/navigation/navigation'
 import { listIndustries } from '@/core/industry-registry'
 import { Badge } from '@/shared/components'
 import type { CSSProperties } from 'react'
-import { HeroArt } from './HeroArt'
+import { HeroBackdrop } from './HeroBackdrop'
+import { Mark } from './Mark'
 import { Reveal } from './Reveal'
 import { SiteHeader } from './SiteHeader'
 
 const d = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties
 
-const primaryBtn = 'inline-flex h-12 items-center justify-center rounded-md bg-brand px-6 text-base font-semibold text-white shadow-card transition duration-200 hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-raised active:translate-y-0'
-const quietBtn = 'inline-flex h-12 items-center justify-center rounded-md bg-white/80 px-6 text-base font-semibold text-ink/80 ring-1 ring-line transition duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-card active:translate-y-0'
+const primaryBtn = 'inline-flex h-12 items-center justify-center rounded-md bg-amber px-6 text-base font-bold text-ink shadow-card transition duration-200 hover:-translate-y-0.5 hover:bg-amber-dark hover:shadow-raised active:translate-y-0'
+const quietBtn = 'inline-flex h-12 items-center justify-center rounded-md bg-white/80 px-6 text-base font-semibold text-ink ring-2 ring-amber transition duration-200 hover:-translate-y-0.5 hover:bg-amber/15 hover:shadow-card active:translate-y-0'
 
 function AppCard({ app, index }: { app: LandingApp; index: number }) {
   return (
@@ -36,29 +37,29 @@ export function LandingPage() {
     <div className="bg-white text-ink">
       <SiteHeader />
 
-      <section className="relative isolate overflow-hidden bg-gradient-to-b from-[#f1f6fb] via-white to-white px-4 pb-52 pt-16 text-center sm:px-6 sm:pb-64 sm:pt-24 lg:pb-72">
-        <HeroArt />
+      <section className="relative isolate overflow-hidden bg-gradient-to-b from-[#f1f6fb] via-white to-white px-4 pb-24 pt-16 text-center sm:px-6 sm:pb-32 sm:pt-24">
+        <HeroBackdrop />
         <h1 className="anim-fade-up relative mx-auto max-w-4xl text-5xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl" style={d(60)}>
           All your business on{' '}
           <span className="relative whitespace-nowrap"><span aria-hidden className="anim-marker absolute -inset-x-2 inset-y-1 -z-0 -rotate-1 rounded-xl bg-[#fbb130]" style={d(700)} /><span className="relative">one platform</span></span>.
         </h1>
         <p className="anim-fade-up relative mx-auto mt-8 max-w-2xl text-xl font-medium text-ink/80 sm:text-2xl" style={d(220)}>
           Shops, farms and bakeries, each with{' '}
-          <span className="relative whitespace-nowrap"><span className="relative z-10">its own books</span><span aria-hidden className="anim-marker absolute -bottom-1 left-0 h-1 w-full rounded-full bg-[#1bb6f9]" style={d(1100)} /></span>
+          <span className="relative whitespace-nowrap"><span className="relative z-10 font-bold text-ink">its own books</span><span aria-hidden className="anim-marker absolute inset-x-0 bottom-0 h-3 rounded-sm bg-amber/70" style={d(1100)} /></span>
           , under one login.
         </p>
         <div className="anim-fade-up relative mx-auto mt-10 flex w-fit flex-wrap items-center justify-center gap-3" style={d(380)}>
           <Link to="/start" className={primaryBtn}>Start now, it&apos;s free</Link>
           <a href="#apps" className={quietBtn}>See the apps</a>
         </div>
-        <p className="anim-fade-up relative mt-6 text-sm font-semibold text-brand" style={d(520)}>14-day free trial on every business</p>
+        <p className="anim-fade-up relative mt-6 text-sm font-semibold text-ink/70" style={d(520)}>14-day free trial on every business</p>
       </section>
 
       <div className="relative -mt-px bg-canvas pb-20 pt-20" style={{ borderTopLeftRadius: '50% 7rem', borderTopRightRadius: '50% 7rem' }}>
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <Reveal as="section" className="text-center">
             <span id="apps" className="relative -top-28 block h-0" />
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Choose your <span className="relative inline-block">apps<span aria-hidden className="absolute -bottom-1 left-0 h-1.5 w-full rounded-full bg-mint" /></span></h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Choose your <Mark>apps</Mark></h2>
             <p className="mx-auto mt-4 max-w-xl text-base font-medium text-ink/80">Everything a growing business needs, ready the moment you sign up.</p>
           </Reveal>
 
@@ -69,7 +70,7 @@ export function LandingPage() {
 
           <section id="industries" className="mt-24 scroll-mt-24">
             <Reveal>
-              <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Built for your kind of business</h2>
+              <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Built for your <Mark>kind of business</Mark></h2>
               <p className="mx-auto mt-4 max-w-xl text-center text-base font-medium text-ink/80">Pick a starting point. Run more than one business? Pick them all.</p>
             </Reveal>
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -91,20 +92,20 @@ export function LandingPage() {
           </section>
 
           <section id="why" className="mt-24 scroll-mt-24">
-            <Reveal><h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Why DOA B-Suite</h2></Reveal>
+            <Reveal><h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Why <Mark>DOA B-Suite</Mark></h2></Reveal>
             <dl className="mt-10 grid gap-10 sm:grid-cols-3">
-              <Reveal><dt className="text-lg font-bold">One login, separate books</dt><dd className="mt-2 text-ink/70">Create a farm, a bakery and a shop under one account. Each has its own records, staff, modules and subscription, and none can see another.</dd></Reveal>
-              <Reveal delay={100}><dt className="text-lg font-bold">Numbers you can trust</dt><dd className="mt-2 text-ink/70">Stock, sales and payments are recorded as an unchangeable history. Mistakes are corrected with new entries, never erased, and every important change is logged.</dd></Reveal>
-              <Reveal delay={200}><dt className="text-lg font-bold">Only what your business needs</dt><dd className="mt-2 text-ink/70">A farm sees farm tools, a shop sees the till. Staff see only what their role allows, and unused modules stay out of the way.</dd></Reveal>
+              <Reveal><dt className="text-lg font-bold">One login, <Mark>separate books</Mark></dt><dd className="mt-2 text-ink/70">Create a farm, a bakery and a shop under one account. Each has its own records, staff, modules and subscription, and none can see another.</dd></Reveal>
+              <Reveal delay={100}><dt className="text-lg font-bold">Numbers you can <Mark>trust</Mark></dt><dd className="mt-2 text-ink/70">Stock, sales and payments are recorded as an unchangeable history. Mistakes are corrected with new entries, never erased, and every important change is logged.</dd></Reveal>
+              <Reveal delay={200}><dt className="text-lg font-bold">Only what your business <Mark>needs</Mark></dt><dd className="mt-2 text-ink/70">A farm sees farm tools, a shop sees the till. Staff see only what their role allows, and unused modules stay out of the way.</dd></Reveal>
             </dl>
           </section>
 
           <Reveal as="section" className="anim-gradient relative mt-24 overflow-hidden rounded-2xl bg-gradient-to-r from-brand via-[#0f3a66] to-brand px-6 py-14 text-center text-white sm:px-12">
             <span aria-hidden className="absolute -right-10 -top-16 size-56 rounded-full bg-mint/25 blur-3xl" />
             <span aria-hidden className="absolute -bottom-16 -left-10 size-56 rounded-full bg-[#fbb130]/20 blur-3xl" />
-            <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">Ready to try it?</h2>
+            <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">Ready to <span className="text-amber">try it</span>?</h2>
             <p className="relative mx-auto mt-3 max-w-lg text-white/80">Pick your business type, name it, and you are in. The first 14 days are free.</p>
-            <Link to="/start" className="relative mt-8 inline-flex h-12 items-center rounded-md bg-white px-7 text-base font-semibold text-brand transition duration-200 hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-raised active:translate-y-0">Try it free</Link>
+            <Link to="/start" className="relative mt-8 inline-flex h-12 items-center rounded-md bg-amber px-7 text-base font-bold text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-amber-dark hover:shadow-raised active:translate-y-0">Try it free</Link>
           </Reveal>
         </div>
       </div>

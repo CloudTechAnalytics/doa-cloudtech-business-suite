@@ -84,7 +84,7 @@ export function SiteNav() {
       <div className="relative bg-gradient-to-r from-brand to-[#0f3a66] text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-3 text-sm">
           <span className="text-white/80">{footer}</span>
-          <Link to="/start" onClick={close} className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 font-semibold text-white transition hover:bg-white/20">Try it free <ArrowRight className="size-4" aria-hidden /></Link>
+          <Link to="/start" onClick={close} className="inline-flex items-center gap-1.5 rounded-md bg-amber px-3 py-1.5 font-bold text-ink transition hover:bg-amber-dark">Try it free <ArrowRight className="size-4" aria-hidden /></Link>
         </div>
       </div>
     </div>

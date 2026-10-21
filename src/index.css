@@ -17,6 +17,8 @@
   --color-line: #e6e9ed;
   --color-canvas: #f3f4f6;
   --color-mint: #14c8b1;
+  --color-amber: #fbb130;
+  --color-amber-dark: #f59f00;
 
   --color-success: #1e7e34;
   --color-success-soft: #e3f4e8;
@@ -115,3 +117,8 @@ input[type="number"] {
   .reveal { opacity: 1; transform: none; transition: none; }
   .anim-float, .anim-drift, .anim-smoke, .anim-sun, .anim-sway, .anim-gradient { animation: none; }
 }
+
+/* Amber keyword highlight: draws in when its section scrolls into view. */
+.mark-scroll { transform-origin: left center; transform: scaleX(0); transition: transform 0.7s cubic-bezier(0.3, 0.7, 0.2, 1) 0.25s; }
+.reveal.in .mark-scroll { transform: scaleX(1); }
+@media (prefers-reduced-motion: reduce) { .mark-scroll { transform: scaleX(1); transition: none; } }
