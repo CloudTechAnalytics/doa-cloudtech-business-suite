@@ -39,12 +39,15 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [fetched, setBusinesses] = useState<BusinessSummary[]>([])
   const [activeId, setActiveId] = useState<string | null>(readStored)
   const [fetchLoading, setLoading] = useState(!!userId && !isDemoMode)
+  // Which user the current list belongs to; until it matches, we are still loading (covers sign-up followed by an immediate redirect).
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (isDemoMode || !supabase || !userId) {
       setBusinesses([])
       setLoading(false)
+      setLoadedFor(null)
       return
     }
     setLoading(true)
@@ -60,6 +63,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode })))
     }
     setLoading(false)
+    setLoadedFor(userId)
   }, [userId])
 
   useEffect(() => {
@@ -73,7 +77,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         .filter((m) => m.userId === userId && m.status === 'active')
         .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId).map((b) => ({ ...b, role: demoRoleIn(b.id) })))
     : fetched
-  const loading = isDemoMode ? false : fetchLoading
+  const loading = isDemoMode ? false : fetchLoading || (!!userId && loadedFor !== userId)
   const active = businesses.find((b) => b.id === activeId) ?? businesses[0] ?? null
 
   const select = (id: string) => {

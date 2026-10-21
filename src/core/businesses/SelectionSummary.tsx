@@ -15,7 +15,7 @@ export function SelectionSummary({ selected, addons, onToggleAddon, children }: 
 }) {
   const n = selected.length
   return (
-    <aside aria-label="Your selection" className="h-fit rounded-xl bg-white p-5 shadow-card lg:sticky lg:top-6">
+    <aside aria-label="Your selection" className="h-fit rounded-xl bg-white p-5 shadow-card lg:sticky lg:top-24">
       <h2 className="text-lg font-bold text-ink">{n === 0 ? 'Nothing selected yet' : `${n} business type${n === 1 ? '' : 's'} selected`}</h2>
       {n === 0 ? (
         <p className="mt-2 text-sm text-ink/60">Tick every kind of business you run. Each one becomes its own business.</p>

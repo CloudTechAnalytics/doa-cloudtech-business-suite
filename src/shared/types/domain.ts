@@ -63,6 +63,8 @@ export interface ModuleDefinition {
   navGroup: string
   /** 'platform' for shared modules, otherwise the industry that owns it. */
   owner: 'platform' | IndustryCode
+  /** Shown on the public site and in menus: 'preview' = usable but unfinished, 'soon' = registered, screens not built. */
+  maturity?: 'preview' | 'soon'
   /** Optional entry in the Record menu (opens the module, optionally with a query string such as "tab=Receive"). */
   quickAction?: { label: string; query?: string }
 }

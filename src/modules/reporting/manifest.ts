@@ -10,7 +10,7 @@ const dashboard: ModuleDefinition = {
 }
 const reports: ModuleDefinition = {
   code: 'reports', name: 'Reports', description: 'Sales, purchases, stock, expense and margin reports.', path: 'reports',
-  permission: 'reports.read', icon: BarChart3, navGroup: 'Finance', owner: 'platform',
+  permission: 'reports.read', icon: BarChart3, navGroup: 'Finance', owner: 'platform', maturity: 'soon',
 }
 
 export const dashboardModule: SharedModule = { definition: dashboard, page: lazy(() => import('./DashboardPage').then((m) => ({ default: m.DashboardPage }))) }

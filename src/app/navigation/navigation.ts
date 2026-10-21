@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { getIndustry } from '@/core/industry-registry'
+import { INDUSTRIES, getIndustry } from '@/core/industry-registry'
 import { ALL_MODULES, MODULES } from '@/core/module-registry/registry'
 import type { IndustryCode, ModuleCode, ModuleDefinition } from '@/shared/types/domain'
 
@@ -69,6 +69,65 @@ export function sidebarEntries(apps: AppDef[]): SidebarEntry[] {
     const links = app.modules.map((module) => ({ kind: 'link' as const, key: module.code, module, app }))
     return app.modules.length > 1 ? [{ kind: 'heading', key: `h-${app.id}`, label: app.label }, ...links] : links
   })
+}
+
+export interface LandingApp { id: string; label: string; blurb: string; icon: LucideIcon; color: string }
+
+const LANDING_BLURBS: Record<string, string> = {
+  sales: 'Point of sale, payments, receipts and returns',
+  crm: 'Leads, customers, follow-ups and credit limits',
+  inventory: 'A stock ledger with transfers and counts',
+  purchase: 'Orders, goods received and supplier payments',
+  finance: 'Expenses and reports',
+  staff: 'Roles and access, business by business',
+}
+
+/** Apps shown on the public landing page: the shared apps, then one per active industry. Not business-specific. */
+export function landingApps(): { shared: LandingApp[]; industries: LandingApp[] } {
+  const shared = AFTER.filter((a) => a.id !== 'settings').map((a) => ({
+    id: a.id, label: a.label, color: a.color, icon: MODULES[a.modules[0]].icon, blurb: LANDING_BLURBS[a.id] ?? '',
+  }))
+  const industries = Object.values(INDUSTRIES).filter((d) => d.status === 'active' && d.navigation.length > 0).map((d) => ({
+    id: d.id, label: d.navigation[0].label, color: industryColor(d.id), icon: d.icon, blurb: d.description,
+  }))
+  return { shared, industries }
+}
+
+export interface SiteMenuItem { label: string; icon: LucideIcon; to: string; blurb?: string; tag?: 'Preview' | 'Soon' }
+export interface SiteMenuColumn { id: string; title: string; color: string; icon: LucideIcon; description?: string; items: SiteMenuItem[]; cta?: { label: string; to: string } }
+
+const TAGS = { preview: 'Preview', soon: 'Soon' } as const
+const itemFor = (m: ModuleDefinition, to: string): SiteMenuItem => ({ label: m.name, icon: m.icon, to, blurb: m.description, tag: m.maturity ? TAGS[m.maturity] : undefined })
+
+/** The public site's "Apps" and "Industries" menus, built from the registries so they never drift from the product. */
+export function landingMenus(): { apps: SiteMenuColumn[]; industries: SiteMenuColumn[] } {
+  const platform = ALL_MODULES.filter((m) => m.owner === 'platform')
+  const shared = (title: string, group: string, color: string): SiteMenuColumn | null => {
+    const mods = platform.filter((m) => m.navGroup === group)
+    return mods.length ? { id: group, title, color, icon: mods[0].icon, items: mods.map((m) => itemFor(m, '/start')) } : null
+  }
+  const owned = Object.values(INDUSTRIES).filter((d) => d.status === 'active' && d.modules.length > 0).map((d): SiteMenuColumn => ({
+    id: d.id, title: d.navigation[0]?.label ?? d.name, color: industryColor(d.id), icon: d.icon,
+    items: d.modules.map((m) => itemFor(m, `/start?type=${d.id}`)),
+  }))
+  const apps = [
+    shared('Sales', 'Sales and customers', '#2f9e44'),
+    shared('Stock and purchasing', 'Stock and purchasing', '#e8590c'),
+    ...owned,
+    shared('Finance', 'Finance', '#017e84'),
+    shared('Administration', 'Administration', '#7048e8'),
+  ].filter((c): c is SiteMenuColumn => c !== null)
+
+  const industries = Object.values(INDUSTRIES).map((d): SiteMenuColumn => {
+    const soon = d.status !== 'active'
+    const mods = d.defaultModules.map((c) => MODULES[c]).filter((m): m is ModuleDefinition => !!m).slice(0, 6)
+    return {
+      id: d.id, title: d.name, color: industryColor(d.id), icon: d.icon, description: d.description,
+      items: soon ? [] : mods.map((m) => ({ ...itemFor(m, `/start?type=${d.id}`), blurb: undefined })),
+      cta: soon ? undefined : { label: `Start with ${d.name.split(' ')[0]}`, to: `/start?type=${d.id}` },
+    }
+  })
+  return { apps, industries }
 }
 
 /** Record-menu entries: shared module quick actions plus the industry's workflows. */

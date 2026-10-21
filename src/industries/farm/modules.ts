@@ -13,5 +13,5 @@ export const farmModules: ModuleDefinition[] = [
   { ...base, code: 'farm-feeding', name: 'Feeding', description: 'Feeding records and feed consumption.', path: 'farm/feeding', permission: 'farm.record', icon: Utensils },
   { ...base, code: 'farm-mortality', name: 'Mortality', description: 'Mortality records and rates.', path: 'farm/mortality', permission: 'farm.record', icon: HeartPulse },
   { ...base, code: 'farm-harvests', name: 'Harvests', description: 'Harvest and production output records.', path: 'farm/harvests', permission: 'farm.record', icon: Wheat },
-  { ...base, code: 'farm-expenses', name: 'Farm Expenses', description: 'Labour and operating costs by batch.', path: 'farm/expenses', permission: 'expenses.read', icon: Receipt },
+  { ...base, code: 'farm-expenses', name: 'Farm Expenses', description: 'Labour and operating costs by batch.', path: 'farm/expenses', permission: 'expenses.read', icon: Receipt, maturity: 'soon' },
 ]

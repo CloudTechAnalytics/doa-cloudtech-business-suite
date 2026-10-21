@@ -1,7 +1,7 @@
 import { BookOpen, CookingPot, PackageCheck, Wheat } from 'lucide-react'
 import type { ModuleDefinition } from '@/shared/types/domain'
 
-const base = { navGroup: 'Bakery production', owner: 'bakery' as const }
+const base = { navGroup: 'Bakery production', owner: 'bakery' as const, maturity: 'preview' as const }
 
 /** Modules the bakery industry owns. Recipes, production batches and their tables arrive with the bakery build. */
 export const bakeryModules: ModuleDefinition[] = [
