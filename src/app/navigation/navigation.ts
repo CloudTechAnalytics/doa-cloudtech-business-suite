@@ -35,6 +35,13 @@ const INDUSTRY_COLORS: Record<string, string> = { farm: '#5c940d', bakery: '#d94
 /** Colour used for an industry's tile on the home screen and in the business-type picker. */
 export const industryColor = (id: string) => INDUSTRY_COLORS[id] ?? '#1971c2'
 
+const COLOR_PRIORITY = ['sales', 'inventory', 'finance', 'staff', 'crm', 'purchase', 'settings']
+/** An industry section that holds shared modules (stock, sales, finance, staff) keeps those apps' familiar colours; the rest use the industry colour. */
+function sectionColor(industry: IndustryCode, codes: ModuleCode[]): string {
+  const spec = COLOR_PRIORITY.map((id) => AFTER.find((a) => a.id === id)!).find((a) => a.modules.some((m) => codes.includes(m)))
+  return spec?.color ?? INDUSTRY_COLORS[industry] ?? '#1971c2'
+}
+
 /** Apps for a business. Only usable modules (enabled, entitled, permitted) appear; this is presentation only. */
 export function buildApps(industry: IndustryCode, usable: ReadonlySet<ModuleCode>): AppDef[] {
   const pick = (codes: ModuleCode[]) => codes.filter((c) => usable.has(c)).map((c) => MODULES[c])
@@ -44,7 +51,7 @@ export function buildApps(industry: IndustryCode, usable: ReadonlySet<ModuleCode
   }
   const industryApps: (AppDef | null)[] = getIndustry(industry).navigation.map((section, i) => {
     const modules = pick(section.modules)
-    return modules.length ? { id: `${industry}-${i}`, label: section.label, color: INDUSTRY_COLORS[industry] ?? '#1971c2', icon: modules[0].icon, modules } : null
+    return modules.length ? { id: `${industry}-${i}`, label: section.label, color: sectionColor(industry, section.modules), icon: modules[0].icon, modules } : null
   })
   // A module an industry lists in its own sections (e.g. the farm's Inventory) is not repeated under the generic apps.
   const claimed = new Set(getIndustry(industry).navigation.flatMap((s) => s.modules))
