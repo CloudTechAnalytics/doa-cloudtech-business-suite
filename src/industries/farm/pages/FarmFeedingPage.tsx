@@ -59,8 +59,8 @@ export function FarmFeedingPage() {
               {data.feeds.length === 0 ? <EmptyState title="No feeding recorded yet" /> : (
                 <Card className="overflow-x-auto p-0">
                   <table className="w-full text-sm">
-                    <thead className="bg-surface text-left text-xs uppercase text-navy/60"><tr><th className="p-3">Date</th><th className="p-3">Batch</th><th className="p-3">Feed</th><th className="p-3 text-right">Quantity</th><th className="p-3" /></tr></thead>
-                    <tbody className="divide-y divide-navy/10">
+                    <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Date</th><th className="p-3">Batch</th><th className="p-3">Feed</th><th className="p-3 text-right">Quantity</th><th className="p-3" /></tr></thead>
+                    <tbody className="divide-y divide-ink/10">
                       {data.feeds.slice(0, 50).map((r) => (
                         <tr key={r.id} className={r.status === 'voided' ? 'opacity-50' : ''}>
                           <td className="p-3 whitespace-nowrap">{dateTime(r.on)}</td><td className="p-3">{farm.batchCode(r.batchId)}</td><td className="p-3">{farm.productName(r.productId)}</td>

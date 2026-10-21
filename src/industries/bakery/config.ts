@@ -1,9 +1,12 @@
+import { Croissant } from 'lucide-react'
 import type { ModuleCode, SharedModuleCode } from '@/shared/types/domain'
 
 export const bakeryConfig = {
   id: 'bakery' as const,
   name: 'Bakery & Food Production',
   description: 'Recipes, production batches and finished goods.',
+  category: 'Farming & food',
+  icon: Croissant,
   version: 1,
   status: 'active' as const,
   requiredSharedModules: ['inventory', 'sales'] as SharedModuleCode[],

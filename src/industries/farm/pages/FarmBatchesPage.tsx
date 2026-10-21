@@ -36,7 +36,7 @@ export function FarmBatchesPage() {
                 rows={rows} total={rows.length} page={0} pageSize={Math.max(rows.length, 1)} onPage={() => {}} rowKey={(b) => b.id} onRowClick={(b) => setOpen(b.id)}
                 emptyTitle="No batches" emptyHint={farm.can('farm.manage') ? 'Start your first batch above.' : 'A manager starts batches.'}
                 columns={[
-                  { key: 'code', header: 'Batch', render: (b) => <><b>{b.code}</b><div className="text-xs text-navy/60">{b.species}{b.variety ? ` · ${b.variety}` : ''} · {farm.unitName(b.unitId)}</div></> },
+                  { key: 'code', header: 'Batch', render: (b) => <><b>{b.code}</b><div className="text-xs text-ink/60">{b.species}{b.variety ? ` · ${b.variety}` : ''} · {farm.unitName(b.unitId)}</div></> },
                   { key: 'pop', header: 'Animals now', align: 'right', render: (b) => <>{b.population.toLocaleString()} <CountBasis basis={b.basis} /></> },
                   { key: 'open', header: 'Opening', align: 'right', render: (b) => b.opening.toLocaleString() },
                   { key: 'mort', header: 'Mortality', align: 'right', render: (b) => `${mortalityRate(b).toFixed(1)}%` },
@@ -120,28 +120,28 @@ function BatchDialog({ farm, data, id, onClose }: { farm: ReturnType<typeof useF
       {runner.error && <ErrorState message={runner.error} />}
       {runner.ok && <Notice>{runner.ok}</Notice>}
       <dl className="mb-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-        <div><dt className="text-xs text-navy/60">Animals now</dt><dd className="tabular font-semibold">{batch.population.toLocaleString()} <CountBasis basis={batch.basis} /></dd></div>
-        <div><dt className="text-xs text-navy/60">Mortality</dt><dd className="tabular">{batch.mortality.toLocaleString()} ({mortalityRate(batch).toFixed(1)}%)</dd></div>
-        <div><dt className="text-xs text-navy/60">Feed given</dt><dd className="tabular">{batch.feed.toLocaleString()}</dd></div>
-        <div><dt className="text-xs text-navy/60">Produce harvested</dt><dd className="tabular">{batch.harvest.toLocaleString()}</dd></div>
+        <div><dt className="text-xs text-ink/60">Animals now</dt><dd className="tabular font-semibold">{batch.population.toLocaleString()} <CountBasis basis={batch.basis} /></dd></div>
+        <div><dt className="text-xs text-ink/60">Mortality</dt><dd className="tabular">{batch.mortality.toLocaleString()} ({mortalityRate(batch).toFixed(1)}%)</dd></div>
+        <div><dt className="text-xs text-ink/60">Feed given</dt><dd className="tabular">{batch.feed.toLocaleString()}</dd></div>
+        <div><dt className="text-xs text-ink/60">Produce harvested</dt><dd className="tabular">{batch.harvest.toLocaleString()}</dd></div>
       </dl>
       <h3 className="mb-1 text-sm font-semibold">Population ledger</h3>
       {events.length === 0 ? <EmptyState title="No entries" /> : (
-        <ul className="mb-4 divide-y divide-navy/10 text-sm">
+        <ul className="mb-4 divide-y divide-ink/10 text-sm">
           {events.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center gap-2 py-1.5">
               <Badge tone={e.quantity > 0 ? 'success' : 'danger'}>{label(e.type)}</Badge>
               <span className="tabular font-medium">{e.quantity > 0 ? '+' : ''}{e.quantity.toLocaleString()}</span>
-              <span className="text-navy/70">{e.reason}</span>
-              {e.reversed && <span className="text-xs text-navy/50">(corrected)</span>}
-              <span className="ml-auto text-xs text-navy/50">{dateTime(e.on)}</span>
+              <span className="text-ink/70">{e.reason}</span>
+              {e.reversed && <span className="text-xs text-ink/50">(corrected)</span>}
+              <span className="ml-auto text-xs text-ink/50">{dateTime(e.on)}</span>
               {manage && !e.reversed && ['mortality', 'removal', 'cull', 'adjustment'].includes(e.type) && <Button variant="ghost" onClick={() => void reverse(e.id)}>Correct</Button>}
             </li>
           ))}
         </ul>
       )}
       {manage && (
-        <div className="flex flex-wrap gap-2 border-t border-navy/10 pt-3">
+        <div className="flex flex-wrap gap-2 border-t border-ink/10 pt-3">
           <Button variant="secondary" onClick={() => setMode(mode === 'adjust' ? null : 'adjust')}>Cull or adjust count</Button>
           <Button variant="ghost" onClick={() => setMode(mode === 'close' ? null : 'close')}>Close batch</Button>
         </div>

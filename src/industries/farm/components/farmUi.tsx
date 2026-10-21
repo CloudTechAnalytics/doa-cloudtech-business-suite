@@ -24,9 +24,9 @@ export const CountBasis = ({ basis }: { basis: FarmBatch['basis'] }) => (basis =
 export function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <Card>
-      <p className="text-xs font-medium uppercase tracking-wide text-navy/60">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-ink/60">{label}</p>
       <p className="tabular mt-2 text-2xl font-semibold">{value}</p>
-      {note && <p className="mt-1 text-xs text-navy/60">{note}</p>}
+      {note && <p className="mt-1 text-xs text-ink/60">{note}</p>}
     </Card>
   )
 }

@@ -1,6 +1,6 @@
 import { BookOpen } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
-import { buildNavigation, buildQuickActions } from '@/app/navigation/navigation'
+import { buildApps, buildQuickActions, findCurrentApp, sidebarEntries } from '@/app/navigation/navigation'
 import { INDUSTRIES, findRegistryProblems, getIndustry, listAvailableIndustries } from '@/core/industry-registry'
 import { defineIndustry } from '@/core/industry-registry/define'
 import { answersToSettings } from '@/core/industry-registry/settings'
@@ -45,31 +45,54 @@ describe('the industry registry', () => {
   })
 })
 
-describe('navigation and the Record menu follow the industry and the usable modules', () => {
+describe('apps, the navbar menu and the Record menu follow the industry and the usable modules', () => {
   const usableFor = (id: IndustryCode) => new Set<ModuleCode>(compatibleModules(id))
-  const labels = (id: IndustryCode, usable = usableFor(id)) => buildNavigation(id, usable).flatMap((g) => g.items.map((m) => m.code))
+  const codes = (id: IndustryCode, usable = usableFor(id)) => buildApps(id, usable).flatMap((a) => a.modules.map((m) => m.code))
 
-  it('shows farm sections only for farms, bakery sections only for bakeries', () => {
-    expect(labels('farm')).toContain('farm-batches')
-    expect(labels('farm')).not.toContain('bakery-recipes')
-    expect(labels('bakery')).toContain('bakery-recipes')
-    expect(labels('bakery')).not.toContain('farm-batches')
-    expect(labels('retail').some((c) => c.startsWith('farm-') || c.startsWith('bakery-'))).toBe(false)
+  it('shows farm apps only for farms, bakery apps only for bakeries', () => {
+    expect(codes('farm')).toContain('farm-batches')
+    expect(codes('farm')).not.toContain('bakery-recipes')
+    expect(codes('bakery')).toContain('bakery-recipes')
+    expect(codes('bakery')).not.toContain('farm-batches')
+    expect(codes('retail').some((c) => c.startsWith('farm-') || c.startsWith('bakery-'))).toBe(false)
   })
 
-  it('hides modules that are not usable', () => {
+  it('hides modules that are not usable, and drops apps left with no modules', () => {
     const usable = usableFor('farm'); usable.delete('sales'); usable.delete('farm-batches')
-    const codes = labels('farm', usable)
-    expect(codes).not.toContain('sales')
-    expect(codes).not.toContain('farm-batches')
-    expect(codes).toContain('inventory')
+    expect(codes('farm', usable)).not.toContain('sales')
+    expect(codes('farm', usable)).not.toContain('farm-batches')
+    expect(codes('farm', usable)).toContain('inventory')
+    expect(buildApps('farm', usable).map((a) => a.id)).not.toContain('sales')
+    expect(buildApps('farm', new Set<ModuleCode>(['dashboard'])).map((a) => a.id)).toEqual(['dashboard'])
   })
 
-  it('orders sections: overview, industry, then shared', () => {
-    const groups = buildNavigation('farm', usableFor('farm')).map((g) => g.label)
-    expect(groups[0]).toBe('Overview')
-    expect(groups[1]).toBe('Farm operations')
-    expect(groups.at(-1)).toBe('Administration')
+  it('orders apps: dashboard first, the industry app next, settings last', () => {
+    const apps = buildApps('farm', usableFor('farm'))
+    expect(apps[0].id).toBe('dashboard')
+    expect(apps[1].label).toBe('Farm operations')
+    expect(apps.at(-1)!.id).toBe('settings')
+  })
+
+  it('gives each app a menu of its own modules and finds the open app from the URL', () => {
+    const apps = buildApps('farm', usableFor('farm'))
+    expect(apps.find((a) => a.id === 'purchase')!.modules.map((m) => m.code)).toEqual(['purchases', 'suppliers'])
+    expect(findCurrentApp(apps, '/app/farm/mortality')?.label).toBe('Farm operations')
+    expect(findCurrentApp(apps, '/app/purchases')?.id).toBe('purchase')
+    expect(findCurrentApp(apps, '/app/inventory/anything')?.id).toBe('inventory')
+    expect(findCurrentApp(apps, '/app')).toBeNull()
+  })
+
+  it('builds the sidebar: single-module apps are plain links, multi-module apps get a heading', () => {
+    const entries = sidebarEntries(buildApps('farm', usableFor('farm')))
+    const heading = (label: string) => entries.findIndex((e) => e.kind === 'heading' && e.label === label)
+    const link = (code: string) => entries.findIndex((e) => e.kind === 'link' && e.module.code === code)
+    expect(entries.some((e) => e.kind === 'heading' && e.label === 'Dashboard')).toBe(false)
+    expect(entries[0]).toMatchObject({ kind: 'link', module: { code: 'dashboard' } })
+    expect(heading('Farm operations')).toBeLessThan(link('farm-overview'))
+    expect(link('farm-overview')).toBeLessThan(link('farm-expenses'))
+    expect(heading('Purchase')).toBeGreaterThan(-1)
+    expect(link('purchases')).toBe(heading('Purchase') + 1)
+    expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'settings' } })
   })
 
   it('offers industry workflows in the Record menu only when their module is usable', () => {
@@ -143,7 +166,7 @@ describe('the contract rejects invalid industry definitions', () => {
 describe('adding an industry needs no change to core code', () => {
   it('a new industry defined in one folder validates, registers and produces routes and navigation', () => {
     const salon = defineIndustry({
-      id: 'salon' as IndustryCode, name: 'Salon', description: 'Test industry', version: 1, status: 'active',
+      id: 'salon' as IndustryCode, name: 'Salon', description: 'Test industry', category: 'Services', icon: BookOpen, version: 1, status: 'active',
       modules: [{ code: 'salon-appointments', name: 'Appointments', description: 'Bookings', path: 'salon/appointments', permission: 'salon.read', icon: BookOpen, navGroup: 'Salon', owner: 'salon' as IndustryCode }],
       requiredSharedModules: ['sales'], optionalSharedModules: ['customers'],
       defaultModules: ['salon-appointments', 'sales'], optionalModules: ['customers'], requiredModules: ['salon-appointments'],

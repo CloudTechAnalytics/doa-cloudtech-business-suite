@@ -30,10 +30,10 @@ export function DataTable<T>({ columns, rows, rowKey, loading, total, page, page
   return (
     <Card className="overflow-x-auto p-0">
       <table className="w-full text-sm">
-        <thead className="bg-surface text-left text-xs uppercase text-navy/60">
+        <thead className="bg-surface text-left text-xs font-semibold text-ink/70">
           <tr>{columns.map((c) => <th key={c.key} scope="col" className={clsx('p-3', c.align === 'right' && 'text-right')}>{c.header}</th>)}</tr>
         </thead>
-        <tbody className="divide-y divide-navy/10">
+        <tbody className="divide-y divide-ink/10">
           {rows.map((r) => (
             <tr key={rowKey(r)} className={clsx(onRowClick && 'cursor-pointer hover:bg-surface')} onClick={() => onRowClick?.(r)}>
               {columns.map((c) => <td key={c.key} className={clsx('p-3', c.align === 'right' && 'text-right tabular')}>{c.render(r)}</td>)}
@@ -41,7 +41,7 @@ export function DataTable<T>({ columns, rows, rowKey, loading, total, page, page
           ))}
         </tbody>
       </table>
-      <div className="flex items-center justify-between border-t border-navy/10 p-3 text-xs text-navy/70">
+      <div className="flex items-center justify-between border-t border-ink/10 p-3 text-xs text-ink/70">
         <span>{total} record{total === 1 ? '' : 's'} · page {page + 1} of {pages}</span>
         <span className="flex gap-1">
           <Button variant="secondary" disabled={page === 0} onClick={() => onPage(page - 1)} aria-label="Previous page"><ChevronLeft className="size-4" /></Button>

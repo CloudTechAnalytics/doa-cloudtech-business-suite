@@ -40,8 +40,8 @@ export function SuppliersPage() {
       )}
       {suppliers.loading ? <Spinner /> : !suppliers.data?.length ? <EmptyState title="No suppliers yet" description="Add a supplier before creating a purchase order." /> : (
         <Card className="p-0">
-          <ul className="divide-y divide-navy/10 text-sm">
-            {suppliers.data.map((s) => <li key={s.id} className="p-3"><b>{s.name}</b><div className="text-xs text-navy/60">{s.phone ?? 'No phone'}</div></li>)}
+          <ul className="divide-y divide-ink/10 text-sm">
+            {suppliers.data.map((s) => <li key={s.id} className="p-3"><b>{s.name}</b><div className="text-xs text-ink/60">{s.phone ?? 'No phone'}</div></li>)}
           </ul>
         </Card>
       )}

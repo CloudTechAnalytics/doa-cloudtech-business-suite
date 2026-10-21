@@ -63,11 +63,11 @@ export function InventoryPage() {
     <>
       <PageHeader title="Inventory" description="Products, stock levels and the full movement history. Stock is derived from an append-only ledger." />
       {error && <ErrorState message={error} />}
-      <div role="tablist" aria-label="Inventory sections" className="mb-4 flex flex-wrap gap-1 border-b border-navy/10">
+      <div role="tablist" aria-label="Inventory sections" className="mb-4 flex flex-wrap gap-1 border-b border-ink/10">
         {TABS.map((t) => (
           <button
             key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-gold text-navy' : 'border-transparent text-navy/60 hover:text-navy')}
+            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-brand text-ink' : 'border-transparent text-ink/60 hover:text-ink')}
           >{t}</button>
         ))}
       </div>
@@ -134,13 +134,13 @@ function StockTab({ data }: { data: InventoryData }) {
       ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-left text-xs uppercase text-navy/60">
+            <thead className="bg-surface text-left text-xs font-semibold text-ink/70">
               <tr><th className="p-3">Product</th><th className="p-3 text-right">On hand</th><th className="p-3 text-right">Avg cost</th><th className="p-3 text-right">Value</th><th className="p-3">Status</th></tr>
             </thead>
-            <tbody className="divide-y divide-navy/10">
+            <tbody className="divide-y divide-ink/10">
               {rows.map(({ p, qty, avg, value, st }) => (
                 <tr key={p.id}>
-                  <td className="p-3"><b>{p.name}</b><div className="text-xs text-navy/60">{p.sku ?? 'No SKU'}</div></td>
+                  <td className="p-3"><b>{p.name}</b><div className="text-xs text-ink/60">{p.sku ?? 'No SKU'}</div></td>
                   <td className="p-3 text-right tabular-nums">{fmt(qty)} {p.unit}</td>
                   <td className="p-3 text-right tabular-nums">{naira(avg)}</td>
                   <td className="p-3 text-right tabular-nums">{naira(value)}</td>
@@ -149,7 +149,7 @@ function StockTab({ data }: { data: InventoryData }) {
               ))}
             </tbody>
           </table>
-          <p className="border-t border-navy/10 p-3 text-right text-xs text-navy/60">Inventory value (weighted-average cost): <b>{naira(total)}</b></p>
+          <p className="border-t border-ink/10 p-3 text-right text-xs text-ink/60">Inventory value (weighted-average cost): <b>{naira(total)}</b></p>
         </Card>
       )}
     </>
@@ -206,11 +206,11 @@ function ProductsTab({ data, businessId, canWrite, onChanged }: { data: Inventor
       {data.products.length === 0 ? <EmptyState title="No products yet" description="Products you add appear here." /> : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-left text-xs uppercase text-navy/60"><tr><th className="p-3">Product</th><th className="p-3">Barcode</th><th className="p-3 text-right">Price</th><th className="p-3 text-right">Reorder at</th><th className="p-3" /></tr></thead>
-            <tbody className="divide-y divide-navy/10">
+            <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Product</th><th className="p-3">Barcode</th><th className="p-3 text-right">Price</th><th className="p-3 text-right">Reorder at</th><th className="p-3" /></tr></thead>
+            <tbody className="divide-y divide-ink/10">
               {data.products.map((p) => (
                 <tr key={p.id} className={p.status === 'archived' ? 'opacity-50' : ''}>
-                  <td className="p-3"><b>{p.name}</b><div className="text-xs text-navy/60">{p.sku ?? 'No SKU'} · {p.unit}</div></td>
+                  <td className="p-3"><b>{p.name}</b><div className="text-xs text-ink/60">{p.sku ?? 'No SKU'} · {p.unit}</div></td>
                   <td className="p-3">{p.barcode ?? '–'}</td>
                   <td className="p-3 text-right tabular-nums">{naira(p.sellingPrice)}</td>
                   <td className="p-3 text-right tabular-nums">{p.reorderLevel ?? '–'}</td>
@@ -260,16 +260,16 @@ function MovementsTab({ data, businessId, canWrite, onChanged }: { data: Invento
       {rows.length === 0 ? <EmptyState title="No movements" description="Receipts, sales, transfers and adjustments are listed here." /> : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-left text-xs uppercase text-navy/60"><tr><th className="p-3">When</th><th className="p-3">Product</th><th className="p-3">Type</th><th className="p-3 text-right">Qty</th><th className="p-3 text-right">Unit cost</th><th className="p-3">Note</th><th className="p-3" /></tr></thead>
-            <tbody className="divide-y divide-navy/10">
+            <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">When</th><th className="p-3">Product</th><th className="p-3">Type</th><th className="p-3 text-right">Qty</th><th className="p-3 text-right">Unit cost</th><th className="p-3">Note</th><th className="p-3" /></tr></thead>
+            <tbody className="divide-y divide-ink/10">
               {rows.map((m) => (
                 <tr key={m.id}>
                   <td className="p-3 whitespace-nowrap">{new Date(m.at).toLocaleString()}</td>
-                  <td className="p-3">{name(m.productId)}<div className="text-xs text-navy/60">{loc(m.locationId)}</div></td>
-                  <td className="p-3">{TYPE_LABEL[m.type] ?? m.type}{m.reversed && <span className="ml-1 text-xs text-navy/50">(reversed)</span>}</td>
+                  <td className="p-3">{name(m.productId)}<div className="text-xs text-ink/60">{loc(m.locationId)}</div></td>
+                  <td className="p-3">{TYPE_LABEL[m.type] ?? m.type}{m.reversed && <span className="ml-1 text-xs text-ink/50">(reversed)</span>}</td>
                   <td className={clsx('p-3 text-right tabular-nums', m.delta < 0 ? 'text-danger' : 'text-success')}>{m.delta > 0 ? '+' : ''}{fmt(m.delta)}</td>
                   <td className="p-3 text-right tabular-nums">{naira(m.unitCost)}</td>
-                  <td className="p-3 text-navy/70">{m.reason ?? ''}</td>
+                  <td className="p-3 text-ink/70">{m.reason ?? ''}</td>
                   <td className="p-3 text-right">
                     {canWrite && !m.reversed && !['reversal', 'transfer_in', 'transfer_out'].includes(m.type) && (
                       <Button variant="ghost" onClick={() => void undo(m)}>Reverse</Button>

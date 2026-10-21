@@ -15,7 +15,7 @@ export function SetupFields({ questions, answers, errors, onChange }: {
           return (
             <label key={q.id} className="flex items-start gap-2 text-sm sm:col-span-2">
               <input type="checkbox" className="mt-1" checked={answers[q.id] === true} onChange={(e) => onChange(q.id, e.target.checked)} />
-              <span>{q.label}{q.help && <span className="block text-xs text-navy/60">{q.help}</span>}{errors[q.id] && <span className="block text-xs text-danger">{errors[q.id]}</span>}</span>
+              <span>{q.label}{q.help && <span className="block text-xs text-ink/60">{q.help}</span>}{errors[q.id] && <span className="block text-xs text-danger">{errors[q.id]}</span>}</span>
             </label>
           )
         }

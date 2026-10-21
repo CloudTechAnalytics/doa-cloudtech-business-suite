@@ -57,8 +57,8 @@ export function FarmHarvestsPage() {
               {data.harvests.length === 0 ? <EmptyState title="No harvests recorded yet" /> : (
                 <Card className="overflow-x-auto p-0">
                   <table className="w-full text-sm">
-                    <thead className="bg-surface text-left text-xs uppercase text-navy/60"><tr><th className="p-3">Date</th><th className="p-3">Batch</th><th className="p-3">Produce</th><th className="p-3 text-right">Quantity</th><th className="p-3 text-right">Animals</th><th className="p-3" /></tr></thead>
-                    <tbody className="divide-y divide-navy/10">
+                    <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Date</th><th className="p-3">Batch</th><th className="p-3">Produce</th><th className="p-3 text-right">Quantity</th><th className="p-3 text-right">Animals</th><th className="p-3" /></tr></thead>
+                    <tbody className="divide-y divide-ink/10">
                       {data.harvests.slice(0, 50).map((h) => (
                         <tr key={h.id} className={h.status === 'voided' ? 'opacity-50' : ''}>
                           <td className="p-3 whitespace-nowrap">{dateTime(h.date)}</td><td className="p-3">{farm.batchCode(h.batchId)}</td><td className="p-3">{farm.productName(h.productId)}</td>

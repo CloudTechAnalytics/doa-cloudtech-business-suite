@@ -47,10 +47,10 @@ function DemoStaffPage() {
           </form>
         </Card>
       ) : (
-        <p className="mb-4 text-sm text-navy/70">Your role ({demoRoleIn(active.id)}) can view staff but not manage it.</p>
+        <p className="mb-4 text-sm text-ink/70">Your role ({demoRoleIn(active.id)}) can view staff but not manage it.</p>
       )}
       <Card>
-        <ul className="divide-y divide-navy/10">
+        <ul className="divide-y divide-ink/10">
           {members.map((m) => (
             <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
               <span><b>{m.name}</b> · {m.role.replace('_', ' ')} · {m.status}</span>
@@ -125,7 +125,7 @@ function LiveStaffPage() {
       </Card>
       {loading ? <Spinner /> : (
         <Card>
-          <ul className="divide-y divide-navy/10">
+          <ul className="divide-y divide-ink/10">
             {members.map((m) => (
               <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <span><b>{m.profiles?.display_name || 'Unnamed'}</b> · {m.roles?.name} · {m.status}</span>
@@ -140,7 +140,7 @@ function LiveStaffPage() {
               </li>
             ))}
             {invites.map((i) => (
-              <li key={i.id} className="py-3 text-sm text-navy/70">{i.email} · {i.roles?.name} · invitation pending</li>
+              <li key={i.id} className="py-3 text-sm text-ink/70">{i.email} · {i.roles?.name} · invitation pending</li>
             ))}
           </ul>
         </Card>

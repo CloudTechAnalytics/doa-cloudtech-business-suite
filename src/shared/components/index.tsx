@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { AlertTriangle, Inbox, Loader2 } from 'lucide-react'
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 import { useId } from 'react'
+import { useCrumb } from './breadcrumb'
 
 type Variant = 'primary' | 'secondary' | 'ghost'
 
@@ -18,10 +19,10 @@ export function Button({
       {...rest}
       disabled={disabled || loading}
       className={clsx(
-        'inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-        variant === 'primary' && 'bg-gold text-navy hover:bg-gold-dark hover:text-white',
-        variant === 'secondary' && 'border border-navy/20 bg-white text-navy hover:bg-surface',
-        variant === 'ghost' && 'text-navy hover:bg-navy/5',
+        'inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+        variant === 'primary' && 'bg-brand text-white hover:bg-brand-dark',
+        variant === 'secondary' && 'border border-line bg-white text-ink shadow-pill hover:bg-surface',
+        variant === 'ghost' && 'text-brand-ink hover:bg-brand/10',
         className,
       )}
     >
@@ -32,27 +33,29 @@ export function Button({
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <section className={clsx('min-w-0 rounded-lg border border-navy/10 bg-white p-5 shadow-card', className)}>{children}</section>
+  return <section className={clsx('min-w-0 rounded-lg border border-line bg-white p-5 shadow-card', className)}>{children}</section>
 }
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+  const crumb = useCrumb()
   return (
-    <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 className="font-brand text-[26px] font-semibold leading-tight text-navy">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-sm text-navy/70">{description}</p>}
+    <header className="mb-5 flex flex-wrap items-start justify-between gap-3 rounded-lg border border-line bg-white px-4 py-3 shadow-card">
+      <div className="min-w-0">
+        {crumb && crumb !== title && <p className="mb-0.5 text-xs text-ink/50">{crumb}</p>}
+        <h1 className="text-xl font-semibold leading-tight text-ink">{title}</h1>
+        {description && <p className="mt-1 max-w-2xl text-sm text-ink/65">{description}</p>}
       </div>
-      {actions}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
   )
 }
 
 export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-lg border border-dashed border-navy/20 bg-white px-6 py-12 text-center">
-      <Inbox className="mb-3 size-8 text-gold" aria-hidden />
-      <h2 className="text-base font-semibold text-navy">{title}</h2>
-      {description && <p className="mt-1 max-w-md text-sm text-navy/70">{description}</p>}
+    <div className="flex flex-col items-center rounded-lg border border-dashed border-ink/20 bg-white px-6 py-12 text-center">
+      <Inbox className="mb-3 size-8 text-brand" aria-hidden />
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
+      {description && <p className="mt-1 max-w-md text-sm text-ink/70">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
@@ -60,7 +63,7 @@ export function EmptyState({ title, description, action }: { title: string; desc
 
 export function ErrorState({ title = 'Something went wrong', message }: { title?: string; message: string }) {
   return (
-    <div role="alert" className="flex gap-3 rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
+    <div role="alert" className="flex gap-3 rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
       <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
       <div>
         <p className="font-semibold">{title}</p>
@@ -71,26 +74,26 @@ export function ErrorState({ title = 'Something went wrong', message }: { title?
 }
 
 export function Notice({ children }: { children: ReactNode }) {
-  return <div role="status" className="rounded-lg border border-gold/50 bg-gold/10 p-3 text-sm text-navy">{children}</div>
+  return <div role="status" className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-sm text-ink">{children}</div>
 }
 
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center justify-center gap-2 py-12 text-sm text-navy/70">
+    <div role="status" className="flex items-center justify-center gap-2 py-12 text-sm text-ink/70">
       <Loader2 className="size-5 animate-spin" aria-hidden /> {label}…
     </div>
   )
 }
 
 const fieldClass =
-  'min-h-10 w-full rounded-lg border border-navy/20 bg-white px-3 text-sm text-navy placeholder:text-navy/40 aria-[invalid=true]:border-danger'
+  'min-h-9 w-full rounded-md border border-ink/20 bg-white px-3 text-sm text-ink placeholder:text-ink/40 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand aria-[invalid=true]:border-danger'
 
 function Field({ label, error, hint, children, id }: { label: string; error?: string; hint?: string; children: ReactNode; id: string }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-navy">{label}</label>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink">{label}</label>
       {children}
-      {hint && !error && <p className="mt-1 text-xs text-navy/60">{hint}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-ink/60">{hint}</p>}
       {error && <p id={`${id}-err`} className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   )
@@ -122,16 +125,16 @@ export function SelectField({
   )
 }
 
-type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'gold'
+type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand'
 const TONES: Record<BadgeTone, string> = {
-  neutral: 'bg-navy/5 text-navy/70',
+  neutral: 'bg-ink/5 text-ink/70',
   success: 'bg-success-soft text-success',
   warning: 'bg-warning-soft text-warning',
   danger: 'bg-danger-soft text-danger',
   info: 'bg-info-soft text-info',
-  gold: 'bg-gold/15 text-gold-ink',
+  brand: 'bg-brand/15 text-brand-ink',
 }
 
 export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; children: ReactNode }) {
-  return <span className={clsx('inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium', TONES[tone])}>{children}</span>
+  return <span className={clsx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium', TONES[tone])}>{children}</span>
 }

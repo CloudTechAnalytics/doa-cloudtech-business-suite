@@ -14,18 +14,18 @@ export function ReceiptDialog({ businessId, saleId, onClose }: { businessId: str
       {error && <ErrorState message={error} />}
       {data && (
         <>
-          <div className="receipt-print mx-auto max-w-xs rounded-md border border-dashed border-navy/20 p-4 text-sm">
-            <p className="text-center font-brand text-lg font-semibold">{data.business.name}</p>
-            <p className="text-center text-xs text-navy/60">{data.sale.sale_number} · {dateTime(data.sale.sold_at)}</p>
+          <div className="receipt-print mx-auto max-w-xs rounded-md border border-dashed border-ink/20 p-4 text-sm">
+            <p className="text-center text-lg font-semibold">{data.business.name}</p>
+            <p className="text-center text-xs text-ink/60">{data.sale.sale_number} · {dateTime(data.sale.sold_at)}</p>
             {data.customer && <p className="text-center text-xs">Customer: {data.customer.name}</p>}
-            <hr className="my-2 border-navy/20" />
+            <hr className="my-2 border-ink/20" />
             {data.items.map((i, idx) => (
               <div key={idx} className="mb-1">
                 <div className="flex justify-between gap-2"><span>{i.description}</span><span className="tabular">{naira(i.total)}</span></div>
-                <div className="text-xs text-navy/60">{qty(i.quantity)} × {naira(i.unit_price)}{i.discount > 0 ? ` (−${naira(i.discount)})` : ''}{i.tax > 0 ? ` +tax ${naira(i.tax)}` : ''}</div>
+                <div className="text-xs text-ink/60">{qty(i.quantity)} × {naira(i.unit_price)}{i.discount > 0 ? ` (−${naira(i.discount)})` : ''}{i.tax > 0 ? ` +tax ${naira(i.tax)}` : ''}</div>
               </div>
             ))}
-            <hr className="my-2 border-navy/20" />
+            <hr className="my-2 border-ink/20" />
             <Row k="Subtotal" v={data.sale.subtotal} />
             {data.sale.discount_total > 0 && <Row k="Discount" v={-data.sale.discount_total} />}
             {data.sale.tax_total > 0 && <Row k="Tax" v={data.sale.tax_total} />}
@@ -34,7 +34,7 @@ export function ReceiptDialog({ businessId, saleId, onClose }: { businessId: str
               <Row key={i} k={`${p.type === 'refund' ? 'Refund' : 'Paid'} (${label(p.method)})`} v={p.type === 'refund' ? -p.amount : p.amount} />
             ))}
             {data.sale.balance_due > 0 && <Row k="Balance due" v={data.sale.balance_due} strong />}
-            <p className="mt-3 text-center text-xs text-navy/60">Thank you for your business.</p>
+            <p className="mt-3 text-center text-xs text-ink/60">Thank you for your business.</p>
           </div>
           <div className="no-print mt-4 flex justify-end">
             <Button onClick={() => window.print()}><Printer className="size-4" /> Print</Button>

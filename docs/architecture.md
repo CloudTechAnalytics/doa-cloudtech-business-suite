@@ -19,6 +19,8 @@ supabase/migrations/   the whole backend: schema, RLS, business rules (SQL funct
 tests/                 integration/ (workflows, registry), security/ (isolation, audit), helpers/
 ```
 
+Navigation is Odoo-style: `app/navigation/navigation.ts` turns the usable modules into **apps** (Dashboard, the industry's app, Sales, CRM, Inventory, Purchase, Finance, Staff, Settings). The home screen shows one tile per app; inside an app, a collapsible left sidebar (`app/layouts/Sidebar.tsx`, driven by `sidebarEntries()`) lists every usable module grouped by app, and is a drawer on narrow screens.
+
 Dependency direction: `app → core → shared`, `modules → core, shared`, `industries → core (contract only), shared`. Shared modules never import an industry; an industry never imports another industry or reaches into a shared module's internals. `core/industry-registry` is the only place that imports industries.
 
 ## Four separate ideas

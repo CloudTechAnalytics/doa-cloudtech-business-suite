@@ -40,11 +40,11 @@ export function PurchasesPage() {
       ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-left text-xs uppercase text-navy/60"><tr><th className="p-3">Order</th><th className="p-3">Supplier</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Paid</th><th className="p-3">Status</th></tr></thead>
-            <tbody className="divide-y divide-navy/10">
+            <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Order</th><th className="p-3">Supplier</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Paid</th><th className="p-3">Status</th></tr></thead>
+            <tbody className="divide-y divide-ink/10">
               {purchases.data.map((p) => (
                 <tr key={p.id} className="cursor-pointer hover:bg-surface" onClick={() => setOpen(p.id)}>
-                  <td className="p-3"><b>{p.number}</b><div className="text-xs text-navy/60">{dateTime(p.at)}</div></td>
+                  <td className="p-3"><b>{p.number}</b><div className="text-xs text-ink/60">{dateTime(p.at)}</div></td>
                   <td className="p-3">{supplier(p.supplierId)}</td>
                   <td className="p-3 text-right tabular">{naira(p.total)}</td>
                   <td className="p-3 text-right tabular">{naira(p.amountPaid)}</td>
@@ -104,7 +104,7 @@ function NewPurchase({ businessId, suppliers, catalog, onClose, onDone }: { busi
             </SelectField>
             <TextField label={i === 0 ? 'Quantity' : ' '} type="number" step="any" min="0" value={l.quantity} onChange={(e) => set(i, { quantity: e.target.value })} />
             <TextField label={i === 0 ? 'Unit cost (₦)' : ' '} type="number" step="0.01" min="0" value={l.unitCost} onChange={(e) => set(i, { unitCost: e.target.value })} />
-            <button type="button" aria-label="Remove line" disabled={lines.length === 1} onClick={() => setLines((x) => x.filter((_, j) => j !== i))} className="mb-2 p-2 text-navy/50 hover:text-danger disabled:opacity-30"><X className="size-4" /></button>
+            <button type="button" aria-label="Remove line" disabled={lines.length === 1} onClick={() => setLines((x) => x.filter((_, j) => j !== i))} className="mb-2 p-2 text-ink/50 hover:text-danger disabled:opacity-30"><X className="size-4" /></button>
           </div>
         ))}
         <Button type="button" variant="ghost" onClick={() => setLines((l) => [...l, { productId: '', quantity: '', unitCost: '' }])}><Plus className="size-4" /> Add line</Button>
@@ -141,21 +141,21 @@ function PurchaseDialog({ businessId, id, supplierName, catalog, can, onClose, o
       {error && <ErrorState message={error} />}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <Badge tone={STATUS_TONE[p.status]}>{label(p.status)}</Badge><Badge tone={STATUS_TONE[p.paymentStatus]}>{label(p.paymentStatus)}</Badge>
-        <span className="text-navy/60">{supplierName(p.supplierId)} · {dateTime(p.at)}{p.reference ? ` · ${p.reference}` : ''}</span>
+        <span className="text-ink/60">{supplierName(p.supplierId)} · {dateTime(p.at)}{p.reference ? ` · ${p.reference}` : ''}</span>
       </div>
       <table className="mb-3 w-full text-sm">
-        <thead className="text-left text-xs uppercase text-navy/60"><tr><th className="py-1">Product</th><th className="py-1 text-right">Ordered</th><th className="py-1 text-right">Received</th><th className="py-1 text-right">Unit cost</th><th className="py-1 text-right">Total</th></tr></thead>
-        <tbody className="divide-y divide-navy/10">
+        <thead className="text-left text-xs font-semibold text-ink/70"><tr><th className="py-1">Product</th><th className="py-1 text-right">Ordered</th><th className="py-1 text-right">Received</th><th className="py-1 text-right">Unit cost</th><th className="py-1 text-right">Total</th></tr></thead>
+        <tbody className="divide-y divide-ink/10">
           {items.map((i) => <tr key={i.id}><td className="py-1.5">{name(i.productId)}</td><td className="py-1.5 text-right tabular">{qty(i.ordered)}</td><td className="py-1.5 text-right tabular">{qty(i.received)}</td><td className="py-1.5 text-right tabular">{naira(i.unitCost)}</td><td className="py-1.5 text-right tabular">{naira(i.lineTotal)}</td></tr>)}
         </tbody>
       </table>
       <dl className="mb-3 grid grid-cols-3 gap-4 text-sm">
-        <div><dt className="text-xs text-navy/60">Total</dt><dd className="tabular font-semibold">{naira(p.total)}</dd></div>
-        <div><dt className="text-xs text-navy/60">Paid</dt><dd className="tabular">{naira(p.amountPaid)}</dd></div>
-        <div><dt className="text-xs text-navy/60">Owed to supplier</dt><dd className="tabular font-semibold">{naira(p.status === 'cancelled' ? 0 : due)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Total</dt><dd className="tabular font-semibold">{naira(p.total)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Paid</dt><dd className="tabular">{naira(p.amountPaid)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Owed to supplier</dt><dd className="tabular font-semibold">{naira(p.status === 'cancelled' ? 0 : due)}</dd></div>
       </dl>
       {payments.length > 0 && (
-        <ul className="mb-3 divide-y divide-navy/10 text-sm">
+        <ul className="mb-3 divide-y divide-ink/10 text-sm">
           {payments.map((x) => (
             <li key={x.id} className="flex flex-wrap items-center gap-2 py-1.5">
               <span>{label(x.method)} · <b className="tabular">{naira(x.amount)}</b>{x.reference ? ` · ${x.reference}` : ''}</span>
@@ -167,7 +167,7 @@ function PurchaseDialog({ businessId, id, supplierName, catalog, can, onClose, o
           ))}
         </ul>
       )}
-      <div className="flex flex-wrap gap-2 border-t border-navy/10 pt-3">
+      <div className="flex flex-wrap gap-2 border-t border-ink/10 pt-3">
         {canReceive && open.length > 0 && <Button variant="secondary" onClick={() => setMode(mode === 'receive' ? null : 'receive')}>Receive goods</Button>}
         {p.status !== 'cancelled' && due > 0 && can('purchases.pay') && <Button variant="secondary" onClick={() => setMode(mode === 'pay' ? null : 'pay')}>Pay supplier</Button>}
         {p.status === 'ordered' && can('purchases.manage') && <Button variant="ghost" onClick={() => setMode(mode === 'cancel' ? null : 'cancel')}>Cancel order</Button>}

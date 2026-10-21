@@ -35,7 +35,7 @@ export function FarmMortalityPage() {
             <>
               <div className="mb-4 grid gap-3 sm:grid-cols-3">
                 {farm.activeBatches.map((b) => (
-                  <Card key={b.id}><p className="text-xs uppercase tracking-wide text-navy/60">{b.code}</p><p className="tabular mt-1 text-xl font-semibold">{mortalityRate(b).toFixed(1)}%</p><p className="text-xs text-navy/60">{b.mortality.toLocaleString()} of {b.entering.toLocaleString()} entered</p></Card>
+                  <Card key={b.id}><p className="text-xs uppercase tracking-wide text-ink/60">{b.code}</p><p className="tabular mt-1 text-xl font-semibold">{mortalityRate(b).toFixed(1)}%</p><p className="text-xs text-ink/60">{b.mortality.toLocaleString()} of {b.entering.toLocaleString()} entered</p></Card>
                 ))}
               </div>
               <ReadOnlyNotice show={!can} />
@@ -56,12 +56,12 @@ export function FarmMortalityPage() {
               )}
               {deaths.length === 0 ? <EmptyState title="No mortality recorded" /> : (
                 <Card className="p-0">
-                  <ul className="divide-y divide-navy/10 text-sm">
+                  <ul className="divide-y divide-ink/10 text-sm">
                     {deaths.slice(0, 50).map((e) => (
                       <li key={e.id} className="flex flex-wrap items-center gap-2 p-3">
-                        <b>{farm.batchCode(e.batchId)}</b><span className="tabular text-danger">{e.quantity}</span><span className="text-navy/70">{e.reason}</span>
+                        <b>{farm.batchCode(e.batchId)}</b><span className="tabular text-danger">{e.quantity}</span><span className="text-ink/70">{e.reason}</span>
                         {e.reversed && <Badge tone="warning">Corrected</Badge>}
-                        <span className="ml-auto text-xs text-navy/50">{dateTime(e.on)}</span>
+                        <span className="ml-auto text-xs text-ink/50">{dateTime(e.on)}</span>
                         {farm.can('farm.manage') && !e.reversed && (
                           <Button variant="ghost" onClick={async () => { const why = window.prompt('Reason for correcting this entry?'); if (why) await runner.run((k) => reverseEvent(farm.businessId, e.id, why, k), 'Correction posted.') }}>Correct</Button>
                         )}

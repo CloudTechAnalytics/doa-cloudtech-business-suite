@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
-export interface MenuItem { label: string; to?: string; onSelect?: () => void; icon?: ReactNode }
+export interface MenuItem { label: string; to?: string; onSelect?: () => void; icon?: ReactNode; /** A non-interactive label row. */ heading?: boolean; /** Draws a divider above the item. */ divider?: boolean }
 
 /** Small popover menu: closes on outside click, Escape and selection. */
 export function Menu({ trigger, items, align = 'end', side = 'bottom', label }: {
@@ -24,17 +24,19 @@ export function Menu({ trigger, items, align = 'end', side = 'bottom', label }: 
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
   }, [open])
 
-  const cls = 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-navy hover:bg-surface'
+  const cls = 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-surface'
   return (
     <div ref={ref} className="relative">
       {trigger({ open, toggle: () => setOpen((o) => !o) })}
       {open && (
         <div
           role="menu" aria-label={label}
-          className={`absolute z-50 min-w-48 rounded-lg border border-navy/10 bg-white p-1 shadow-raised ${align === 'end' ? 'right-0' : 'left-0'} ${side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+          className={`absolute z-50 min-w-48 rounded-lg border border-line bg-white p-1 text-ink shadow-raised ${align === 'end' ? 'right-0' : 'left-0'} ${side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}`}
         >
           {items.map((it) =>
-            it.to ? (
+            it.heading ? (
+              <div key={it.label} className="truncate px-3 py-2 text-xs text-ink/60">{it.label}</div>
+            ) : it.to ? (
               <Link key={it.label} role="menuitem" to={it.to} className={cls} onClick={() => setOpen(false)}>{it.icon}{it.label}</Link>
             ) : (
               <button key={it.label} role="menuitem" className={cls} onClick={() => { setOpen(false); it.onSelect?.() }}>{it.icon}{it.label}</button>

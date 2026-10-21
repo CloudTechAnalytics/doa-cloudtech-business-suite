@@ -1,3 +1,4 @@
+import { Pill } from 'lucide-react'
 import { defineIndustry } from '@/core/industry-registry/define'
 
 /**
@@ -10,6 +11,8 @@ export const pharmacy = defineIndustry({
   id: 'pharmacy',
   name: 'Pharmacy',
   description: 'Planned for a later release after workflow and compliance review.',
+  category: 'Shops & trade',
+  icon: Pill,
   version: 1,
   status: 'coming_soon',
   modules: [],

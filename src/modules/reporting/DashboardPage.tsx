@@ -16,7 +16,7 @@ export function DashboardPage() {
         <div className="space-y-6">
           {widgets.map((w) => (
             <section key={w.id} aria-label={w.title}>
-              <h2 className="mb-2 text-sm font-semibold text-navy/80">{w.title}</h2>
+              <h2 className="mb-2 text-sm font-semibold text-ink/80">{w.title}</h2>
               <Card className="border-0 p-0 shadow-none"><w.component /></Card>
             </section>
           ))}

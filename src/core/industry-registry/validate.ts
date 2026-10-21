@@ -22,6 +22,7 @@ export function findIndustryProblems(d: IndustryDefinition): string[] {
 
   if (!KEBAB.test(d.id)) p.push('id must be lowercase kebab-case')
   if (!d.name.trim()) p.push('name is required')
+  if (!d.category.trim()) p.push('category is required')
   if (!Number.isInteger(d.version) || d.version < 1) p.push('version must be a positive integer')
 
   for (const m of d.modules) {

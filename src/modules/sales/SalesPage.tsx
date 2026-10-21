@@ -34,10 +34,10 @@ export function SalesPage() {
   return (
     <>
       <PageHeader title="Sales" description="Ring up sales, take payments, issue receipts and handle returns. Totals are confirmed by the server." />
-      <div role="tablist" aria-label="Sales sections" className="mb-4 flex gap-1 border-b border-navy/10">
+      <div role="tablist" aria-label="Sales sections" className="mb-4 flex gap-1 border-b border-ink/10">
         {TABS.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-gold text-navy' : 'border-transparent text-navy/60 hover:text-navy')}>{t}</button>
+            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-brand text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>
         ))}
       </div>
       {catalog.error && <ErrorState message={catalog.error} />}
@@ -116,7 +116,7 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
       <div>
         <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_200px]">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-9 size-4 text-navy/40" aria-hidden />
+            <Search className="pointer-events-none absolute left-3 top-9 size-4 text-ink/40" aria-hidden />
             <TextField label="Find a product" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, SKU or barcode" className="pl-9" />
           </div>
           {catalog.locations.length > 1 && (
@@ -132,7 +132,7 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
               const out = have <= 0
               return (
                 <button key={p.id} type="button" disabled={out} onClick={() => add(p.id)}
-                  className="rounded-lg border border-navy/10 bg-white p-3 text-left shadow-card transition-colors hover:border-gold disabled:cursor-not-allowed disabled:opacity-50">
+                  className="rounded-lg border border-ink/10 bg-white p-3 text-left shadow-card transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">
                   <span className="block text-sm font-medium leading-snug">{p.name}</span>
                   <span className="mt-1 block text-sm tabular">{naira(p.sellingPrice)}</span>
                   <span className="mt-1 block"><Badge tone={out ? 'danger' : p.reorderLevel !== null && have <= p.reorderLevel ? 'warning' : 'success'}>{out ? 'Out of stock' : `${qty(have)} ${p.unit}`}</Badge></span>
@@ -143,10 +143,10 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
         )}
       </div>
 
-      <form onSubmit={submit} noValidate className="h-fit space-y-3 rounded-lg border border-navy/10 bg-white p-4 shadow-card lg:sticky lg:top-20">
+      <form onSubmit={submit} noValidate className="h-fit space-y-3 rounded-lg border border-ink/10 bg-white p-4 shadow-card lg:sticky lg:top-20">
         <h2 className="text-sm font-semibold">Current sale</h2>
-        {cart.length === 0 ? <p className="py-6 text-center text-sm text-navy/60">Tap a product to add it.</p> : (
-          <ul className="divide-y divide-navy/10">
+        {cart.length === 0 ? <p className="py-6 text-center text-sm text-ink/60">Tap a product to add it.</p> : (
+          <ul className="divide-y divide-ink/10">
             {cart.map((l, i) => {
               const p = byId(l.productId)
               const line = priced.ok?.lines[i]
@@ -154,17 +154,17 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
                 <li key={l.productId} className="py-2 text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-medium">{p.name}</span>
-                    <button type="button" onClick={() => remove(l.productId)} aria-label={`Remove ${p.name}`} className="text-navy/50 hover:text-danger"><X className="size-4" /></button>
+                    <button type="button" onClick={() => remove(l.productId)} aria-label={`Remove ${p.name}`} className="text-ink/50 hover:text-danger"><X className="size-4" /></button>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
-                    <button type="button" aria-label="Decrease" onClick={() => l.quantity > 1 && setLine(l.productId, { quantity: l.quantity - 1 })} className="rounded border border-navy/20 p-1"><Minus className="size-3.5" /></button>
-                    <input aria-label={`Quantity of ${p.name}`} type="number" min="0" step="any" value={l.quantity} onChange={(e) => setLine(l.productId, { quantity: Number(e.target.value) })} className="w-16 rounded border border-navy/20 px-2 py-1 text-center tabular" />
-                    <button type="button" aria-label="Increase" onClick={() => setLine(l.productId, { quantity: l.quantity + 1 })} className="rounded border border-navy/20 p-1"><Plus className="size-3.5" /></button>
+                    <button type="button" aria-label="Decrease" onClick={() => l.quantity > 1 && setLine(l.productId, { quantity: l.quantity - 1 })} className="rounded border border-ink/20 p-1"><Minus className="size-3.5" /></button>
+                    <input aria-label={`Quantity of ${p.name}`} type="number" min="0" step="any" value={l.quantity} onChange={(e) => setLine(l.productId, { quantity: Number(e.target.value) })} className="w-16 rounded border border-ink/20 px-2 py-1 text-center tabular" />
+                    <button type="button" aria-label="Increase" onClick={() => setLine(l.productId, { quantity: l.quantity + 1 })} className="rounded border border-ink/20 p-1"><Plus className="size-3.5" /></button>
                     <span className="ml-auto tabular">{naira(line?.total ?? 0)}</span>
                   </div>
                   {canDiscount && (
-                    <label className="mt-1 flex items-center gap-2 text-xs text-navy/70">Discount ₦
-                      <input type="number" min="0" step="0.01" value={l.discount || ''} onChange={(e) => setLine(l.productId, { discount: Number(e.target.value) || 0 })} className="w-24 rounded border border-navy/20 px-2 py-1 tabular" />
+                    <label className="mt-1 flex items-center gap-2 text-xs text-ink/70">Discount ₦
+                      <input type="number" min="0" step="0.01" value={l.discount || ''} onChange={(e) => setLine(l.productId, { discount: Number(e.target.value) || 0 })} className="w-24 rounded border border-ink/20 px-2 py-1 tabular" />
                     </label>
                   )}
                 </li>
@@ -176,7 +176,7 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
           <option value="">Walk-in customer</option>
           {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </SelectField>
-        <dl className="space-y-1 border-t border-navy/10 pt-3 text-sm">
+        <dl className="space-y-1 border-t border-ink/10 pt-3 text-sm">
           <div className="flex justify-between"><dt>Subtotal</dt><dd className="tabular">{naira(priced.ok?.subtotal ?? 0)}</dd></div>
           {(priced.ok?.discountTotal ?? 0) > 0 && <div className="flex justify-between"><dt>Discount</dt><dd className="tabular">−{naira(priced.ok!.discountTotal)}</dd></div>}
           {(priced.ok?.taxTotal ?? 0) > 0 && <div className="flex justify-between"><dt>Tax</dt><dd className="tabular">{naira(priced.ok!.taxTotal)}</dd></div>}
@@ -190,7 +190,7 @@ function Pos({ businessId, catalog, customers, canDiscount, canCreate, onSold }:
         </div>
         {error && <ErrorState title="Sale not posted" message={error} />}
         <Button type="submit" loading={busy} className="w-full" disabled={!cart.length}>Complete sale · {naira(total)}</Button>
-        <p className="text-center text-xs text-navy/50">Preview only. The server recalculates prices, totals and stock.</p>
+        <p className="text-center text-xs text-ink/50">Preview only. The server recalculates prices, totals and stock.</p>
       </form>
     </div>
   )
@@ -212,11 +212,11 @@ function History({ businessId, sales, loading, error, customers, can, onChanged,
     <>
       <Card className="overflow-x-auto p-0">
         <table className="w-full text-sm">
-          <thead className="bg-surface text-left text-xs uppercase text-navy/60"><tr><th className="p-3">Sale</th><th className="p-3">Customer</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Balance</th><th className="p-3">Status</th></tr></thead>
-          <tbody className="divide-y divide-navy/10">
+          <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Sale</th><th className="p-3">Customer</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Balance</th><th className="p-3">Status</th></tr></thead>
+          <tbody className="divide-y divide-ink/10">
             {sales.map((s) => (
               <tr key={s.id} className="cursor-pointer hover:bg-surface" onClick={() => setOpen(s.id)}>
-                <td className="p-3"><b>{s.number}</b><div className="text-xs text-navy/60">{dateTime(s.soldAt)}</div></td>
+                <td className="p-3"><b>{s.number}</b><div className="text-xs text-ink/60">{dateTime(s.soldAt)}</div></td>
                 <td className="p-3">{customer(s.customerId)}</td>
                 <td className="p-3 text-right tabular">{naira(s.grandTotal)}</td>
                 <td className="p-3 text-right tabular">{naira(s.balanceDue)}</td>
@@ -254,27 +254,27 @@ function SaleDialog({ businessId, saleId, can, onClose, onChanged, onReceipt }: 
       {error && <ErrorState message={error} />}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <Badge tone={SALE_TONE[sale.status]}>{label(sale.status)}</Badge><Badge tone={SALE_TONE[sale.paymentStatus]}>{label(sale.paymentStatus)}</Badge>
-        <span className="text-navy/60">{dateTime(sale.soldAt)}</span>
+        <span className="text-ink/60">{dateTime(sale.soldAt)}</span>
         <Button variant="secondary" className="ml-auto" onClick={() => onReceipt(sale.id)}><ReceiptIcon className="size-4" /> Receipt</Button>
       </div>
       <table className="mb-3 w-full text-sm">
-        <thead className="text-left text-xs uppercase text-navy/60"><tr><th className="py-1">Item</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Total</th></tr></thead>
-        <tbody className="divide-y divide-navy/10">
+        <thead className="text-left text-xs font-semibold text-ink/70"><tr><th className="py-1">Item</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Total</th></tr></thead>
+        <tbody className="divide-y divide-ink/10">
           {items.map((i) => (
             <tr key={i.id}><td className="py-1.5">{i.description}{i.returnedQty > 0 && <span className="ml-2 text-xs text-warning">{qty(i.returnedQty)} returned</span>}</td><td className="py-1.5 text-right tabular">{qty(i.quantity)}</td><td className="py-1.5 text-right tabular">{naira(i.total)}</td></tr>
           ))}
         </tbody>
       </table>
       <dl className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-        <div><dt className="text-xs text-navy/60">Total</dt><dd className="tabular font-semibold">{naira(sale.grandTotal)}</dd></div>
-        <div><dt className="text-xs text-navy/60">Paid</dt><dd className="tabular">{naira(sale.amountPaid)}</dd></div>
-        <div><dt className="text-xs text-navy/60">Returned</dt><dd className="tabular">{naira(sale.returnedTotal)}</dd></div>
-        <div><dt className="text-xs text-navy/60">{sale.refundDue > 0 ? 'Refund due' : 'Balance due'}</dt><dd className="tabular font-semibold">{naira(sale.refundDue > 0 ? sale.refundDue : sale.balanceDue)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Total</dt><dd className="tabular font-semibold">{naira(sale.grandTotal)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Paid</dt><dd className="tabular">{naira(sale.amountPaid)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Returned</dt><dd className="tabular">{naira(sale.returnedTotal)}</dd></div>
+        <div><dt className="text-xs text-ink/60">{sale.refundDue > 0 ? 'Refund due' : 'Balance due'}</dt><dd className="tabular font-semibold">{naira(sale.refundDue > 0 ? sale.refundDue : sale.balanceDue)}</dd></div>
       </dl>
 
       <h3 className="mb-1 text-sm font-semibold">Payments</h3>
-      {payments.length === 0 ? <p className="mb-3 text-sm text-navy/60">No payments recorded.</p> : (
-        <ul className="mb-3 divide-y divide-navy/10 text-sm">
+      {payments.length === 0 ? <p className="mb-3 text-sm text-ink/60">No payments recorded.</p> : (
+        <ul className="mb-3 divide-y divide-ink/10 text-sm">
           {payments.map((p) => (
             <li key={p.id} className="flex flex-wrap items-center gap-2 py-1.5">
               <span>{p.type === 'refund' ? 'Refund' : 'Payment'} · {label(p.method)} · <b className="tabular">{naira(p.amount)}</b></span>
@@ -291,7 +291,7 @@ function SaleDialog({ businessId, saleId, can, onClose, onChanged, onReceipt }: 
       )}
 
       {live && (
-        <div className="flex flex-wrap gap-2 border-t border-navy/10 pt-3">
+        <div className="flex flex-wrap gap-2 border-t border-ink/10 pt-3">
           {sale.balanceDue > 0 && can('sales.create') && <Button variant="secondary" onClick={() => setMode(mode === 'pay' ? null : 'pay')}>Add payment</Button>}
           {sale.status === 'posted' && can('sales.refund') && <Button variant="secondary" onClick={() => setMode(mode === 'return' ? null : 'return')}>Return items</Button>}
           {sale.status === 'posted' && can('sales.void') && <Button variant="ghost" onClick={() => setMode(mode === 'void' ? null : 'void')}>Void sale</Button>}
@@ -338,7 +338,7 @@ function ReasonForm({ label: l, cta, onSubmit }: { label: string; cta: string; o
 function ReturnForm({ detail, onSubmit }: { detail: SaleDetail; onSubmit: (lines: { saleItemId: string; quantity: number; disposition: 'restock' | 'discard' }[], reason: string, refund: { method: string; amount: number } | null) => Promise<void> }) {
   const [err, setErr] = useState<string | null>(null)
   const eligible = detail.items.filter((i) => i.quantity - i.returnedQty > 0)
-  if (!eligible.length) return <p className="mt-3 text-sm text-navy/60">Everything on this sale has already been returned.</p>
+  if (!eligible.length) return <p className="mt-3 text-sm text-ink/60">Everything on this sale has already been returned.</p>
   return (
     <form className="mt-3 space-y-3" noValidate onSubmit={async (e) => {
       e.preventDefault(); const f = new FormData(e.currentTarget)
@@ -352,7 +352,7 @@ function ReturnForm({ detail, onSubmit }: { detail: SaleDetail; onSubmit: (lines
     }}>
       {eligible.map((i) => (
         <div key={i.id} className="grid items-end gap-2 sm:grid-cols-[1fr_100px_140px]">
-          <span className="text-sm">{i.description} <span className="text-xs text-navy/60">(up to {qty(i.quantity - i.returnedQty)})</span></span>
+          <span className="text-sm">{i.description} <span className="text-xs text-ink/60">(up to {qty(i.quantity - i.returnedQty)})</span></span>
           <TextField label="Qty" name={`q-${i.id}`} type="number" step="any" min="0" max={i.quantity - i.returnedQty} />
           <SelectField label="Stock" name={`d-${i.id}`}><option value="restock">Back to stock</option><option value="discard">Discard</option></SelectField>
         </div>

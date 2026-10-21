@@ -1,9 +1,12 @@
+import { Tractor } from 'lucide-react'
 import type { ModuleCode, SharedModuleCode } from '@/shared/types/domain'
 
 export const farmConfig = {
   id: 'farm' as const,
   name: 'Farm Management',
   description: 'Poultry, fishery, crops and livestock.',
+  category: 'Farming & food',
+  icon: Tractor,
   version: 1,
   status: 'active' as const,
   requiredSharedModules: ['inventory', 'sales'] as SharedModuleCode[],

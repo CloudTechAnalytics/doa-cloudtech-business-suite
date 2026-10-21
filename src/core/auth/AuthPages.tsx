@@ -10,9 +10,9 @@ import { useAuth } from '@/core/auth/AuthProvider'
 
 function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand to-brand-dark px-4 py-10">
       <div className="w-full max-w-md">
-        <BrandLockup inverted className="mb-6 justify-center" />
+        <BrandLockup light className="mb-6 justify-center" />
         <Card>
           <h1 className="mb-4 text-xl font-bold">{title}</h1>
           {isDemoMode && (
@@ -98,8 +98,8 @@ export function SignInPage() {
   return (
     <AuthLayout title="Sign in">
       <AuthForm mode="signin" />
-      <p className="mt-4 text-center text-sm text-navy/70">
-        New here? <Link to="/sign-up" className="font-semibold text-gold-ink underline">Create an account</Link>
+      <p className="mt-4 text-center text-sm text-ink/70">
+        New here? <Link to="/sign-up" className="font-semibold text-brand-ink underline">Create an account</Link>
       </p>
     </AuthLayout>
   )
@@ -111,8 +111,8 @@ export function SignUpPage() {
   return (
     <AuthLayout title="Create your account">
       <AuthForm mode="signup" />
-      <p className="mt-4 text-center text-sm text-navy/70">
-        Already registered? <Link to="/sign-in" className="font-semibold text-gold-ink underline">Sign in</Link>
+      <p className="mt-4 text-center text-sm text-ink/70">
+        Already registered? <Link to="/sign-in" className="font-semibold text-brand-ink underline">Sign in</Link>
       </p>
     </AuthLayout>
   )

@@ -14,8 +14,8 @@ export function Dialog({ title, onClose, children, wide = false }: { title: stri
       <div className="no-print absolute inset-0 bg-black/50" onClick={onClose} />
       <div className={`relative max-h-[92dvh] w-full overflow-y-auto rounded-t-xl bg-white p-5 shadow-raised sm:rounded-xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}>
         <div className="no-print mb-4 flex items-start justify-between gap-3">
-          <h2 className="font-brand text-xl font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-navy/60 hover:bg-surface"><X className="size-5" /></button>
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-ink/60 hover:bg-surface"><X className="size-5" /></button>
         </div>
         {children}
       </div>

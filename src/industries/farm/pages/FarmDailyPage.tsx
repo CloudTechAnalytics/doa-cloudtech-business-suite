@@ -59,7 +59,7 @@ export function FarmDailyPage() {
               )}
               {entries.length === 0 ? <EmptyState title="Nothing recorded for this day" description="Mortality, feeding, harvests and notes appear here." /> : (
                 <Card className="p-0">
-                  <ul className="divide-y divide-navy/10 text-sm">
+                  <ul className="divide-y divide-ink/10 text-sm">
                     {entries.map((x) => <li key={x.id} className="flex flex-wrap items-center gap-2 p-3"><Badge tone={x.tone}>{x.kind}</Badge>{x.text}</li>)}
                   </ul>
                 </Card>

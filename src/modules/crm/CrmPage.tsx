@@ -28,10 +28,10 @@ export function CrmPage() {
   return (
     <>
       <PageHeader title="CRM" description="Track leads and customers, keep notes, schedule follow-ups and see each customer's history in one place." />
-      <div role="tablist" aria-label="CRM sections" className="mb-4 flex gap-1 border-b border-navy/10">
+      <div role="tablist" aria-label="CRM sections" className="mb-4 flex gap-1 border-b border-ink/10">
         {TABS.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-gold text-navy' : 'border-transparent text-navy/60 hover:text-navy')}>{t}</button>
+            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-brand text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>
         ))}
       </div>
       {tab === 'Customers' && <Customers businessId={businessId} can={can} />}
@@ -67,7 +67,7 @@ function Customers({ businessId, can }: { businessId: string; can: (p: string) =
         rows={list.data?.rows ?? []} total={list.data?.total ?? 0} page={page} pageSize={PAGE} onPage={setPage} loading={list.loading}
         rowKey={(r) => r.id} onRowClick={(r) => setOpen(r.id)} emptyTitle={q || category ? 'No customers match' : 'No customers yet'} emptyHint="Walk-in sales do not need a customer record."
         columns={[
-          { key: 'name', header: 'Customer', render: (r) => <><b>{r.name}</b><div className="text-xs text-navy/60">{r.phone ?? r.email ?? 'No contact'}</div></> },
+          { key: 'name', header: 'Customer', render: (r) => <><b>{r.name}</b><div className="text-xs text-ink/60">{r.phone ?? r.email ?? 'No contact'}</div></> },
           { key: 'category', header: 'Category', render: (r) => r.category ?? '–' },
           { key: 'source', header: 'Source', render: (r) => r.source ?? '–' },
           { key: 'limit', header: 'Credit limit', align: 'right', render: (r) => naira(r.creditLimit) },
@@ -117,14 +117,14 @@ function CustomerDialog({ businessId, id, can, onClose, onChanged }: { businessI
   return (
     <Dialog title={c.name} onClose={onClose} wide>
       {error && <ErrorState message={error} />}
-      <p className="mb-3 text-sm text-navy/70">{[c.phone, c.email, c.category, c.source && `via ${c.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>
+      <p className="mb-3 text-sm text-ink/70">{[c.phone, c.email, c.category, c.source && `via ${c.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>
       <dl className="mb-4 grid grid-cols-2 gap-4 text-sm">
-        <div><dt className="text-xs text-navy/60">Owes you</dt><dd className="tabular font-semibold">{naira(c.outstanding)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Owes you</dt><dd className="tabular font-semibold">{naira(c.outstanding)}</dd></div>
         <div>
-          <dt className="text-xs text-navy/60">Credit limit</dt>
+          <dt className="text-xs text-ink/60">Credit limit</dt>
           <dd className="tabular">
             {can('customers.credit') ? (
-              <input aria-label="Credit limit" type="number" min="0" step="1" defaultValue={c.creditLimit} className="w-32 rounded border border-navy/20 px-2 py-1"
+              <input aria-label="Credit limit" type="number" min="0" step="1" defaultValue={c.creditLimit} className="w-32 rounded border border-ink/20 px-2 py-1"
                 onBlur={async (e) => { const v = Number(e.target.value); if (v !== c.creditLimit) { setError(await setCreditLimit(businessId, id, v)); await reload() } }} />
             ) : naira(c.creditLimit)}
           </dd>
@@ -135,23 +135,23 @@ function CustomerDialog({ businessId, id, can, onClose, onChanged }: { businessI
       {tasks.some((t) => t.status === 'open') && (
         <div className="mt-4">
           <h3 className="mb-1 text-sm font-semibold">Open follow-ups</h3>
-          <ul className="divide-y divide-navy/10 text-sm">
+          <ul className="divide-y divide-ink/10 text-sm">
             {tasks.filter((t) => t.status === 'open').map((t) => (
-              <li key={t.id} className="flex items-center gap-2 py-1.5"><span>{t.title}{t.dueAt && <span className="ml-2 text-xs text-navy/60">due {dateTime(t.dueAt)}</span>}</span>
+              <li key={t.id} className="flex items-center gap-2 py-1.5"><span>{t.title}{t.dueAt && <span className="ml-2 text-xs text-ink/60">due {dateTime(t.dueAt)}</span>}</span>
                 {can('customers.manage') && <Button variant="secondary" className="ml-auto" onClick={async () => { setError(await api.setTaskStatus(businessId, t.id, 'done')); await d.refresh() }}>Done</Button>}</li>
             ))}
           </ul>
         </div>
       )}
       <h3 className="mb-1 mt-4 text-sm font-semibold">History</h3>
-      {history.length === 0 ? <p className="text-sm text-navy/60">Nothing recorded yet.</p> : (
-        <ul className="divide-y divide-navy/10 text-sm">
+      {history.length === 0 ? <p className="text-sm text-ink/60">Nothing recorded yet.</p> : (
+        <ul className="divide-y divide-ink/10 text-sm">
           {history.map((h, i) => (
             <li key={i} className="flex flex-wrap items-baseline gap-2 py-1.5">
               <Badge tone={h.kind === 'sale' ? 'success' : h.kind === 'task' ? 'warning' : 'neutral'}>{label(h.kind === 'interaction' ? h.label : h.kind)}</Badge>
               <span>{h.detail}</span>
-              {h.amount !== undefined && <span className="tabular text-navy/70">{naira(h.amount)}{h.balance ? ` (owes ${naira(h.balance)})` : ''}</span>}
-              <span className="ml-auto text-xs text-navy/50">{dateTime(h.at)}</span>
+              {h.amount !== undefined && <span className="tabular text-ink/70">{naira(h.amount)}{h.balance ? ` (owes ${naira(h.balance)})` : ''}</span>}
+              <span className="ml-auto text-xs text-ink/50">{dateTime(h.at)}</span>
             </li>
           ))}
         </ul>
@@ -164,12 +164,12 @@ function Tags({ tags, canEdit, onAdd, onRemove }: { tags: { id: string; name: st
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
       {tags.map((t) => (
-        <span key={t.id} className="inline-flex items-center gap-1 rounded-md bg-gold/15 px-2 py-0.5 text-xs font-medium text-gold-ink">{t.name}
+        <span key={t.id} className="inline-flex items-center gap-1 rounded-md bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand-ink">{t.name}
           {canEdit && <button type="button" aria-label={`Remove tag ${t.name}`} onClick={() => void onRemove(t.id)}><X className="size-3" /></button>}</span>
       ))}
       {canEdit && (
         <form className="flex gap-1" onSubmit={async (e) => { e.preventDefault(); const f = e.currentTarget; const v = String(new FormData(f).get('tag') ?? ''); if (v.trim()) { await onAdd(v); f.reset() } }}>
-          <input name="tag" aria-label="New tag" placeholder="Add tag" className="w-28 rounded border border-navy/20 px-2 py-0.5 text-xs" />
+          <input name="tag" aria-label="New tag" placeholder="Add tag" className="w-28 rounded border border-ink/20 px-2 py-0.5 text-xs" />
         </form>
       )}
     </div>
@@ -219,7 +219,7 @@ function Leads({ businessId, can }: { businessId: string; can: (p: string) => bo
         rows={list.data?.rows ?? []} total={list.data?.total ?? 0} page={page} pageSize={PAGE} onPage={setPage} loading={list.loading}
         rowKey={(r) => r.id} onRowClick={(r) => setOpen(r.id)} emptyTitle={q || status ? 'No leads match' : 'No leads yet'} emptyHint="Add prospects here and convert them to customers when they buy."
         columns={[
-          { key: 'name', header: 'Lead', render: (r) => <><b>{r.name}</b><div className="text-xs text-navy/60">{r.phone ?? r.email ?? 'No contact'}</div></> },
+          { key: 'name', header: 'Lead', render: (r) => <><b>{r.name}</b><div className="text-xs text-ink/60">{r.phone ?? r.email ?? 'No contact'}</div></> },
           { key: 'source', header: 'Source', render: (r) => r.source ?? '–' },
           { key: 'status', header: 'Status', render: (r) => <Badge tone={LEAD_TONE[r.status]}>{label(r.status)}</Badge> },
           { key: 'added', header: 'Added', render: (r) => dateTime(r.createdAt) },
@@ -265,7 +265,7 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
     <Dialog title={lead.name} onClose={onClose} wide>
       {error && <ErrorState message={error} />}
       {result && <Notice>{result}</Notice>}
-      <p className="mb-3 text-sm text-navy/70">{[lead.phone, lead.email, lead.source && `via ${lead.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>
+      <p className="mb-3 text-sm text-ink/70">{[lead.phone, lead.email, lead.source && `via ${lead.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>
       {lead.notes && <p className="mb-3 text-sm">{lead.notes}</p>}
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <Badge tone={LEAD_TONE[lead.status]}>{label(lead.status)}</Badge>
@@ -284,10 +284,10 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
       </div>
       <Tags tags={tags} canEdit={can('customers.manage') && !converted} onAdd={async (n) => { setError(await api.addTag(businessId, parent, n)); await d.refresh() }} onRemove={async (t) => { setError(await api.removeTag(businessId, parent, t)); await d.refresh() }} />
       {can('customers.manage') && !converted && <ActivityForms onNote={async (k, s) => { const e = await api.addInteraction(businessId, parent, k, s); setError(e); if (!e) await d.refresh(); return e }} onTask={async (t, due) => { const e = await api.addTask(businessId, parent, t, due); setError(e); if (!e) await d.refresh(); return e }} />}
-      {tasks.length > 0 && <ul className="mt-4 divide-y divide-navy/10 text-sm">{tasks.map((t) => <li key={t.id} className="py-1.5">{t.title} <Badge tone={t.status === 'done' ? 'success' : 'warning'}>{label(t.status)}</Badge></li>)}</ul>}
+      {tasks.length > 0 && <ul className="mt-4 divide-y divide-ink/10 text-sm">{tasks.map((t) => <li key={t.id} className="py-1.5">{t.title} <Badge tone={t.status === 'done' ? 'success' : 'warning'}>{label(t.status)}</Badge></li>)}</ul>}
       <h3 className="mb-1 mt-4 text-sm font-semibold">Interactions</h3>
-      {interactions.length === 0 ? <p className="text-sm text-navy/60">Nothing recorded yet.</p> : (
-        <ul className="divide-y divide-navy/10 text-sm">{interactions.map((h, i) => <li key={i} className="flex gap-2 py-1.5"><Badge>{label(h.label)}</Badge>{h.detail}<span className="ml-auto text-xs text-navy/50">{dateTime(h.at)}</span></li>)}</ul>
+      {interactions.length === 0 ? <p className="text-sm text-ink/60">Nothing recorded yet.</p> : (
+        <ul className="divide-y divide-ink/10 text-sm">{interactions.map((h, i) => <li key={i} className="flex gap-2 py-1.5"><Badge>{label(h.label)}</Badge>{h.detail}<span className="ml-auto text-xs text-ink/50">{dateTime(h.at)}</span></li>)}</ul>
       )}
     </Dialog>
   )
@@ -305,12 +305,12 @@ function FollowUps({ businessId, can }: { businessId: string; can: (p: string) =
     <>
       {error && <ErrorState message={error} />}
       <Card className="p-0">
-        <ul className="divide-y divide-navy/10 text-sm">
+        <ul className="divide-y divide-ink/10 text-sm">
           {tasks.data.map((t) => {
             const overdue = t.dueAt !== null && new Date(t.dueAt).getTime() < now
             return (
               <li key={t.id} className="flex flex-wrap items-center gap-2 p-3">
-                <span><b>{t.title}</b> <span className="text-navy/60">· {t.subject}</span></span>
+                <span><b>{t.title}</b> <span className="text-ink/60">· {t.subject}</span></span>
                 {t.dueAt && <Badge tone={overdue ? 'danger' : 'neutral'}>{overdue ? 'Overdue · ' : 'Due '}{dateTime(t.dueAt)}</Badge>}
                 {can('customers.manage') && <Button variant="secondary" className="ml-auto" onClick={async () => { setError(await api.setTaskStatus(businessId, t.id, 'done')); await tasks.refresh() }}>Done</Button>}
               </li>

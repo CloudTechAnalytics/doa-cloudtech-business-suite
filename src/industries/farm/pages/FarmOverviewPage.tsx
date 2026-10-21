@@ -27,7 +27,7 @@ export function FarmOverviewPage() {
                 <DataTable<FarmBatch>
                   rows={active} total={active.length} page={0} pageSize={active.length} onPage={() => {}} rowKey={(b) => b.id} emptyTitle="No active batches"
                   columns={[
-                    { key: 'code', header: 'Batch', render: (b) => <><b>{b.code}</b><div className="text-xs text-navy/60">{b.species} · {farm.unitName(b.unitId)}</div></> },
+                    { key: 'code', header: 'Batch', render: (b) => <><b>{b.code}</b><div className="text-xs text-ink/60">{b.species} · {farm.unitName(b.unitId)}</div></> },
                     { key: 'pop', header: 'Animals now', align: 'right', render: (b) => <>{b.population.toLocaleString()} <CountBasis basis={b.basis} /></> },
                     { key: 'mort', header: 'Mortality', align: 'right', render: (b) => `${mortalityRate(b).toFixed(1)}%` },
                     { key: 'feed', header: 'Feed given', align: 'right', render: (b) => b.feed.toLocaleString() },
@@ -37,9 +37,9 @@ export function FarmOverviewPage() {
               )}
               <Card className="mt-6">
                 <h2 className="mb-2 text-sm font-semibold">Latest daily notes</h2>
-                {recent.length === 0 ? <p className="text-sm text-navy/60">No notes yet. Add one on the Daily operations page.</p> : (
-                  <ul className="divide-y divide-navy/10 text-sm">
-                    {recent.map((a) => <li key={a.id} className="flex flex-wrap gap-2 py-1.5"><Badge>{a.type.replace('_', ' ')}</Badge>{a.notes}<span className="ml-auto text-xs text-navy/50">{dateTime(a.on)}</span></li>)}
+                {recent.length === 0 ? <p className="text-sm text-ink/60">No notes yet. Add one on the Daily operations page.</p> : (
+                  <ul className="divide-y divide-ink/10 text-sm">
+                    {recent.map((a) => <li key={a.id} className="flex flex-wrap gap-2 py-1.5"><Badge>{a.type.replace('_', ' ')}</Badge>{a.notes}<span className="ml-auto text-xs text-ink/50">{dateTime(a.on)}</span></li>)}
                   </ul>
                 )}
               </Card>

@@ -94,7 +94,7 @@ export function SettingsPage() {
               {demoPlan && <> · up to {PLANS[demoPlan].limits.maxMembers} members, {PLANS[demoPlan].limits.maxBranches} branch(es)</>}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-navy/60">Demo plan switcher (stands in for payment webhooks):</span>
+              <span className="text-xs text-ink/60">Demo plan switcher (stands in for payment webhooks):</span>
               {([...Object.keys(PLANS), null] as (PlanCode | null)[]).map((p) => (
                 <Button key={p ?? 'none'} variant={p === demoPlan ? 'primary' : 'secondary'} onClick={() => setError(demoSwitchPlan(active.id, p))}>
                   {p ? PLANS[p].name : 'Lapse'}
@@ -109,16 +109,16 @@ export function SettingsPage() {
 
       <Card className="mb-4">
         <h2 className="mb-2 text-sm font-semibold">Modules</h2>
-        <p className="mb-3 text-xs text-navy/60">Turning a module off never deletes its records; they stay readable and reappear if you turn it back on.</p>
-        <ul className="divide-y divide-navy/10">
+        <p className="mb-3 text-xs text-ink/60">Turning a module off never deletes its records; they stay readable and reappear if you turn it back on.</p>
+        <ul className="divide-y divide-ink/10">
           {statuses.map((s) => (
             <li key={s.code} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
               <span>
                 <b>{MODULES[s.code].name}</b>
-                <span className="ml-2 text-xs text-navy/60">{s.isCore ? 'Core' : s.isRequired ? 'Required' : ''}</span>
+                <span className="ml-2 text-xs text-ink/60">{s.isCore ? 'Core' : s.isRequired ? 'Required' : ''}</span>
               </span>
               <span className="flex items-center gap-3">
-                <span className="text-xs text-navy/70">{BADGE[s.availability]}</span>
+                <span className="text-xs text-ink/70">{BADGE[s.availability]}</span>
                 {!s.isRequired && (
                   s.enabled
                     ? <Button variant="secondary" onClick={() => run(disableModule(active.id, s.code as ModuleCode))}>Turn off</Button>
@@ -132,7 +132,7 @@ export function SettingsPage() {
 
       <Card>
         <h2 className="mb-2 text-sm font-semibold">Change industry</h2>
-        <p className="mb-3 text-xs text-navy/60">Owner only. Incompatible modules are switched off, never deleted, and you must confirm first.</p>
+        <p className="mb-3 text-xs text-ink/60">Owner only. Incompatible modules are switched off, never deleted, and you must confirm first.</p>
         <SelectField label="New industry" value={target} onChange={(e) => void onPreview(e.target.value as IndustryCode | '')}>
           <option value="">Select…</option>
           {Object.values(INDUSTRY_TEMPLATES).filter((t) => t.code !== active.industry).map((t) => (

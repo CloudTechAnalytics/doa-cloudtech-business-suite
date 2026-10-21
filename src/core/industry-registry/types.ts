@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react'
 import type { ComponentType, LazyExoticComponent } from 'react'
 import type { IndustryCode, ModuleCode, ModuleDefinition, SharedModuleCode } from '@/shared/types/domain'
 
@@ -63,6 +64,9 @@ export interface IndustryDefinition {
   id: IndustryCode
   name: string
   description: string
+  /** Heading the business-type picker groups this industry under (e.g. "Farming & food"). */
+  category: string
+  icon: LucideIcon
   /** Bump when module sets or setup questions change; the database template mirrors it. */
   version: number
   status: IndustryStatus
