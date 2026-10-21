@@ -16,6 +16,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0010_finance` | `expenses` (void, never delete), `receivables`, `payables` and `cashbook` views, `report_summary`, `record_expense`, `void_expense` |
 | `…0011_requests_bills_orders` | purchase requests (approval, then a normal purchase order), supplier bills, sales orders (fulfilment posts a normal sale; "fulfilled" is derived) |
 | `…0012_farm_operations` | workers, tasks, health records with withdrawal-period enforcement, equipment and maintenance (costs become one expense), `farm_alerts`, `farm_batch_costs` |
+| `…0013_bakery` | `bakery_product_profiles`, immutable `recipes` / `recipe_versions` / `recipe_ingredients`, `production_batches` and `production_ingredient_usage`, `bakery_lots` with FEFO allocation triggered by the stock ledger, `waste_records`; costing functions, ingredient and finished-goods views, atomic production completion, reversal, waste, `bakery_overview`; `bakery.manage` |
 
 ## Tables named in the architecture brief
 

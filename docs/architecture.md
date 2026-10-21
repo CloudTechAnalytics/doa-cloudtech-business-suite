@@ -57,7 +57,7 @@ With no `VITE_SUPABASE_*` variables the app runs against a browser-only mirror (
 
 ## Not yet built
 
-Bakery screens and tables (registered and routable, placeholders for now), separate Poultry and Fish pages, per-site access, customer statements, payroll, notifications delivery, payment-provider integration, platform administration, end-to-end browser tests.
+Bakery ingredient expiry and pack products, a guided setup wizard, separate Poultry and Fish pages, per-site access, customer statements, payroll, notifications delivery, payment-provider integration, platform administration, end-to-end browser tests.
 
 ## Farm
 

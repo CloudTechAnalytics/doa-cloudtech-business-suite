@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { priceCart, refundForReturn } from '@/modules/sales/pricing'
 import { rolePermissions } from '@/core/permissions/roles'
-import { commitInv, getInv, newId, postMovement } from '@/demo/demoInventory'
+import { cloneInv, commitInv, getInv, newId, postMovement } from '@/demo/demoInventory'
 import type { Inv } from '@/demo/demoInventory'
 import { demoModuleStatuses, demoRoleIn, getDemoState } from '@/demo/demoStore'
 
@@ -15,7 +15,7 @@ export interface DSupplier { id: string; businessId: string; name: string; phone
 export interface DPayment { id: string; businessId: string; saleId: string | null; purchaseId: string | null; returnId: string | null; type: 'sale_receipt' | 'refund' | 'purchase_payment'; method: string; amount: number; status: 'pending' | 'successful' | 'reversed'; reference: string | null; at: string }
 export interface DSale { id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null }
 export interface DSaleItem { id: string; saleId: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; unitCost: number | null; movementId: string | null }
-export interface DReturnItem { id: string; returnId: string; saleItemId: string; quantity: number; refund: number }
+export interface DReturnItem { id: string; returnId: string; saleItemId: string; quantity: number; refund: number; disposition?: 'restock' | 'discard' }
 export interface DReturn { id: string; saleId: string; number: string; reason: string; total: number }
 export interface DPurchase { id: string; businessId: string; number: string; supplierId: string; reference: string | null; status: 'ordered' | 'partially_received' | 'received' | 'cancelled'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; total: number; amountPaid: number; at: string }
 export interface DPurchaseItem { id: string; purchaseId: string; productId: string; ordered: number; received: number; unitCost: number; lineTotal: number }
@@ -76,8 +76,7 @@ function run<R>(biz: string, op: string, key: string, module: string, perm: stri
     const [o, json] = [prev.slice(0, prev.indexOf('|')), prev.slice(prev.indexOf('|') + 1)]
     return o === op ? { error: null, result: JSON.parse(json) as R } : { error: 'idempotency key already used for another operation' }
   }
-  const inv0 = getInv()
-  const inv: Inv = { ...inv0, balances: { ...inv0.balances }, movements: [...inv0.movements] }
+  const inv: Inv = cloneInv(getInv())
   const t: Trade = JSON.parse(JSON.stringify(state)) as Trade
   try {
     const result = fn({ t, inv, biz })
@@ -260,7 +259,7 @@ export function demoReturnSale(biz: string, saleId: string, lines: ReturnLineInp
       const priorQty = sum(prior.map((r) => r.quantity)), priorAmt = sum(prior.map((r) => r.refund))
       if (Math.round(l.quantity * 10000) > Math.round((si.quantity - priorQty) * 10000)) throw new Error(`only ${si.quantity - priorQty} of ${si.quantity} remain returnable for ${si.description}`)
       const refundAmt = refundForReturn(si.total, si.quantity, priorQty, priorAmt, l.quantity)
-      t.returnItems.push({ id: newId('ri'), returnId: ret.id, saleItemId: si.id, quantity: l.quantity, refund: refundAmt })
+      t.returnItems.push({ id: newId('ri'), returnId: ret.id, saleItemId: si.id, quantity: l.quantity, refund: refundAmt, disposition: l.disposition })
       total += cents(refundAmt)
       if (l.disposition === 'restock' && si.movementId) {
         const p = inv.products.find((x) => x.id === si.productId)!

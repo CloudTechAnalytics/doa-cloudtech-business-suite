@@ -5,7 +5,7 @@ import type { RoleName } from '@/shared/types/domain'
 const ACTION_PERMS = [
   'inventory.adjust', 'sales.create', 'sales.discount', 'sales.refund', 'sales.void', 'customers.manage', 'customers.credit',
   'suppliers.manage', 'purchases.manage', 'purchases.receive', 'purchases.pay', 'audit.read', 'farm.manage',
-  'expenses.record', 'procurement.request', 'procurement.approve', 'reports.read',
+  'expenses.record', 'procurement.request', 'procurement.approve', 'reports.read', 'bakery.manage',
 ]
 const ALL_PERMS = [...new Set([...ALL_MODULES.map((m) => m.permission), ...ACTION_PERMS])]
 

@@ -1,12 +1,14 @@
 import { defineIndustry } from '@/core/industry-registry/define'
-import { demoWidget } from '@/shared/components/widgets'
+import { lazy } from 'react'
 import { bakeryConfig } from './config'
-import { bakeryDemo } from './demo'
 import { bakeryModules } from './modules'
 import { bakeryNavigation } from './navigation'
 import { bakeryPermissions } from './permissions'
 import { bakeryRoutes } from './routes'
 import { bakerySetupQuestions } from './setup'
+
+// Loaded on demand so the registry never imports bakery screens or data code.
+const BakeryDashboardWidget = lazy(() => import('./components/BakeryOverview').then((m) => ({ default: m.BakeryOverview })))
 
 export const bakery = defineIndustry({
   ...bakeryConfig,
@@ -15,8 +17,9 @@ export const bakery = defineIndustry({
   navigation: bakeryNavigation,
   routes: bakeryRoutes,
   onboarding: { questions: bakerySetupQuestions },
-  dashboardWidgets: [{ id: 'bakery-kpis', title: 'Bakery overview', component: demoWidget(bakeryDemo) }],
+  dashboardWidgets: [{ id: 'bakery-kpis', title: 'Bakery overview', component: BakeryDashboardWidget }],
   workflows: [
-    { id: 'start-production', label: 'Start production batch', module: 'bakery-production', description: 'Plan and start a production batch.' },
+    { id: 'start-production', label: 'Plan production', module: 'bakery-production', description: 'Plan a production batch.' },
+    { id: 'record-waste', label: 'Record waste', module: 'bakery-waste', description: 'Record waste or spoilage.' },
   ],
 })

@@ -61,13 +61,13 @@ const seed = (): State => ({
   ],
 })
 
-/** Mirrors the migrations that switch a new module on for existing businesses of an industry (e.g. farm-products for farms). */
+/** Mirrors the migrations that switch a new module on for existing businesses of an industry (e.g. farm-products for farms, bakery-waste for bakeries). */
 function withNewDefaults(st: State): State {
   const modules = { ...st.modules }
   for (const b of st.businesses) {
     const m = modules[b.id]
-    if (b.industry === 'farm' && m) {
-      const missing = defaultModules('farm').filter((c) => !m.enabled.includes(c) && !m.disabledHistory.includes(c))
+    if (m) {
+      const missing = defaultModules(b.industry).filter((c) => !m.enabled.includes(c) && !m.disabledHistory.includes(c))
       if (missing.length) modules[b.id] = { ...m, enabled: [...m.enabled, ...missing] }
     }
   }

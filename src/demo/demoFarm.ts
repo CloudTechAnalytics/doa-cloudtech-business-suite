@@ -1,4 +1,4 @@
-import { commitInv, demoEnsureProduct, ensureDemoInventory, getInv, newId, postMovement } from '@/demo/demoInventory'
+import { cloneInv, commitInv, demoEnsureProduct, ensureDemoInventory, getInv, newId, postMovement } from '@/demo/demoInventory'
 import type { Inv } from '@/demo/demoInventory'
 import { demoAllowed } from '@/demo/demoTrade'
 import { demoUnits as demoUnitsKnown } from '@/demo/demoInventory'
@@ -84,8 +84,7 @@ function run<R>(biz: string, op: string, key: string, module: string, perm: stri
     const i = prev.indexOf('|')
     return prev.slice(0, i) === op ? { error: null, result: JSON.parse(prev.slice(i + 1)) as R } : { error: 'idempotency key already used for another operation' }
   }
-  const inv0 = getInv()
-  const inv: Inv = { ...inv0, balances: { ...inv0.balances }, movements: [...inv0.movements] }
+  const inv: Inv = cloneInv(getInv())
   const f: Farm = JSON.parse(JSON.stringify(state)) as Farm
   try {
     const result = fn({ f, inv, biz })

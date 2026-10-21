@@ -6,7 +6,10 @@ import { rolePermissions } from '@/core/permissions/roles'
 
 /** Browser-only inventory for demo mode; uses the same ledger rules as the database (see ledger.ts). */
 
-export interface DProduct { id: string; businessId: string; sku: string | null; barcode: string | null; name: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; status: 'active' | 'archived' }
+export interface DProduct { id: string; businessId: string; sku: string | null; barcode: string | null; name: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; status: 'active' | 'archived'; kind?: 'ingredient' | 'finished_good' | 'goods' }
+/** A batch of finished goods with an expiry date; stock leaves the oldest-expiring lot first (mirrors bakery_lots). */
+export interface DLot { id: string; businessId: string; productId: string; batchId: string; quantity: number; remaining: number; producedOn: string; expiresOn: string | null; voided: boolean }
+export interface DAlloc { lotId: string; movementId: string; quantity: number; restored: boolean }
 export interface DLocation { id: string; businessId: string; name: string }
 export interface DMovement { id: string; businessId: string; productId: string; locationId: string; type: string; delta: number; unitCost: number; reason: string | null; at: string; reversalOf: string | null; groupId: string }
 export interface Inv {
@@ -16,15 +19,24 @@ export interface Inv {
   balances: Record<string, Balance> // `${business}|${product}|${location}`
   keys: Record<string, { op: string; result: string }>
   seeded: string[]
+  /** Bakery finished-goods lots, kept here so they commit or roll back together with the stock movements that use them. */
+  lots?: DLot[]
+  allocs?: DAlloc[]
+  lotProducts?: string[]
 }
 
 const KEY = 'doa.demo.inv.v1'
 let uid = Date.now()
 const id = (p: string) => `${p}-${(uid++).toString(36)}`
-const empty = (): Inv => ({ products: [], locations: [], movements: [], balances: {}, keys: {}, seeded: [] })
+const empty = (): Inv => ({ products: [], locations: [], movements: [], balances: {}, keys: {}, seeded: [], lots: [], allocs: [], lotProducts: [] })
+
+/** A working copy for an operation that commits only if every step succeeds. */
+export function cloneInv(inv: Inv): Inv {
+  return { ...inv, balances: { ...inv.balances }, movements: [...inv.movements], keys: { ...inv.keys }, lots: (inv.lots ?? []).map((l) => ({ ...l })), allocs: (inv.allocs ?? []).map((a) => ({ ...a })), lotProducts: [...(inv.lotProducts ?? [])] }
+}
 
 function load(): Inv {
-  try { const raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw) as Inv } catch { /* start fresh */ }
+  try { const raw = localStorage.getItem(KEY); if (raw) return { ...empty(), ...(JSON.parse(raw) as Inv) } } catch { /* start fresh */ }
   return empty()
 }
 let state = load()
@@ -72,12 +84,38 @@ export function ensureDemoInventory(businessId: string, industry: string) {
   commit(next)
 }
 
+/** Mirrors bakery_allocate_lots(): outgoing stock takes from the oldest-expiring lot; a reversal gives it back to the same lots. */
+function allocateLots(inv: Inv, p: DProduct, m: DMovement) {
+  if (!inv.lotProducts?.includes(p.id) || ['production_output', 'transfer_in', 'transfer_out'].includes(m.type)) return
+  const lots = (inv.lots ??= []); const allocs = (inv.allocs ??= [])
+  if (m.reversalOf) {
+    for (const a of allocs.filter((x) => x.movementId === m.reversalOf && !x.restored)) {
+      const lot = lots.find((l) => l.id === a.lotId)
+      if (lot && !lot.voided) lot.remaining = Math.round((lot.remaining + a.quantity) * 10000) / 10000
+      a.restored = true
+    }
+    return
+  }
+  if (m.delta >= 0) return
+  let need = -m.delta
+  const order = lots.filter((l) => l.businessId === p.businessId && l.productId === p.id && l.remaining > 0 && !l.voided)
+    .sort((a, b) => (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999') || a.producedOn.localeCompare(b.producedOn))
+  for (const l of order) {
+    if (need <= 0) break
+    const take = Math.min(l.remaining, need)
+    l.remaining = Math.round((l.remaining - take) * 10000) / 10000
+    allocs.push({ lotId: l.id, movementId: m.id, quantity: take, restored: false })
+    need = Math.round((need - take) * 10000) / 10000
+  }
+}
+
 export function postMovement(inv: Inv, p: DProduct, locationId: string, type: string, delta: number, cost: number | null, reason: string | null, groupId: string, reversalOf: string | null = null): DMovement {
   const k = `${p.businessId}|${p.id}|${locationId}`
   const r = applyMovement(inv.balances[k] ?? { qty: 0, avg: null }, delta, cost, { allowNegative: false, defaultCost: p.defaultCost })
   inv.balances[k] = r.balance
   const m: DMovement = { id: id('m'), businessId: p.businessId, productId: p.id, locationId, type, delta, unitCost: r.unitCost, reason, at: new Date().toISOString(), reversalOf, groupId }
   inv.movements.push(m)
+  allocateLots(inv, p, m)
   return m
 }
 
@@ -102,7 +140,7 @@ function transaction(businessId: string, op: string, key: string, fn: (inv: Inv)
   if (!key || key.length < 8) return 'an idempotency key of at least 8 characters is required'
   const prev = state.keys[`${businessId}|${key}`]
   if (prev) return prev.op === op ? null : 'idempotency key already used for another operation'
-  const next: Inv = { ...state, balances: { ...state.balances }, movements: [...state.movements], keys: { ...state.keys } }
+  const next: Inv = cloneInv(state)
   try {
     fn(next)
   } catch (e) {
