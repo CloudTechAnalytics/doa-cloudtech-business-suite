@@ -44,27 +44,27 @@ function BusinessSwitcher({ light }: { light: boolean }) {
   )
 }
 
-function UserMenu({ light }: { light: boolean }) {
+function UserMenu() {
   const { email, signOut } = useAuth()
   const name = email ?? 'Account'
   return (
     <Menu
       label="Account menu"
       trigger={({ toggle }) => (
-        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className={`grid size-8 place-items-center rounded-full text-xs font-semibold text-white ${light ? 'bg-brand hover:bg-brand-dark' : 'bg-white/20 hover:bg-white/30'}`}>{initialsOf(name)}</button>
+        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className={`grid size-8 place-items-center rounded-full text-xs font-bold text-ink bg-amber hover:bg-amber-dark`}>{initialsOf(name)}</button>
       )}
       items={[{ label: name, heading: true }, { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut }]}
     />
   )
 }
 
-function RecordMenu({ items, light }: { items: { label: string; to: string }[]; light: boolean }) {
+function RecordMenu({ items }: { items: { label: string; to: string }[] }) {
   if (!items.length) return null
   return (
     <Menu
       label="Record"
       trigger={({ toggle }) => (
-        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Record" className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium ${light ? 'bg-brand text-white hover:bg-brand-dark' : 'bg-white text-brand hover:bg-white/90'}`}><Plus className="size-4" aria-hidden /><span className="hidden sm:inline" aria-hidden>Record</span></button>
+        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Record" className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium bg-amber font-semibold text-ink hover:bg-amber-dark`}><Plus className="size-4" aria-hidden /><span className="hidden sm:inline" aria-hidden>Record</span></button>
       )}
       items={items}
     />
@@ -111,9 +111,9 @@ export function AppShell() {
           <NavLink to="/app" end aria-label="Apps home" className={`grid size-9 shrink-0 place-items-center rounded-md ${isHome ? 'hover:bg-surface' : 'hover:bg-white/10'}`}><LayoutGrid className="size-5" aria-hidden /></NavLink>
           <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA B-Suite'}</span>
           <div className="ml-auto flex items-center gap-2">
-            <RecordMenu items={quick} light={isHome} />
+            <RecordMenu items={quick} />
             <BusinessSwitcher light={isHome} />
-            <UserMenu light={isHome} />
+            <UserMenu />
           </div>
         </div>
       </header>

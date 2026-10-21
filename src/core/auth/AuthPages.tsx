@@ -12,9 +12,9 @@ import { useAuth } from '@/core/auth/AuthProvider'
 function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col items-center bg-white px-4 pb-10 pt-16 sm:pt-24">
-      <div className="w-full max-w-[350px] rounded-xl border border-line bg-white px-6 pb-7 pt-6 shadow-raised">
+      <div className="w-full max-w-[350px] rounded-xl border border-line border-t-4 border-t-amber bg-white px-6 pb-7 pt-6 shadow-raised">
         <Link to="/" aria-label="DOA B-Suite home" className="mb-5 flex justify-center"><BrandLockup /></Link>
-        <div className="rounded-lg border border-accent/25 bg-accent-soft px-4 py-4 text-center text-[13px] leading-relaxed text-ink">
+        <div className="rounded-lg border border-amber/40 bg-amber/10 px-4 py-4 text-center text-[13px] leading-relaxed text-ink">
           {isDemoMode ? (
             <>
               <p className="font-semibold">Demo mode: no backend configured</p>
@@ -40,7 +40,7 @@ function Field({ label, name, type = 'text', autoComplete, error, placeholder, h
   const [shown, setShown] = useState(false)
   const isPassword = type === 'password'
   const id = `f-${name}`
-  const ring = 'focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20'
+  const ring = 'focus-within:border-amber focus-within:ring-2 focus-within:ring-amber/30'
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-[15px] text-ink">{label}</label>
@@ -131,7 +131,7 @@ export function SignInPage() {
     <AuthLayout title="Sign in">
       <AuthForm mode="signin" />
       <p className="mt-5 text-center text-sm text-ink/70">
-        New here? <Link to="/sign-up" className="font-semibold text-brand-ink underline">Create an account</Link>
+        New here? <Link to="/sign-up" className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Create an account</Link>
       </p>
     </AuthLayout>
   )
@@ -144,7 +144,7 @@ export function SignUpPage() {
     <AuthLayout title="Create your account">
       <AuthForm mode="signup" />
       <p className="mt-5 text-center text-sm text-ink/70">
-        Already registered? <Link to="/sign-in" className="font-semibold text-brand-ink underline">Sign in</Link>
+        Already registered? <Link to="/sign-in" className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Sign in</Link>
       </p>
     </AuthLayout>
   )

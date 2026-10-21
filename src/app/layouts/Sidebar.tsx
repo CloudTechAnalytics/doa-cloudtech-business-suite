@@ -14,7 +14,7 @@ export function Sidebar({ apps, collapsed = false, onToggle, onNavigate }: { app
     clsx(
       'group flex items-center gap-3 rounded-lg text-sm transition-colors',
       collapsed ? 'size-10 justify-center' : 'px-3 py-2',
-      isActive ? 'bg-brand/10 font-medium text-brand' : 'text-ink/75 hover:bg-surface hover:text-ink',
+      isActive ? 'bg-amber/20 font-semibold text-ink shadow-[inset_3px_0_0_var(--color-amber)]' : 'text-ink/75 hover:bg-surface hover:text-ink',
     )
 
   return (

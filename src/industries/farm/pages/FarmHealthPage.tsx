@@ -122,7 +122,7 @@ function VoidDialog({ businessId, record, onClose, onSaved }: { businessId: stri
         <p className="text-sm text-ink/80">Medicine used goes back into stock and any withdrawal period from this record ends.</p>
         <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
         {runner.error && <ErrorState title="Not voided" message={runner.error} />}
-        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger hover:bg-danger/90">Void</Button></div>
+        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Void</Button></div>
       </form>
     </Dialog>
   )

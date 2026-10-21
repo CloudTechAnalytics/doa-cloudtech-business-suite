@@ -20,7 +20,7 @@ export function Button({
       disabled={disabled || loading}
       className={clsx(
         'inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-        variant === 'primary' && 'bg-brand text-white hover:bg-brand-dark',
+        variant === 'primary' && 'bg-amber font-semibold text-ink hover:bg-amber-dark',
         variant === 'secondary' && 'border border-line bg-white text-ink shadow-pill hover:bg-surface',
         variant === 'ghost' && 'text-brand-ink hover:bg-brand/10',
         className,
@@ -74,7 +74,7 @@ export function ErrorState({ title = 'Something went wrong', message }: { title?
 }
 
 export function Notice({ children }: { children: ReactNode }) {
-  return <div role="status" className="rounded-lg border border-brand/25 bg-brand/10 p-3 text-sm text-ink">{children}</div>
+  return <div role="status" className="rounded-lg border border-amber/50 bg-amber/10 p-3 text-sm text-ink">{children}</div>
 }
 
 export function Spinner({ label = 'Loading' }: { label?: string }) {

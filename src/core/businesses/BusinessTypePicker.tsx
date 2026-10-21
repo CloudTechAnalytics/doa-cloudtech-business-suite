@@ -22,14 +22,14 @@ export function BusinessTypePicker({ industries, selected, onToggle }: { industr
               return (
                 <label key={d.id} className={`relative block ${soon ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input type="checkbox" name="business-type" aria-label={d.name} className="peer sr-only" disabled={soon} checked={selected.includes(d.id)} onChange={() => onToggle(d.id)} />
-                  <span className={`flex h-full items-center gap-3 rounded-lg border border-transparent bg-white p-4 shadow-card transition peer-checked:border-brand peer-checked:bg-brand/[0.04] peer-focus-visible:ring-2 peer-focus-visible:ring-accent ${soon ? 'opacity-60' : 'hover:shadow-raised'}`}>
+                  <span className={`flex h-full items-center gap-3 rounded-lg border border-transparent bg-white p-4 shadow-card transition peer-checked:border-amber peer-checked:bg-amber/10 peer-focus-visible:ring-2 peer-focus-visible:ring-accent ${soon ? 'opacity-60' : 'hover:shadow-raised'}`}>
                     <span className="grid size-11 shrink-0 place-items-center rounded-lg text-white" style={{ background: industryColor(d.id) }}><Icon className="size-6" aria-hidden strokeWidth={1.75} /></span>
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2 font-semibold text-ink">{d.name}{soon && <Badge>Coming soon</Badge>}</span>
                       <span className="mt-0.5 block text-sm text-ink/60">{d.description}</span>
                     </span>
                   </span>
-                  <span aria-hidden className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-brand text-white opacity-0 shadow-pill transition peer-checked:opacity-100"><Check className="size-3.5" strokeWidth={3} /></span>
+                  <span aria-hidden className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-amber text-ink opacity-0 shadow-pill transition peer-checked:opacity-100"><Check className="size-3.5" strokeWidth={3} /></span>
                 </label>
               )
             })}

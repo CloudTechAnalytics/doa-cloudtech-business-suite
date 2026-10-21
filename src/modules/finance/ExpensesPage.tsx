@@ -145,7 +145,7 @@ function VoidDialog({ businessId, expense, onClose, onSaved }: { businessId: str
         <p className="text-sm text-ink/80">{expense.description}: <b>{naira(expense.amount)}</b>. It stays on record, marked as voided, and no longer counts as money paid out.</p>
         <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
         {runner.error && <ErrorState title="Not voided" message={runner.error} />}
-        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger hover:bg-danger/90">Void expense</Button></div>
+        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Void expense</Button></div>
       </form>
     </Dialog>
   )

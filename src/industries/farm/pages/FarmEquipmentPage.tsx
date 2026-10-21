@@ -143,7 +143,7 @@ function HistoryDialog({ businessId, asset, records, manage, onClose, onChanged 
               {voiding === r.id && (
                 <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); void runner.run((k) => voidMaintenance(businessId, r.id, reason, k), 'Voided.', () => { setVoiding(null); setReason('') }) }}>
                   <div className="w-64"><TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></div>
-                  <Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger hover:bg-danger/90">Void record</Button>
+                  <Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Void record</Button>
                   <Button type="button" variant="secondary" onClick={() => setVoiding(null)}>Back</Button>
                 </form>
               )}

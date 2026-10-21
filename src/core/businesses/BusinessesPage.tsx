@@ -37,12 +37,12 @@ function DeleteDialog({ business, onClose, onDeleted }: { business: BusinessSumm
         </p>
         <input
           autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Business name" placeholder={business.name}
-          className="h-11 w-full rounded-md border border-line px-3 text-[15px] outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="h-11 w-full rounded-md border border-line px-3 text-[15px] outline-none focus:border-amber focus:ring-2 focus:ring-amber/30"
         />
         {error && <ErrorState title="Could not delete" message={error} />}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={busy} disabled={typed.trim() !== business.name} className="bg-danger hover:bg-danger/90">Delete business</Button>
+          <Button type="submit" loading={busy} disabled={typed.trim() !== business.name} className="bg-danger text-white hover:bg-danger/90">Delete business</Button>
         </div>
       </form>
     </Dialog>
@@ -88,7 +88,7 @@ export function BusinessesPage() {
 
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-8 sm:px-6">
         <h1 className="text-3xl font-bold text-ink sm:text-4xl">Your businesses</h1>
-        <Link to="/start" className="inline-flex h-10 items-center rounded-md bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-dark">Create</Link>
+        <Link to="/start" className="inline-flex h-10 items-center rounded-md bg-amber px-5 text-sm font-bold text-ink hover:bg-amber-dark">Create</Link>
       </div>
 
       {error && <div className="mx-auto max-w-5xl px-4 sm:px-6"><ErrorState title="Could not load your businesses" message={error} /></div>}
@@ -122,7 +122,7 @@ export function BusinessesPage() {
                 )}
                 <button
                   type="button" onClick={() => open(b.id)} aria-label={`Connect to ${b.name}`}
-                  className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md bg-brand px-5 text-base font-semibold text-white hover:bg-brand-dark"
+                  className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md bg-amber px-5 text-base font-bold text-ink hover:bg-amber-dark"
                 >
                   Connect <ChevronRight className="size-5" aria-hidden />
                 </button>

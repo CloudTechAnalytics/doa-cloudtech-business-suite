@@ -121,7 +121,7 @@ function VoidBill({ businessId, bill, onClose, onSaved }: { businessId: string; 
         <p className="text-sm text-ink/80">Voiding a bill does not undo any payment already made on the purchase order.</p>
         <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
         {runner.error && <ErrorState title="Not voided" message={runner.error} />}
-        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger hover:bg-danger/90">Void bill</Button></div>
+        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Void bill</Button></div>
       </form>
     </Dialog>
   )

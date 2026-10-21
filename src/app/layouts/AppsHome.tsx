@@ -19,7 +19,7 @@ export function AppsHome() {
     <div className="min-h-[calc(100dvh-3rem)] bg-white">
       <div className="px-4 pb-16 pt-12 text-center sm:px-8">
         <h1 className="text-3xl font-bold text-ink sm:text-4xl">{active.name}</h1>
-        <div className="mx-auto mt-3 h-1 w-20 rounded-full bg-mint" aria-hidden />
+        <div className="mx-auto mt-3 h-1 w-20 rounded-full bg-amber" aria-hidden />
         <p className="mt-3 text-sm text-ink/60">{INDUSTRY_TEMPLATES[active.industry].name}</p>
       </div>
 
@@ -31,7 +31,7 @@ export function AppsHome() {
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink/50" aria-hidden />
           <input
             value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search apps…"
-            className="h-10 w-full rounded-full border border-line bg-white pl-9 pr-4 text-sm text-ink placeholder:text-ink/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            className="h-10 w-full rounded-full border border-line bg-white pl-9 pr-4 text-sm text-ink placeholder:text-ink/50 focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/30"
           />
         </label>
 

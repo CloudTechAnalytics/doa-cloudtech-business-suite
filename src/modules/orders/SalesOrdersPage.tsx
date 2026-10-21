@@ -148,7 +148,7 @@ function OrderDialog({ businessId, order, customerName, catalog, canSell, onClos
         <form onSubmit={(e) => { e.preventDefault(); void runner.run((k) => cancelOrder(businessId, order.id, reason, k), 'Order cancelled.', () => setMode(null)) }} className="mt-4 space-y-3 border-t border-line pt-4">
           <TextField label="Reason for cancelling" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
           {runner.error && <ErrorState title="Not cancelled" message={runner.error} />}
-          <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setMode(null)}>Back</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger hover:bg-danger/90">Cancel order</Button></div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setMode(null)}>Back</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Cancel order</Button></div>
         </form>
       )}
       {!mode && active && canSell && <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setMode('cancel')}>Cancel order</Button><Button onClick={() => setMode('deliver')} disabled={!order.lines.some((l) => l.remaining > 0)}>Deliver</Button></div>}

@@ -214,7 +214,7 @@ export function OnboardingPage() {
                 <Card>
                   <h2 className="text-lg font-bold">Check your email</h2>
                   <p className="mt-1 text-sm text-ink/70">We sent a confirmation link to <b>{account.email}</b>. Confirm it, then sign in: your {defs.length > 1 ? 'businesses are' : 'business is'} saved and will be set up straight after.</p>
-                  <div className="mt-4"><Link to="/sign-in" className="inline-flex h-9 items-center rounded-md bg-brand px-3.5 text-sm font-medium text-white hover:bg-brand-dark">Go to sign in</Link></div>
+                  <div className="mt-4"><Link to="/sign-in" className="inline-flex h-9 items-center rounded-md bg-amber px-3.5 text-sm font-bold text-ink hover:bg-amber-dark">Go to sign in</Link></div>
                 </Card>
               ) : !allCreated && (
                 <Card>
@@ -228,7 +228,7 @@ export function OnboardingPage() {
                         <Button type="button" variant="secondary" onClick={() => setStep(2)} disabled={busy}>Back</Button>
                         <Button type="submit" loading={busy}>{defs.length > 1 ? `Create account and ${defs.length} businesses` : 'Create account and business'}</Button>
                       </div>
-                      <p className="text-sm text-ink/60">Already have an account? <Link to="/sign-in" onClick={persist} className="font-medium text-brand-ink underline">Sign in</Link></p>
+                      <p className="text-sm text-ink/60">Already have an account? <Link to="/sign-in" onClick={persist} className="font-medium text-ink underline decoration-amber decoration-2 underline-offset-4">Sign in</Link></p>
                     </div>
                   </form>
                 </Card>

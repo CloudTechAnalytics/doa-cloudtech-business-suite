@@ -31,7 +31,7 @@ export function CrmPage() {
       <div role="tablist" aria-label="CRM sections" className="mb-4 flex gap-1 border-b border-ink/10">
         {TABS.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-brand text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>
+            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>
         ))}
       </div>
       {tab === 'Customers' && <Customers businessId={businessId} can={can} />}
