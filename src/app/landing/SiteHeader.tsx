@@ -9,7 +9,7 @@ import { SiteNav } from './SiteNav'
  */
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-line/60 bg-white">
+    <header className="sticky top-0 z-30 border-b border-line/60 bg-gradient-to-r from-white via-[#f7fafd] to-white shadow-[0_1px_0_rgb(255_255_255),0_6px_18px_-14px_rgb(11_42_74/0.35)]">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link to="/" aria-label="DOA B-Suite home"><BrandLockup /></Link>
         <SiteNav />
