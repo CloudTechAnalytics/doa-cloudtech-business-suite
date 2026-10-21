@@ -61,10 +61,23 @@ const seed = (): State => ({
   ],
 })
 
+/** Mirrors the migrations that switch a new module on for existing businesses of an industry (e.g. farm-products for farms). */
+function withNewDefaults(st: State): State {
+  const modules = { ...st.modules }
+  for (const b of st.businesses) {
+    const m = modules[b.id]
+    if (b.industry === 'farm' && m) {
+      const missing = defaultModules('farm').filter((c) => !m.enabled.includes(c) && !m.disabledHistory.includes(c))
+      if (missing.length) modules[b.id] = { ...m, enabled: [...m.enabled, ...missing] }
+    }
+  }
+  return { ...st, modules }
+}
+
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return JSON.parse(raw) as State
+    if (raw) return withNewDefaults(JSON.parse(raw) as State)
   } catch { /* fall through to seed */ }
   return seed()
 }

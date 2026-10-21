@@ -1,7 +1,8 @@
 import * as demo from '@/demo/demoFarm'
+import { getInv } from '@/demo/demoInventory'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
-import type { FarmData, NewBatch, Production } from '../types'
+import type { FarmData, FarmProduct, NewBatch, NewFarmProduct, Production, ProductArea, ProductSource } from '../types'
 
 /** Farm data access. Live mode reads row-level-secured tables and calls database functions; demo mode runs a browser mirror. */
 const db = () => supabase!
@@ -113,4 +114,34 @@ export async function closeBatch(b: string, batch: string, reason: string, write
 export async function addActivity(b: string, a: { batchId: string | null; unitId: string | null; type: string; notes: string; on: string }) {
   if (isDemoMode) return demo.demoAddActivity(b, a)
   return msg((await db().from('farm_activity_logs').insert({ business_id: b, farm_batch_id: a.batchId, farm_unit_id: a.unitId, activity_type: a.type, notes: a.notes.trim(), activity_on: a.on })).error)
+}
+
+export async function loadFarmProducts(b: string): Promise<FarmProduct[]> {
+  if (isDemoMode) {
+    demo.ensureDemoFarm(b)
+    const inv = getInv()
+    return demo.getFarm().profiles.filter((p) => p.businessId === b).flatMap((p) => {
+      const x = inv.products.find((q) => q.id === p.productId && q.businessId === b)
+      return x ? [{ id: x.id, name: x.name, sku: x.sku, description: '', price: x.sellingPrice, active: x.status === 'active', unit: x.unit, area: p.area, source: p.source, species: p.species, available: demo.demoProductAvailable(b, x.id, p) }] : []
+    }).sort((a, c) => a.name.localeCompare(c.name))
+  }
+  const { data, error } = await db().from('farm_products').select('*').eq('business_id', b).order('name')
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((x) => ({
+    id: x.id!, name: x.name!, sku: x.sku, description: x.description ?? '', price: n(x.selling_price), active: x.status === 'active', unit: x.unit_code!,
+    area: x.production_type as ProductArea, source: x.source_kind as ProductSource, species: x.match_species, available: x.available_quantity === null ? null : n(x.available_quantity),
+  }))
+}
+
+export async function createFarmProduct(b: string, p: NewFarmProduct, key: string) {
+  if (isDemoMode) return demo.demoCreateFarmProduct(b, p, key)
+  return msg((await db().rpc('farm_create_product', {
+    p_business: b, p_name: p.name, p_sku: p.sku || null, p_production_type: p.area, p_source_kind: p.source, p_species: p.species || null,
+    p_unit_code: p.unit, p_price: p.price, p_description: p.description || null, p_key: key,
+  })).error)
+}
+
+export async function updateFarmProduct(b: string, id: string, v: { name: string; price: number; description: string; active: boolean }) {
+  if (isDemoMode) return demo.demoUpdateFarmProduct(b, id, v)
+  return msg((await db().rpc('farm_update_product', { p_product: id, p_name: v.name, p_price: v.price, p_description: v.description || null, p_active: v.active })).error)
 }

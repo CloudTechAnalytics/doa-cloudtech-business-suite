@@ -1,7 +1,6 @@
 import { BarChart3, LayoutDashboard } from 'lucide-react'
 import { lazy } from 'react'
 import type { SharedModule } from '@/core/module-registry/types'
-import { placeholderPage } from '@/shared/components/widgets'
 import type { ModuleDefinition } from '@/shared/types/domain'
 
 const dashboard: ModuleDefinition = {
@@ -10,9 +9,8 @@ const dashboard: ModuleDefinition = {
 }
 const reports: ModuleDefinition = {
   code: 'reports', name: 'Reports', description: 'Sales, purchases, stock, expense and margin reports.', path: 'reports',
-  permission: 'reports.read', icon: BarChart3, navGroup: 'Finance', owner: 'platform', maturity: 'soon',
+  permission: 'reports.finance.read', icon: BarChart3, navGroup: 'Finance', owner: 'platform',
 }
 
 export const dashboardModule: SharedModule = { definition: dashboard, page: lazy(() => import('./DashboardPage').then((m) => ({ default: m.DashboardPage }))) }
-/** Reports are registered and permission-checked; the report screens are not built yet. */
-export const reportsModule: SharedModule = { definition: reports, page: placeholderPage(reports) }
+export const reportsModule: SharedModule = { definition: reports, page: lazy(() => import('@/modules/finance/ReportsPage').then((m) => ({ default: m.ReportsPage }))) }

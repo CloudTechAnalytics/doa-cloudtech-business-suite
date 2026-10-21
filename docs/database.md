@@ -10,6 +10,12 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0004_sales_purchasing` | customers, suppliers, sales and items, returns, payments, purchases, receipts; posting, payment, return, void and goods-receipt functions; document numbering |
 | `…0005_audit_crm_settings` | `audit_logs` and audit triggers; `subscription_events`; CRM (`crm_leads`, `crm_tags`, `crm_entity_tags`, `crm_interactions`, `crm_tasks`, `convert_lead`, `customer_history`); validated business settings; `audit.read` |
 | `…0006_farm` | `farm_units`, `farm_batches`, append-only `farm_batch_events` (population ledger), `farm_feed_records`, `farm_harvests`, `farm_activity_logs`; `farm_batch_summaries` view; batch, mortality, feeding, harvest, correction, void and close functions; `farm.manage` |
+| `…0007_archive_business` | `archive_business()`: an owner deletes a business by archiving it (records kept, hidden from everyone) |
+| `…0008_farm_products` | `farm_product_profiles`, `farm_products` view (availability derived from stock or live batches), `farm_create_product`, `farm_update_product` |
+| `…0009_farm_navigation_modules` | Farm sidebar modules (alerts, tasks, health, equipment, crops, purchase requests, supplier bills, sales orders, receivables, payables, cashbook, workers) and the `expenses.record`, `procurement.request`, `procurement.approve` permissions |
+| `…0010_finance` | `expenses` (void, never delete), `receivables`, `payables` and `cashbook` views, `report_summary`, `record_expense`, `void_expense` |
+| `…0011_requests_bills_orders` | purchase requests (approval, then a normal purchase order), supplier bills, sales orders (fulfilment posts a normal sale; "fulfilled" is derived) |
+| `…0012_farm_operations` | workers, tasks, health records with withdrawal-period enforcement, equipment and maintenance (costs become one expense), `farm_alerts`, `farm_batch_costs` |
 
 ## Tables named in the architecture brief
 

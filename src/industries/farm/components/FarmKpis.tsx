@@ -1,5 +1,5 @@
 import { FarmGate, Stat, sumByUnit, withinDays } from './farmUi'
-import { useFarm } from '../hooks/useFarm'
+import { FarmOverview } from './FarmOverview'
 import type { FarmContext } from '../hooks/useFarm'
 
 /** The four headline farm figures, derived from the ledgers (not demo numbers). */
@@ -28,6 +28,5 @@ export function FarmKpis({ farm }: { farm: FarmContext }) {
 
 /** Dashboard widget: fetches its own data so it works wherever the dashboard shows it. */
 export function FarmDashboardWidget() {
-  const farm = useFarm()
-  return <FarmKpis farm={farm} />
+  return <FarmOverview />
 }

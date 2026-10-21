@@ -46,7 +46,10 @@ export function buildApps(industry: IndustryCode, usable: ReadonlySet<ModuleCode
     const modules = pick(section.modules)
     return modules.length ? { id: `${industry}-${i}`, label: section.label, color: INDUSTRY_COLORS[industry] ?? '#1971c2', icon: modules[0].icon, modules } : null
   })
-  return [...BEFORE.map(fromSpec), ...industryApps, ...AFTER.map(fromSpec)].filter((a): a is AppDef => a !== null)
+  // A module an industry lists in its own sections (e.g. the farm's Inventory) is not repeated under the generic apps.
+  const claimed = new Set(getIndustry(industry).navigation.flatMap((s) => s.modules))
+  const generic = (s: SharedAppSpec) => fromSpec({ ...s, modules: s.modules.filter((c) => !claimed.has(c)) })
+  return [...BEFORE.map(generic), ...industryApps, ...AFTER.map(generic)].filter((a): a is AppDef => a !== null)
 }
 
 export const appPath = (m: ModuleDefinition) => `/app/${m.path}`
@@ -88,7 +91,7 @@ export function landingApps(): { shared: LandingApp[]; industries: LandingApp[] 
     id: a.id, label: a.label, color: a.color, icon: MODULES[a.modules[0]].icon, blurb: LANDING_BLURBS[a.id] ?? '',
   }))
   const industries = Object.values(INDUSTRIES).filter((d) => d.status === 'active' && d.navigation.length > 0).map((d) => ({
-    id: d.id, label: d.navigation[0].label, color: industryColor(d.id), icon: d.icon, blurb: d.description,
+    id: d.id, label: d.appName ?? d.navigation[0].label, color: industryColor(d.id), icon: d.icon, blurb: d.description,
   }))
   return { shared, industries }
 }
@@ -107,8 +110,9 @@ export function landingMenus(): { apps: SiteMenuColumn[]; industries: SiteMenuCo
     return mods.length ? { id: group, title, color, icon: mods[0].icon, items: mods.map((m) => itemFor(m, '/start')) } : null
   }
   const owned = Object.values(INDUSTRIES).filter((d) => d.status === 'active' && d.modules.length > 0).map((d): SiteMenuColumn => ({
-    id: d.id, title: d.navigation[0]?.label ?? d.name, color: industryColor(d.id), icon: d.icon,
-    items: d.modules.map((m) => itemFor(m, `/start?type=${d.id}`)),
+    id: d.id, title: d.appName ?? d.navigation[0]?.label ?? d.name, color: industryColor(d.id), icon: d.icon,
+    // Wide industries show their first nine modules; the rest are in the product.
+    items: d.modules.slice(0, 9).map((m) => itemFor(m, `/start?type=${d.id}`)),
   }))
   const apps = [
     shared('Sales', 'Sales and customers', '#2f9e44'),

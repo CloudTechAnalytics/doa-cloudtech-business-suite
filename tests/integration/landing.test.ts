@@ -31,8 +31,8 @@ describe('the Apps and Industries menus come from the registries', () => {
   it('labels unfinished modules honestly and finished ones not at all', () => {
     const tag = (col: string, label: string) => apps.find((c) => c.id === col)!.items.find((i) => i.label === label)!.tag
     expect(tag('bakery', 'Recipes')).toBe('Preview')
-    expect(tag('Finance', 'Expenses')).toBe('Soon')
-    expect(tag('farm', 'Farm Expenses')).toBe('Soon')
+    expect(tag('Finance', 'Expenses')).toBeUndefined() // built
+    expect(tag('farm', 'Farm Expenses')).toBeUndefined() // built
     expect(tag('farm', 'Farm Batches')).toBeUndefined()
     expect(tag('Sales and customers', 'Sales / POS')).toBeUndefined()
   })

@@ -10,7 +10,7 @@ export const SHARED_PERMISSION_CODES = [
   'purchases.read', 'purchases.manage', 'purchases.receive', 'purchases.pay',
   'suppliers.read', 'suppliers.manage',
   'customers.read', 'customers.manage', 'customers.credit',
-  'expenses.read', 'expenses.approve',
+  'expenses.read', 'expenses.approve', 'expenses.record', 'procurement.request', 'procurement.approve',
   'reports.read', 'reports.finance.read',
   'audit.read',
 ] as const

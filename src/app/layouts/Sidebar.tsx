@@ -31,6 +31,7 @@ export function Sidebar({ apps, collapsed = false, onToggle, onNavigate }: { app
             <NavLink key={e.key} to={appPath(e.module)} onClick={onNavigate} title={collapsed ? e.module.name : undefined} aria-label={collapsed ? e.module.name : undefined} className={item}>
               <e.module.icon className="size-[18px] shrink-0" aria-hidden />
               {!collapsed && <span className="truncate">{e.module.name}</span>}
+              {!collapsed && e.module.maturity && <span className="ml-auto rounded-full bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-ink/50">{e.module.maturity === 'soon' ? 'Soon' : 'Preview'}</span>}
             </NavLink>
           ),
         )}

@@ -16,6 +16,22 @@ export interface FarmActivity { id: string; batchId: string | null; unitId: stri
 
 export interface FarmData { units: FarmUnit[]; batches: FarmBatch[]; events: FarmEvent[]; feeds: FarmFeed[]; harvests: FarmHarvest[]; activities: FarmActivity[] }
 
+export type ProductArea = Production | 'general'
+export type ProductSource = 'produce' | 'livestock' | 'other'
+export const PRODUCT_SOURCE_LABEL: Record<ProductSource, string> = {
+  produce: 'Produce (eggs, fish, harvest)',
+  livestock: 'Live animals',
+  other: 'Other (not stock-tracked)',
+}
+export const PRODUCT_AREA_LABEL: Record<ProductArea, string> = { poultry: 'Poultry', fish: 'Fish', crop: 'Crops', livestock: 'Livestock', general: 'General' }
+
+/** What the farm sells. Available quantity is derived from stock or live batches; null when not stock-tracked. */
+export interface FarmProduct {
+  id: string; name: string; sku: string | null; description: string; price: number; active: boolean; unit: string
+  area: ProductArea; source: ProductSource; species: string | null; available: number | null
+}
+export interface NewFarmProduct { name: string; sku: string; area: ProductArea; source: ProductSource; species: string; unit: string; price: number; description: string }
+
 export interface NewBatch { unitId: string; code: string; species: string; variety: string; productionType: Production; opening: number; startDate: string; plannedEnd: string | null; basis: 'exact' | 'estimated' }
 
 /** Mortality rate = deaths (net of corrections) ÷ animals that entered the batch (opening + transfers in). */

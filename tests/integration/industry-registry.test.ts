@@ -69,16 +69,18 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
   it('orders apps: dashboard first, the industry app next, settings last', () => {
     const apps = buildApps('farm', usableFor('farm'))
     expect(apps[0].id).toBe('dashboard')
-    expect(apps[1].label).toBe('Farm operations')
-    expect(apps.at(-1)!.id).toBe('settings')
+    expect(apps[1].label).toBe('Overview')
+    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Stock and procurement', 'Sales and customers', 'Finance', 'People and administration'])
   })
 
   it('gives each app a menu of its own modules and finds the open app from the URL', () => {
     const apps = buildApps('farm', usableFor('farm'))
-    expect(apps.find((a) => a.id === 'purchase')!.modules.map((m) => m.code)).toEqual(['purchases', 'suppliers'])
-    expect(findCurrentApp(apps, '/app/farm/mortality')?.label).toBe('Farm operations')
-    expect(findCurrentApp(apps, '/app/purchases')?.id).toBe('purchase')
-    expect(findCurrentApp(apps, '/app/inventory/anything')?.id).toBe('inventory')
+    const stock = apps.find((a) => a.label === 'Stock and procurement')!.modules.map((m) => m.code)
+    expect(stock).toEqual(expect.arrayContaining(['inventory', 'suppliers', 'purchases', 'farm-purchase-requests', 'farm-supplier-bills']))
+    expect(apps.map((a) => a.id)).not.toContain('purchase') // claimed by the farm's own sections, not repeated
+    expect(findCurrentApp(apps, '/app/farm/mortality')?.label).toBe('Production')
+    expect(findCurrentApp(apps, '/app/purchases')?.label).toBe('Stock and procurement')
+    expect(findCurrentApp(apps, '/app/inventory/anything')?.label).toBe('Stock and procurement')
     expect(findCurrentApp(apps, '/app')).toBeNull()
   })
 
@@ -88,10 +90,17 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     const link = (code: string) => entries.findIndex((e) => e.kind === 'link' && e.module.code === code)
     expect(entries.some((e) => e.kind === 'heading' && e.label === 'Dashboard')).toBe(false)
     expect(entries[0]).toMatchObject({ kind: 'link', module: { code: 'dashboard' } })
-    expect(heading('Farm operations')).toBeLessThan(link('farm-overview'))
-    expect(link('farm-overview')).toBeLessThan(link('farm-expenses'))
-    expect(heading('Purchase')).toBeGreaterThan(-1)
-    expect(link('purchases')).toBe(heading('Purchase') + 1)
+    expect(link('farm-overview')).toBe(-1) // the Dashboard shows the overview
+    expect(link('farm-alerts')).toBe(1) // a one-module section is a plain link right after Dashboard
+    expect(heading('Farm operations')).toBeLessThan(link('farm-daily'))
+    expect(link('farm-daily')).toBeLessThan(link('farm-tasks'))
+    expect(heading('Production')).toBeLessThan(link('farm-batches'))
+    expect(heading('Stock and procurement')).toBeLessThan(link('inventory'))
+    expect(link('inventory')).toBeLessThan(link('suppliers'))
+    expect(heading('Sales and customers')).toBeLessThan(link('farm-products'))
+    expect(link('farm-products')).toBeLessThan(link('sales'))
+    expect(heading('Finance')).toBeLessThan(link('farm-cashbook'))
+    expect(heading('People and administration')).toBeLessThan(link('staff'))
     expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'settings' } })
   })
 

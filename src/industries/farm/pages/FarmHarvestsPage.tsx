@@ -39,7 +39,7 @@ export function FarmHarvestsPage() {
                 <Card className="mb-4">
                   <form onSubmit={submit} noValidate className="grid gap-3 sm:grid-cols-3">
                     <BatchSelect batches={farm.activeBatches} error={errors.batch} />
-                    <SelectField label="Produce item" value={product} onChange={(e) => setProduct(e.target.value)} error={errors.product} hint="Create items such as eggs or catfish under Inventory.">
+                    <SelectField label="Produce item" value={product} onChange={(e) => setProduct(e.target.value)} error={errors.product} hint="Add items such as eggs or catfish under Farm Products.">
                       <option value="">Select…</option>{catalog.products.filter((p) => p.status === 'active').map((p) => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
                     </SelectField>
                     <SelectField label="Add to" name="location">{catalog.locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</SelectField>

@@ -41,11 +41,11 @@ Read [docs/architecture.md](docs/architecture.md) first. To add an industry see 
 
 - **Core:** sign-in, multiple businesses per owner with a business switcher, memberships and roles, plan and module entitlements enforced in the database, validated settings, audit log, subscription events.
 - **Shared modules:** CRM (leads, customers, notes, follow-ups, tags, lead conversion without duplicates, credit limits), inventory (append-only ledger, weighted-average cost, transfers, counts, reconciliation), sales and POS (server-side totals, payments, returns, voids, receipts), purchasing (orders, goods received, supplier payments), staff and roles.
-- **Industries:** Retail (composes shared modules), Farm (production units, batches with a population ledger, mortality, feeding from shared stock, harvests into shared stock, daily log, corrections and voids, live dashboard widget) and Bakery (registered with its own modules, permissions, navigation, setup questions and workflows; screens are placeholders until built), Pharmacy (scaffold, unavailable).
+- **Industries:** Retail (composes shared modules), Farm (production units, batches with a population ledger, mortality, feeding from shared stock, harvests into shared stock, daily log, corrections and voids, products, health and withdrawal periods, tasks and workers, equipment and maintenance, crop cycles, purchase requests, supplier bills, sales orders, expenses, receivables, payables, cashbook, reports and alerts, and a dashboard that shows the farm overview) and Bakery (registered with its own modules, permissions, navigation, setup questions and workflows; screens are placeholders until built), Pharmacy (scaffold, unavailable).
 
 ## Not built yet
 
-- Bakery screens and tables; farm expenses (needs the shared expenses module), crop cycles, health records, tasks and equipment; expense and report screens; notification delivery, payment-provider integration, platform administration, browser end-to-end tests.
+- Bakery screens and tables; notification delivery, payment-provider integration, platform administration, browser end-to-end tests. From the reference farm system: separate Poultry and Fish pages (Farm Batches covers them), per-site access, customer statements and payroll. Migrations 0001 to 0012 have only been run against the in-memory test database, never a real Supabase project.
 - The migrations have not been run against a real Supabase project, and stock locking has not been tested under truly concurrent connections (the test database has one connection). Do both before launch.
 - Pricing is a commercial decision and is not defined; no payment processing exists.
 

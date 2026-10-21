@@ -66,6 +66,8 @@ export interface IndustryDefinition {
   description: string
   /** Heading the business-type picker groups this industry under (e.g. "Farming & food"). */
   category: string
+  /** Name of this industry's app on the public site (defaults to its first sidebar section). */
+  appName?: string
   icon: LucideIcon
   /** Bump when module sets or setup questions change; the database template mirrors it. */
   version: number
