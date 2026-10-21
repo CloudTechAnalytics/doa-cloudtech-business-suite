@@ -8,7 +8,7 @@ import { rolePermissions } from '@/core/permissions/roles'
 
 export interface DProduct { id: string; businessId: string; sku: string | null; barcode: string | null; name: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; status: 'active' | 'archived'; kind?: 'ingredient' | 'finished_good' | 'goods' }
 /** A batch of finished goods with an expiry date; stock leaves the oldest-expiring lot first (mirrors bakery_lots). */
-export interface DLot { batchNumber?: string | null; id: string; businessId: string; productId: string; batchId: string; quantity: number; remaining: number; producedOn: string; expiresOn: string | null; voided: boolean }
+export interface DLot { batchNumber?: string | null; status?: 'active' | 'quarantined'; statusReason?: string | null; manufacturedOn?: string | null; supplierId?: string | null; locationId?: string | null; id: string; businessId: string; productId: string; batchId: string; quantity: number; remaining: number; producedOn: string; expiresOn: string | null; voided: boolean }
 export interface DAlloc { lotId: string; movementId: string; quantity: number; restored: boolean }
 export interface DLocation { id: string; businessId: string; name: string }
 export interface DMovement { id: string; businessId: string; productId: string; locationId: string; type: string; delta: number; unitCost: number; reason: string | null; at: string; reversalOf: string | null; groupId: string }
@@ -25,16 +25,18 @@ export interface Inv {
   lotProducts?: string[]
   /** Mart products that track expiry: every receipt becomes a lot, completed with batch and expiry afterwards. */
   martLotProducts?: string[]
+  /** Pharmacy medicines: batch stock that never sells expired, quarantined or undated lots. */
+  pharmacyProducts?: string[]
 }
 
 const KEY = 'doa.demo.inv.v1'
 let uid = Date.now()
 const id = (p: string) => `${p}-${(uid++).toString(36)}`
-const empty = (): Inv => ({ products: [], locations: [], movements: [], balances: {}, keys: {}, seeded: [], lots: [], allocs: [], lotProducts: [], martLotProducts: [] })
+const empty = (): Inv => ({ products: [], locations: [], movements: [], balances: {}, keys: {}, seeded: [], lots: [], allocs: [], lotProducts: [], martLotProducts: [], pharmacyProducts: [] })
 
 /** A working copy for an operation that commits only if every step succeeds. */
 export function cloneInv(inv: Inv): Inv {
-  return { ...inv, balances: { ...inv.balances }, movements: [...inv.movements], keys: { ...inv.keys }, lots: (inv.lots ?? []).map((l) => ({ ...l })), allocs: (inv.allocs ?? []).map((a) => ({ ...a })), lotProducts: [...(inv.lotProducts ?? [])], martLotProducts: [...(inv.martLotProducts ?? [])] }
+  return { ...inv, balances: { ...inv.balances }, movements: [...inv.movements], keys: { ...inv.keys }, lots: (inv.lots ?? []).map((l) => ({ ...l })), allocs: (inv.allocs ?? []).map((a) => ({ ...a })), lotProducts: [...(inv.lotProducts ?? [])], martLotProducts: [...(inv.martLotProducts ?? [])], pharmacyProducts: [...(inv.pharmacyProducts ?? [])] }
 }
 
 function load(): Inv {
@@ -87,8 +89,12 @@ export function ensureDemoInventory(businessId: string, industry: string) {
 }
 
 /** Mirrors bakery_allocate_lots(): outgoing stock takes from the oldest-expiring lot; a reversal gives it back to the same lots. */
+/** Set while a named batch is being written off, so that disposal can take from a quarantined or expired lot. */
+export const lotForce: { id: string | null } = { id: null }
+
 function allocateLots(inv: Inv, p: DProduct, m: DMovement) {
-  const mart = !!inv.martLotProducts?.includes(p.id)
+  const pharm = !!inv.pharmacyProducts?.includes(p.id)
+  const mart = pharm || !!inv.martLotProducts?.includes(p.id)
   if ((!inv.lotProducts?.includes(p.id) && !mart) || ['production_output', 'transfer_in', 'transfer_out'].includes(m.type)) return
   const lots = (inv.lots ??= []); const allocs = (inv.allocs ??= [])
   if (m.reversalOf) {
@@ -100,14 +106,18 @@ function allocateLots(inv: Inv, p: DProduct, m: DMovement) {
     }
     return
   }
-  if (mart && (m.type === 'receipt' || m.type === 'return_in') && m.delta > 0) {
-    lots.push({ id: id('lt'), businessId: p.businessId, productId: p.id, batchId: `mv:${m.id}`, batchNumber: null, quantity: m.delta, remaining: m.delta, producedOn: m.at.slice(0, 10), expiresOn: null, voided: false })
+  if (mart && (pharm ? ['receipt', 'return_in', 'adjustment', 'count_adjustment'] : ['receipt', 'return_in']).includes(m.type) && m.delta > 0) {
+    const waiting = pharm && m.type !== 'receipt'
+    lots.push({ id: id('lt'), businessId: p.businessId, productId: p.id, batchId: `mv:${m.id}`, batchNumber: null, quantity: m.delta, remaining: m.delta, producedOn: m.at.slice(0, 10), expiresOn: null, voided: false, locationId: m.locationId,
+      status: waiting ? 'quarantined' : 'active', statusReason: waiting ? (m.type === 'return_in' ? 'Customer return awaiting inspection' : 'Stock added by adjustment: confirm batch and expiry') : null })
     return
   }
   if (m.delta >= 0) return
   let need = -m.delta
-  const order = lots.filter((l) => l.businessId === p.businessId && l.productId === p.id && l.remaining > 0 && !l.voided)
-    .sort((a, b) => (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999') || a.producedOn.localeCompare(b.producedOn))
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const sellable = (l: DLot) => (l.status ?? 'active') === 'active' && !!l.expiresOn && l.expiresOn >= todayIso
+  const order = lots.filter((l) => l.businessId === p.businessId && l.productId === p.id && l.remaining > 0 && !l.voided && (!pharm || (lotForce.id ? l.id === lotForce.id : m.type === 'return_out' || sellable(l))))
+    .sort((a, b) => (pharm && m.type === 'return_out' && !lotForce.id ? Number(sellable(a)) - Number(sellable(b)) : 0) || (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999') || a.producedOn.localeCompare(b.producedOn))
   for (const l of order) {
     if (need <= 0) break
     const take = Math.min(l.remaining, need)
@@ -115,6 +125,7 @@ function allocateLots(inv: Inv, p: DProduct, m: DMovement) {
     allocs.push({ lotId: l.id, movementId: m.id, quantity: take, restored: false })
     need = Math.round((need - take) * 10000) / 10000
   }
+  if (pharm && need > 0) throw new Error(`not enough saleable stock of ${p.name}: expired, quarantined or undated batches are excluded`)
 }
 
 export function postMovement(inv: Inv, p: DProduct, locationId: string, type: string, delta: number, cost: number | null, reason: string | null, groupId: string, reversalOf: string | null = null): DMovement {

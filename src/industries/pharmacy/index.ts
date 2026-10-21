@@ -1,30 +1,30 @@
-import { Pill } from 'lucide-react'
 import { defineIndustry } from '@/core/industry-registry/define'
+import { lazy } from 'react'
+import { pharmacyConfig } from './config'
+import { pharmacyModules } from './modules'
+import { pharmacyNavigation } from './navigation'
+import { pharmacyPermissions } from './permissions'
+import { pharmacyRoutes } from './routes'
+import { pharmacySetupQuestions } from './setup'
+
+// Loaded on demand so the registry never imports pharmacy screens or data code.
+const PharmacyDashboardWidget = lazy(() => import('./components/PharmacyOverview').then((m) => ({ default: m.PharmacyOverview })))
 
 /**
- * Scaffold only. Pharmacy stays "coming soon" until its workflows (batch and expiry tracking, dispensing,
- * restricted permissions, prescription handling) are designed and the applicable Nigerian regulatory,
- * privacy and recordkeeping requirements are confirmed. The validator forbids a coming_soon industry from
- * defining modules or routes, so nothing here can reach users by accident.
+ * Pharmacy & medicine store. The software records and enforces workflow (batches, expiry, quarantine, restricted-medicine dispensing,
+ * pharmacist review). It does not diagnose, prescribe, or decide that a prescription is clinically safe, and the legal requirements
+ * of the pharmacy's jurisdiction must be confirmed with qualified professionals before production use.
  */
 export const pharmacy = defineIndustry({
-  id: 'pharmacy',
-  name: 'Pharmacy',
-  description: 'Planned for a later release after workflow and compliance review.',
-  category: 'Shops & trade',
-  icon: Pill,
-  version: 1,
-  status: 'coming_soon',
-  modules: [],
-  requiredSharedModules: [],
-  optionalSharedModules: [],
-  defaultModules: [],
-  optionalModules: [],
-  requiredModules: [],
-  permissions: [],
-  navigation: [],
-  routes: [],
-  onboarding: { questions: [] },
-  dashboardWidgets: [],
-  workflows: [],
+  ...pharmacyConfig,
+  modules: pharmacyModules,
+  permissions: pharmacyPermissions,
+  navigation: pharmacyNavigation,
+  routes: pharmacyRoutes,
+  onboarding: { questions: pharmacySetupQuestions },
+  dashboardWidgets: [{ id: 'pharmacy-kpis', title: 'Pharmacy overview', component: PharmacyDashboardWidget }],
+  workflows: [
+    { id: 'receive-goods', label: 'Receive goods with batch and expiry', module: 'pharmacy-products', description: 'Record a delivery with batch numbers, expiry dates and rejected quantities.' },
+    { id: 'review-prescription', label: 'Review prescriptions', module: 'pharmacy-prescriptions', description: 'Approve or reject prescriptions awaiting a pharmacist.' },
+  ],
 })

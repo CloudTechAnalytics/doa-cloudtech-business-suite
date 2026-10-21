@@ -20,6 +20,8 @@ export type RoleName =
   | 'cashier'
   | 'inventory_officer'
   | 'operations_staff'
+  | 'pharmacist'
+  | 'pharmacy_technician'
   | 'viewer'
 
 export type MembershipStatus = 'invited' | 'active' | 'suspended' | 'revoked'

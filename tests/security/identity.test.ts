@@ -35,7 +35,9 @@ describe('multi-business ownership', () => {
   })
 
   it('rejects unavailable industries and anonymous callers', async () => {
-    await expect(asUser(db, owner, () => createBiz('Pharma', 'pharmacy'))).rejects.toThrow(/not available/)
+    // an industry that is still marked coming soon cannot be created (pharmacy is live now, so mark it so for this check)
+    await db.exec(`update public.industry_templates set status = 'coming_soon' where code = 'pharmacy'`)
+    try { await expect(asUser(db, owner, () => createBiz('Pharma', 'pharmacy'))).rejects.toThrow(/not available/) } finally { await db.exec(`update public.industry_templates set status = 'active' where code = 'pharmacy'`) }
     await expect(asUser(db, null, () => createBiz('Anon', 'retail'))).rejects.toThrow()
   })
 })

@@ -29,8 +29,9 @@ interface State {
 const KEY = 'doa.demo.v2'
 
 export const DEMO_LOGINS = [
-  { email: 'owner@demo.test', password: 'demo1234', note: 'Owner of 3 businesses (farm, bakery, retail)' },
-  { email: 'cashier@demo.test', password: 'demo1234', note: 'Cashier at CityMart only' },
+  { email: 'owner@demo.test', password: 'demo1234', note: 'Owner of 4 businesses (farm, bakery, retail, pharmacy)' },
+  { email: 'cashier@demo.test', password: 'demo1234', note: 'Cashier at CityMart and CarePlus Pharmacy' },
+  { email: 'pharmacist@demo.test', password: 'demo1234', note: 'Pharmacist at CarePlus Pharmacy' },
 ]
 
 const seed = (): State => ({
@@ -40,16 +41,19 @@ const seed = (): State => ({
     // Starter on purpose: shows modules locked behind a plan upgrade.
     'b-bakery': { plan: 'starter', enabled: defaultModules('bakery'), disabledHistory: [] },
     'b-retail': { plan: 'growth', enabled: defaultModules('retail'), disabledHistory: [] },
+    'b-pharmacy': { plan: 'growth', enabled: defaultModules('pharmacy'), disabledHistory: [] },
   },
   users: [
     { id: 'u-owner', email: 'owner@demo.test', password: 'demo1234', name: 'Demo Owner' },
     { id: 'u-cashier', email: 'cashier@demo.test', password: 'demo1234', name: 'Demo Cashier' },
     { id: 'u-acct', email: 'accountant@demo.test', password: 'demo1234', name: 'Demo Accountant' },
+    { id: 'u-pharm', email: 'pharmacist@demo.test', password: 'demo1234', name: 'Demo Pharmacist' },
   ],
   businesses: [
     { id: 'b-farm', name: 'Greenfield Farms', industry: 'farm' },
     { id: 'b-bakery', name: 'Sunrise Bakery', industry: 'bakery' },
     { id: 'b-retail', name: 'CityMart', industry: 'retail' },
+    { id: 'b-pharmacy', name: 'CarePlus Pharmacy', industry: 'pharmacy' },
   ],
   members: [
     { id: 'm1', businessId: 'b-farm', userId: 'u-owner', email: 'owner@demo.test', name: 'Demo Owner', role: 'owner', status: 'active' },
@@ -58,6 +62,9 @@ const seed = (): State => ({
     { id: 'm4', businessId: 'b-retail', userId: 'u-cashier', email: 'cashier@demo.test', name: 'Demo Cashier', role: 'cashier', status: 'active' },
     { id: 'm5', businessId: 'b-bakery', userId: 'u-acct', email: 'accountant@demo.test', name: 'Demo Accountant', role: 'accountant', status: 'active' },
     { id: 'm6', businessId: 'b-retail', userId: 'u-acct', email: 'accountant@demo.test', name: 'Demo Accountant', role: 'accountant', status: 'active' },
+    { id: 'm7', businessId: 'b-pharmacy', userId: 'u-owner', email: 'owner@demo.test', name: 'Demo Owner', role: 'owner', status: 'active' },
+    { id: 'm8', businessId: 'b-pharmacy', userId: 'u-pharm', email: 'pharmacist@demo.test', name: 'Demo Pharmacist', role: 'pharmacist', status: 'active' },
+    { id: 'm9', businessId: 'b-pharmacy', userId: 'u-cashier', email: 'cashier@demo.test', name: 'Demo Cashier', role: 'cashier', status: 'active' },
   ],
 })
 

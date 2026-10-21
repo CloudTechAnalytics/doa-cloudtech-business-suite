@@ -43,7 +43,7 @@ describe('demo store operations', () => {
     expect(demoDisableModule('b-farm', 'farm-overview')).toMatch(/cannot be disabled/)
     expect(demoEnableModule('b-farm', 'bakery-recipes')).toMatch(/not compatible/)
     expect(demoChangeIndustry('b-farm', 'retail', false)).toMatch(/Confirm/)
-    expect(demoChangeIndustry('b-farm', 'pharmacy', true)).toMatch(/not available/)
+    expect(demoChangeIndustry('b-farm', 'spaceship' as never, true)).toBeTruthy()
     expect(usable(demoModuleStatuses('b-farm'))).toContain('farm-batches')
     expect(demoChangeIndustry('b-farm', 'retail', true)).toBeNull()
     expect(usable(demoModuleStatuses('b-farm'))).not.toContain('farm-batches')

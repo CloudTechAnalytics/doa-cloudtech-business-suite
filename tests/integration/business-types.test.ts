@@ -14,9 +14,9 @@ describe('the business-type picker is driven by the industry registry', () => {
     expect(groups.flatMap((g) => g.items)).toHaveLength(listIndustries().length)
   })
 
-  it('offers pharmacy but marks it unavailable', () => {
-    expect(INDUSTRIES.pharmacy.status).toBe('coming_soon')
-    expect(listIndustries().filter((d) => d.status === 'active').map((d) => d.id)).toEqual(['retail', 'farm', 'bakery'])
+  it('offers every industry as available, pharmacy included', () => {
+    expect(INDUSTRIES.pharmacy.status).toBe('active')
+    expect(listIndustries().filter((d) => d.status === 'active').map((d) => d.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy'])
   })
 
   it('requires a category on every industry definition', () => {
@@ -39,7 +39,7 @@ describe('multi-select', () => {
     expect(names.slice(0, 3)).toEqual(['Dashboard', 'Staff & Roles', 'Settings'])
     expect(new Set(names).size).toBe(names.length)
     expect(names).toContain('Farm Batches')
-    expect(includedModuleNames(INDUSTRIES.pharmacy)).toEqual([])
+    expect(includedModuleNames(INDUSTRIES.pharmacy)).toEqual(expect.arrayContaining(['Medicines', 'Batches & Expiry', 'Prescriptions']))
   })
 
   it('creating several types makes separate businesses, each with its own industry and modules', () => {

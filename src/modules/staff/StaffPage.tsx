@@ -10,7 +10,7 @@ import { Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner,
 interface Member { id: string; user_id: string; status: string; roles: { name: string } | null; profiles: { display_name: string } | null }
 interface Invite { id: string; email: string; roles: { name: string } | null }
 
-const ASSIGNABLE = ['business_admin', 'manager', 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'viewer']
+const ASSIGNABLE = ['business_admin', 'manager', 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'pharmacist', 'pharmacy_technician', 'viewer']
 
 export function StaffPage() {
   return isDemoMode ? <DemoStaffPage /> : <LiveStaffPage />

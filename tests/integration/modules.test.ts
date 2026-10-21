@@ -158,12 +158,16 @@ describe('industry change workflow', () => {
     await expect(asUser(db, owner, () => rows(db, `select public.change_industry($1, 'retail')`, [biz]))).rejects.toThrow(/Confirm/)
   })
 
-  it('is owner-only, and pharmacy is not selectable', async () => {
+  it('is owner-only, and a coming-soon industry is not selectable', async () => {
     await asUser(db, owner, () => rows(db, `select public.invite_member($1, 'cashier@example.com', 'business_admin')`, [biz]))
     await asUser(db, cashier, () => rows(db, 'select public.accept_my_invitations()'))
     await expect(asUser(db, cashier, () => rows(db, `select public.change_industry($1, 'retail', true)`, [biz]))).rejects.toThrow(/only the owner/)
-    await expect(asUser(db, owner, () => rows(db, `select public.change_industry($1, 'pharmacy', true)`, [biz]))).rejects.toThrow(/not available/)
-    await expect(asUser(db, owner, () => rows(db, `select public.create_business('Pharma', 'pharmacy')`))).rejects.toThrow(/not available/)
+    // an industry marked coming soon is not selectable (pharmacy is live now, so mark it so for this check)
+    await db.exec(`update public.industry_templates set status = 'coming_soon' where code = 'pharmacy'`)
+    try {
+      await expect(asUser(db, owner, () => rows(db, `select public.change_industry($1, 'pharmacy', true)`, [biz]))).rejects.toThrow(/not available/)
+      await expect(asUser(db, owner, () => rows(db, `select public.create_business('Pharma', 'pharmacy')`))).rejects.toThrow(/not available/)
+    } finally { await db.exec(`update public.industry_templates set status = 'active' where code = 'pharmacy'`) }
   })
 
   it('switches industry, disables (not deletes) old modules and records history', async () => {

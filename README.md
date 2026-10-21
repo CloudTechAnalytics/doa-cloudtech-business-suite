@@ -1,6 +1,6 @@
 # CloudTech Business Suite (DOA B-Suite)
 
-A multi-tenant, multi-industry business management platform from CloudTech Analytics. One owner can run several separate businesses (a farm, a bakery, a retail shop), each with its own industry, staff, data, modules and subscription. Retail, Farm and Bakery are registered; Pharmacy is a scaffold marked "coming soon".
+A multi-tenant, multi-industry business management platform from CloudTech Analytics. One owner can run several separate businesses (a farm, a bakery, a retail shop), each with its own industry, staff, data, modules and subscription. Retail (Mart), Farm, Bakery and Pharmacy are registered.
 
 Stack: React 19, TypeScript, Tailwind CSS 4, Supabase (PostgreSQL, Row Level Security, Auth). Modular monolith: one app, one database, one tenant model.
 
@@ -16,7 +16,7 @@ npm test               # 230+ tests (in-process PostgreSQL via PGlite; no Docker
 
 Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` the app runs in **demo mode**: a browser-only backend with demo logins and illustrative data. It switches off automatically when the variables are set. Copy `.env.example` to `.env` to configure Supabase; never put the service-role key in any `VITE_*` variable.
 
-Demo logins (password `demo1234`): `owner@demo.test` (owns a farm, a bakery and a retail shop), `cashier@demo.test` (cashier at CityMart), `accountant@demo.test`.
+Demo logins (password `demo1234`): `owner@demo.test` (owns a farm, a bakery, a retail shop and a pharmacy), `cashier@demo.test` (cashier at CityMart), `accountant@demo.test`.
 
 ## Layout
 
@@ -27,7 +27,7 @@ src/core/         auth, businesses, business-context, permissions, subscriptions
 src/shared/       components, forms, tables, hooks, utilities, types
 src/modules/      shared business modules: crm, inventory, sales, purchasing, expenses,
                   staff, reporting, notifications
-src/industries/   retail, farm, bakery, pharmacy (scaffold)
+src/industries/   retail, farm, bakery, pharmacy
 src/integrations/ payments interface (no provider yet)
 src/demo/         browser-only demo backend
 supabase/migrations/   schema, RLS, business rules

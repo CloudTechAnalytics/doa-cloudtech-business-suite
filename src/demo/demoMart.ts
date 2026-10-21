@@ -20,7 +20,7 @@ export interface MartReturn { id: string; businessId: string; number: string; su
 export interface MartCount { id: string; businessId: string; locationId: string; status: 'open' | 'posted'; createdAt: string; items: { productId: string; expected: number; counted: number | null }[] }
 export interface MartShift { id: string; businessId: string; number: string; cashierId: string; openedAt: string; openingCash: number; closedAt: string | null; counted: number | null; expected: number | null; variance: number | null; status: 'open' | 'closed' | 'reviewed'; notes: string | null; reviewedBy: string | null; reviewNote: string | null }
 export interface CashMove { id: string; shiftId: string; direction: 'in' | 'out'; amount: number; reason: string; at: string }
-interface Mart { categories: MartCategory[]; profiles: MartProfile[]; packs: MartPack[]; losses: MartLoss[]; returns: MartReturn[]; counts: MartCount[]; shifts: MartShift[]; moves: CashMove[]; seq: Record<string, number>; keys: Record<string, string>; seeded: string[] }
+export interface Mart { categories: MartCategory[]; profiles: MartProfile[]; packs: MartPack[]; losses: MartLoss[]; returns: MartReturn[]; counts: MartCount[]; shifts: MartShift[]; moves: CashMove[]; seq: Record<string, number>; keys: Record<string, string>; seeded: string[] }
 
 const KEY = 'doa.demo.mart.v1'
 const empty = (): Mart => ({ categories: [], profiles: [], packs: [], losses: [], returns: [], counts: [], shifts: [], moves: [], seq: {}, keys: {}, seeded: [] })
@@ -38,13 +38,15 @@ export const resetDemoMart = () => commit(empty())
 creditHook.credit = (purchaseId) => state.returns.filter((r) => r.purchaseId === purchaseId).reduce((a, r) => a + r.totalCredit, 0)
 
 const me = () => getDemoState().userId
+/** A pharmacy business uses the mart's functions through its own pharmacy-* modules (mirrors _mart_guard). */
+export const mapModule = (biz: string, mod: string) => (mod.startsWith('retail-') && getDemoState().businesses.find((b) => b.id === biz)?.industry === 'pharmacy' ? `pharmacy-${mod.slice(7)}` : mod)
 const c100 = (n: number) => Math.round(n * 100)
 
 // ----------------------------------------------------------------- plumbing
 type Out<R> = { error: string | null; result?: R }
 type Ctx = { m: Mart; inv: Inv; biz: string }
 function run<R>(biz: string, op: string, key: string | null, modules: string[], perms: string[], fn: (c: Ctx) => R): Out<R> {
-  if (!modules.some((mod) => perms.some((p) => demoAllowed(biz, mod, p)))) return { error: 'permission denied' }
+  if (!modules.some((mod) => perms.some((p) => demoAllowed(biz, mapModule(biz, mod), p)))) return { error: 'permission denied' }
   if (key !== null) {
     if (key.length < 8) return { error: 'an idempotency key of at least 8 characters is required' }
     const prev = state.keys[`${biz}|${key}`]
@@ -495,3 +497,12 @@ export function ensureDemoMart(biz: string) {
   commitInv(inv)
   commit(m)
 }
+
+/** For other demo mirrors: change the mart state in one step (used to seed the demo pharmacy's categories and packs). */
+export function mutateMart(fn: (m: Mart) => void) {
+  const m: Mart = JSON.parse(JSON.stringify(state)) as Mart
+  fn(m)
+  commit(m)
+}
+/** Base units in a named pack of a product (1 when no pack is named); throws when the pack does not exist. */
+export const packFactorOf = (productId: string, pack: string | null | undefined) => packFactor(state, productId, pack)

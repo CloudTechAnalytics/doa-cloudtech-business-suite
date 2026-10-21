@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { landingApps, landingMenus } from '@/app/navigation/navigation'
+import { INDUSTRIES } from '@/core/industry-registry'
 import { clearDraft, loadDraft, saveDraft } from '@/core/businesses/draft'
 import type { OnboardingDraft } from '@/core/businesses/draft'
 
@@ -8,12 +9,12 @@ describe('landing page content comes from the registries', () => {
     const { shared, industries } = landingApps()
     expect(shared.map((a) => a.id)).toEqual(['sales', 'crm', 'inventory', 'purchase', 'finance', 'staff'])
     expect(shared.every((a) => a.blurb.length > 0)).toBe(true)
-    expect(industries.map((a) => a.id)).toEqual(['retail', 'farm', 'bakery'])
-    expect(industries.map((a) => a.label)).toEqual(['Mart', 'Farm operations', 'Bakery production'])
+    expect(industries.map((a) => a.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy'])
+    expect(industries.map((a) => a.label)).toEqual(['Mart', 'Farm operations', 'Bakery production', 'Pharmacy'])
   })
 
   it('never advertises an unavailable industry', () => {
-    expect(landingApps().industries.map((a) => a.id)).not.toContain('pharmacy')
+    expect(landingApps().industries.every((a) => INDUSTRIES[a.id].status === 'active')).toBe(true)
   })
 })
 
@@ -22,7 +23,7 @@ describe('the Apps and Industries menus come from the registries', () => {
   const labels = (id: string) => apps.find((c) => c.id === id)!.items.map((i) => i.label)
 
   it('groups shared modules by area and gives each active industry its own column', () => {
-    expect(apps.map((c) => c.title)).toEqual(['Sales', 'Stock and purchasing', 'Mart', 'Farm operations', 'Bakery production', 'Finance', 'Administration'])
+    expect(apps.map((c) => c.title)).toEqual(['Sales', 'Stock and purchasing', 'Mart', 'Farm operations', 'Bakery production', 'Pharmacy', 'Finance', 'Administration'])
     expect(labels('Sales and customers')).toEqual(['Sales / POS', 'CRM'])
     expect(labels('farm')).toContain('Farm Batches')
     expect(labels('Stock and purchasing')).toEqual(['Inventory', 'Purchases', 'Suppliers'])
@@ -37,12 +38,9 @@ describe('the Apps and Industries menus come from the registries', () => {
     expect(tag('Sales and customers', 'Sales / POS')).toBeUndefined()
   })
 
-  it('lists every industry, with pharmacy as coming soon and the others linking to a pre-selected picker', () => {
+  it('lists every industry, each linking to a pre-selected picker', () => {
     expect(industries.map((c) => c.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy'])
-    const pharmacy = industries.find((c) => c.id === 'pharmacy')!
-    expect(pharmacy.items).toEqual([])
-    expect(pharmacy.cta).toBeUndefined()
-    for (const c of industries.filter((x) => x.id !== 'pharmacy')) {
+    for (const c of industries) {
       expect(c.cta?.to).toBe(`/start?type=${c.id}`)
       expect(c.items.length).toBeGreaterThan(0)
       expect(c.items.every((i) => i.to === `/start?type=${c.id}`)).toBe(true)
@@ -87,9 +85,9 @@ describe('the onboarding draft survives sign-up', () => {
     expect(loadDraft()).toBeNull()
     saveDraft({ ...draft, selected: [] })
     expect(loadDraft()).toBeNull()
-    saveDraft({ ...draft, selected: ['pharmacy', 'farm'] as OnboardingDraft['selected'] })
+    saveDraft({ ...draft, selected: ['spaceship', 'farm'] as unknown as OnboardingDraft['selected'] })
     expect(loadDraft()?.selected).toEqual(['farm'])
-    saveDraft({ ...draft, selected: ['pharmacy'] as OnboardingDraft['selected'] })
+    saveDraft({ ...draft, selected: ['spaceship'] as unknown as OnboardingDraft['selected'] })
     expect(loadDraft()).toBeNull()
   })
 

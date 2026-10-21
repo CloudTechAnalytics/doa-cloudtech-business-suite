@@ -50,7 +50,7 @@ describe('TypeScript registry matches the SQL seed', () => {
   })
 
   it('grants the same permissions to each system role (within the permissions the UI knows)', async () => {
-    const roles = ['owner', 'business_admin', 'manager', 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'viewer'] as const
+    const roles = ['owner', 'business_admin', 'manager', 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'pharmacist', 'pharmacy_technician', 'viewer'] as const
     const known = new Set(ROLE_MODELLED_PERMISSIONS)
     for (const role of roles) {
       const r = await rows<{ code: string }>(db, `select p.code from public.role_permissions rp join public.permissions p on p.id = rp.permission_id
@@ -75,9 +75,9 @@ describe('TypeScript registry matches the SQL seed', () => {
     }
   })
 
-  it('marks pharmacy as coming soon with no modules', async () => {
-    const r = await rows(db, `select 1 from public.industry_template_modules itm join public.industry_templates t on t.id = itm.industry_template_id where t.code = 'pharmacy'`)
-    expect(r).toHaveLength(0)
-    expect(INDUSTRY_TEMPLATES.pharmacy.available).toBe(false)
+  it('gives pharmacy the same default modules in the database as in the registry', async () => {
+    const r = await rows<{ code: string }>(db, `select m.code from public.industry_template_modules itm join public.industry_templates t on t.id = itm.industry_template_id join public.modules m on m.id = itm.module_id where t.code = 'pharmacy' and itm.is_default`)
+    expect(r.map((x) => x.code).filter((c) => c.startsWith('pharmacy-')).sort()).toEqual(INDUSTRIES.pharmacy.modules.map((m) => m.code).sort())
+    expect(INDUSTRY_TEMPLATES.pharmacy.available).toBe(true)
   })
 })

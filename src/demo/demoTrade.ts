@@ -165,6 +165,9 @@ export function demoCreateSupplier(biz: string, name: string, phone: string): st
 }
 
 // ---------------------------------------------------------------------------------- sales
+/** Lets an industry refuse a sale line (the pharmacy refuses restricted medicines outside a dispensing). */
+export const saleGuard = { check: (_biz: string, _productId: string, _quantity: number, _name: string): void => {} }
+
 export interface SaleLineInput { productId: string; quantity: number; unitPrice?: number; discount?: number }
 export interface PaymentInput { method: string; amount: number; status?: 'pending' | 'successful'; reference?: string }
 
@@ -179,6 +182,7 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
       if (!(l.quantity > 0)) throw new Error('quantity must be greater than zero')
       if (l.unitPrice !== undefined && l.unitPrice !== p.sellingPrice) throw new Error(`the price of ${p.name} has changed to ${p.sellingPrice}; refresh and retry`)
       if ((l.discount ?? 0) > 0 && !demoCanTrade(biz, 'sales.discount')) throw new Error('you are not allowed to give discounts')
+      saleGuard.check(biz, p.id, l.quantity, p.name)
       return p
     })
     let priced
@@ -337,6 +341,24 @@ export function demoReceivePurchase(biz: string, purchaseId: string, locationId:
     po.status = t.purchaseItems.filter((x) => x.purchaseId === purchaseId).every((x) => x.received >= x.ordered) ? 'received' : 'partially_received'
     return {}
   }).error
+}
+
+/** Records goods received against purchase lines (the stock itself is posted by the caller). Throws before changing anything if a line is invalid. */
+export function demoApplyPurchaseReceipt(biz: string, purchaseId: string, lines: { productId: string; quantity: number }[]) {
+  const t = getTrade()
+  const po = t.purchases.find((x) => x.id === purchaseId && x.businessId === biz)
+  if (!po) throw new Error('purchase not found')
+  if (!['ordered', 'partially_received'].includes(po.status)) throw new Error(`purchase is ${po.status} and cannot receive goods`)
+  const items = t.purchaseItems.filter((x) => x.purchaseId === purchaseId).map((x) => ({ ...x }))
+  for (const l of lines) {
+    const pi = items.find((x) => x.productId === l.productId)
+    if (!pi) throw new Error('that medicine is not on this purchase order')
+    const open = Math.round((pi.ordered - pi.received) * 10000) / 10000
+    if (l.quantity > open) throw new Error(`only ${open} remain to be received on this line`)
+    pi.received = Math.round((pi.received + l.quantity) * 10000) / 10000
+  }
+  const next = { ...t, purchaseItems: t.purchaseItems.map((x) => items.find((y) => y.id === x.id) ?? x), purchases: t.purchases.map((x) => (x.id === purchaseId ? { ...x, status: items.every((y) => y.received >= y.ordered) ? 'received' as const : 'partially_received' as const } : x)) }
+  commit(next)
 }
 
 export function demoPayPurchase(biz: string, purchaseId: string, method: string, amount: number, reference: string, key: string) {

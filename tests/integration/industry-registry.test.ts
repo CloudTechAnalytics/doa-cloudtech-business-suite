@@ -14,9 +14,9 @@ import type { IndustryCode, ModuleCode } from '@/shared/types/domain'
 const clone = (d: IndustryDefinition, patch: Partial<IndustryDefinition>): IndustryDefinition => ({ ...d, ...patch })
 
 describe('the industry registry', () => {
-  it('exposes retail, farm and bakery as available and pharmacy as coming soon', () => {
-    expect(listAvailableIndustries().map((d) => d.id).sort()).toEqual(['bakery', 'farm', 'retail'])
-    expect(getIndustry('pharmacy').status).toBe('coming_soon')
+  it('exposes retail, farm, bakery and pharmacy as available', () => {
+    expect(listAvailableIndustries().map((d) => d.id).sort()).toEqual(['bakery', 'farm', 'pharmacy', 'retail'])
+    expect(getIndustry('pharmacy').status).toBe('active')
     expect(Object.keys(INDUSTRIES).sort()).toEqual(['bakery', 'farm', 'pharmacy', 'retail'])
   })
 
@@ -33,8 +33,9 @@ describe('the industry registry', () => {
     const farmOnly = compatibleModules('farm').filter((c) => c.startsWith('farm-'))
     expect(compatibleModules('retail').some((c) => farmOnly.includes(c))).toBe(false)
     expect(compatibleModules('bakery').some((c) => farmOnly.includes(c))).toBe(false)
-    expect(compatibleModules('pharmacy')).toEqual([])
-    expect(defaultModules('pharmacy')).toEqual([])
+    expect(compatibleModules('pharmacy').some((c) => farmOnly.includes(c))).toBe(false)
+    expect(compatibleModules('retail').some((c) => c.startsWith('pharmacy-'))).toBe(false)
+    expect(defaultModules('pharmacy')).toContain('pharmacy-batches')
   })
 
   it('builds routes for shared modules and every industry-owned module, with no duplicates', () => {
@@ -158,8 +159,7 @@ describe('the contract rejects invalid industry definitions', () => {
   })
 
   it('does not let a coming-soon industry expose anything', () => {
-    const pharmacy = INDUSTRIES.pharmacy
-    expect(findIndustryProblems(clone(pharmacy, { defaultModules: ['inventory'] })).join()).toMatch(/coming_soon industry must not/)
+    expect(findIndustryProblems(clone(INDUSTRIES.pharmacy, { status: 'coming_soon' })).join()).toMatch(/coming_soon industry must not/)
   })
 
   it('throws a descriptive error from defineIndustry', () => {
