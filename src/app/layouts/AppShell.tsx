@@ -20,7 +20,7 @@ const COLLAPSE_KEY = 'doa.sidebar.collapsed'
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1' } catch { return false } }
 
 const initialsOf = (name: string) => name.split(/[\s@.]+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join('').toUpperCase()
-function BusinessSwitcher({ light }: { light: boolean }) {
+function BusinessSwitcher() {
   const { businesses, active, select } = useBusiness()
   if (!active) return null
   return (
@@ -28,10 +28,10 @@ function BusinessSwitcher({ light }: { light: boolean }) {
       label="Switch business"
       trigger={({ toggle, open }) => (
         <button type="button" onClick={toggle} aria-haspopup="menu" aria-expanded={open} aria-label={`Business: ${active.name}. Switch business`}
-          className={`flex h-8 max-w-[11rem] items-center gap-1.5 rounded-full px-3 text-sm ${light ? 'bg-canvas text-ink hover:bg-line' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+          className="flex h-8 max-w-[11rem] items-center gap-1.5 rounded-full bg-canvas px-3 text-sm text-ink hover:bg-line">
           <Building2 className="size-4 shrink-0" aria-hidden />
           <span className="hidden truncate sm:inline">{active.name}</span>
-          <ChevronDown className={`size-4 shrink-0 ${light ? 'text-ink/60' : 'text-white/70'}`} aria-hidden />
+          <ChevronDown className="size-4 shrink-0 text-ink/60" aria-hidden />
         </button>
       )}
       items={[
@@ -98,21 +98,21 @@ export function AppShell() {
   return (
     <div className="min-h-dvh bg-surface">
       {isDemoMode && (
-        <div className="no-print flex flex-wrap items-center justify-center gap-3 bg-[#ffc107] px-4 py-1 text-xs font-medium text-ink">
+        <div className="no-print flex flex-wrap items-center justify-center gap-3 border-b border-amber/40 bg-amber/20 px-4 py-1 text-xs font-medium text-ink">
           DEMO MODE: browser-only data, not a real backend.
           <button className="underline" onClick={() => { demoReset(); resetDemoInventory(); resetDemoTrade(); resetDemoCrm(); resetDemoFarm() }}>Reset demo data</button>
         </div>
       )}
-      <header className={`no-print sticky top-0 z-40 h-12 ${isHome ? 'border-b border-line/60 bg-white text-ink' : 'bg-brand text-white shadow-sm'}`}>
+      <header className={`no-print sticky top-0 z-40 h-12 border-b-2 border-b-amber bg-gradient-to-r from-white via-[#f7fafd] to-white text-ink shadow-[0_6px_18px_-14px_rgb(11_42_74/0.35)]`}>
         <div className="flex h-full items-center gap-1 px-2 sm:px-3">
           {!isHome && (
-            <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-white/10 lg:hidden"><MenuIcon className="size-5" aria-hidden /></button>
+            <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface lg:hidden"><MenuIcon className="size-5" aria-hidden /></button>
           )}
-          <NavLink to="/app" end aria-label="Apps home" className={`grid size-9 shrink-0 place-items-center rounded-md ${isHome ? 'hover:bg-surface' : 'hover:bg-white/10'}`}><LayoutGrid className="size-5" aria-hidden /></NavLink>
+          <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface"><LayoutGrid className="size-5" aria-hidden /></NavLink>
           <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA B-Suite'}</span>
           <div className="ml-auto flex items-center gap-2">
             <RecordMenu items={quick} />
-            <BusinessSwitcher light={isHome} />
+            <BusinessSwitcher />
             <UserMenu />
           </div>
         </div>
