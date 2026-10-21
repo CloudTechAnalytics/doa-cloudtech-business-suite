@@ -1,0 +1,227 @@
+import type { IndustryCode } from '@/shared/types/domain'
+import { ensureDemoInventory, getInv } from '@/demo/demoInventory'
+import { getDemoState } from '@/demo/demoStore'
+import * as demo from '@/demo/demoTrade'
+import { loadInventory } from '@/modules/inventory/inventoryApi'
+import type { InventoryData } from '@/modules/inventory/inventoryApi'
+import { isDemoMode } from '@/shared/utilities/env'
+import { supabase } from '@/shared/utilities/supabase'
+
+/** One interface for sales, purchasing, customers and suppliers. Live mode calls the database functions;
+ *  demo mode runs the browser mirror. Mutations return an error message or null. */
+
+export interface CustomerDto { id: string; name: string; phone: string | null; creditLimit: number; outstanding: number }
+export interface SupplierDto { id: string; name: string; phone: string | null }
+export interface SaleDto { id: string; number: string; soldAt: string; customerId: string | null; status: string; paymentStatus: string; grandTotal: number; amountPaid: number; balanceDue: number; returnedTotal: number; refundDue: number }
+export interface SaleItemDto { id: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; returnedQty: number }
+export interface PaymentDto { id: string; type: string; method: string; amount: number; status: string; reference: string | null; at: string }
+export interface SaleDetail { sale: SaleDto; items: SaleItemDto[]; payments: PaymentDto[] }
+export interface PurchaseDto { id: string; number: string; supplierId: string; reference: string | null; status: string; paymentStatus: string; total: number; amountPaid: number; at: string }
+export interface PurchaseItemDto { id: string; productId: string; ordered: number; received: number; unitCost: number; lineTotal: number }
+export interface PurchaseDetail { purchase: PurchaseDto; items: PurchaseItemDto[]; payments: PaymentDto[] }
+export interface ReceiptData { business: { name: string; currency: string }; sale: { sale_number: string; sold_at: string; subtotal: number; discount_total: number; tax_total: number; grand_total: number; amount_paid: number; balance_due: number; status: string }; customer: { name: string } | null; items: { description: string; quantity: number; unit_price: number; discount: number; tax: number; total: number }[]; payments: { method: string; amount: number; status: string; type: string; at: string }[] }
+
+const n = (v: unknown) => Number(v ?? 0)
+const msg = (e: { message: string } | null) => e?.message ?? null
+const db = () => supabase!
+
+export type { InventoryData }
+export async function loadCatalog(businessId: string, industry: IndustryCode): Promise<InventoryData> {
+  if (!isDemoMode) return loadInventory(businessId)
+  ensureDemoInventory(businessId, industry)
+  demo.ensureDemoTrade(businessId)
+  const inv = getInv()
+  const bal = Object.entries(inv.balances).filter(([k]) => k.startsWith(`${businessId}|`))
+  return {
+    units: ['each', 'dozen', 'kg', 'g', 'l', 'ml'],
+    products: inv.products.filter((p) => p.businessId === businessId).map((p) => ({ id: p.id, sku: p.sku, barcode: p.barcode, name: p.name, unit: p.unit, sellingPrice: p.sellingPrice, defaultCost: p.defaultCost, reorderLevel: p.reorderLevel, status: p.status })),
+    locations: inv.locations.filter((l) => l.businessId === businessId).map((l) => ({ id: l.id, name: l.name })),
+    balances: bal.map(([k, v]) => { const [, productId, locationId] = k.split('|'); return { productId, locationId, qty: v.qty, avgCost: v.avg } }),
+    movements: [],
+  }
+}
+
+export async function myTradePermissions(businessId: string): Promise<string[]> {
+  if (isDemoMode) return ['sales.create', 'sales.discount', 'sales.refund', 'sales.void', 'customers.manage', 'customers.credit', 'suppliers.manage', 'purchases.manage', 'purchases.receive', 'purchases.pay'].filter((p) => demo.demoCanTrade(businessId, p))
+  const { data } = await db().rpc('my_permissions', { p_business: businessId })
+  return (data as string[] | null) ?? []
+}
+
+// ------------------------------------------------------------------- customers & suppliers
+export async function listCustomers(businessId: string): Promise<CustomerDto[]> {
+  if (isDemoMode) {
+    demo.ensureDemoTrade(businessId)
+    const t = demo.getTrade()
+    return t.customers.filter((c) => c.businessId === businessId).map((c) => ({ id: c.id, name: c.name, phone: c.phone, creditLimit: c.creditLimit, outstanding: t.sales.filter((s) => s.customerId === c.id && s.status !== 'voided').reduce((a, s) => a + s.balanceDue, 0) }))
+  }
+  const [c, s] = await Promise.all([
+    db().from('customers').select('id, name, phone, credit_limit').eq('business_id', businessId).eq('status', 'active').order('name'),
+    db().from('sales').select('customer_id, balance_due').eq('business_id', businessId).neq('status', 'voided').not('customer_id', 'is', null),
+  ])
+  if (c.error) throw new Error(c.error.message)
+  return (c.data ?? []).map((x) => ({ id: x.id, name: x.name, phone: x.phone, creditLimit: n(x.credit_limit), outstanding: (s.data ?? []).filter((y) => y.customer_id === x.id).reduce((a, y) => a + n(y.balance_due), 0) }))
+}
+
+export async function createCustomer(businessId: string, name: string, phone: string) {
+  if (isDemoMode) return demo.demoCreateCustomer(businessId, name, phone)
+  return msg((await db().from('customers').insert({ business_id: businessId, name: name.trim(), phone: phone.trim() || null })).error)
+}
+export async function setCreditLimit(businessId: string, customerId: string, limit: number) {
+  if (isDemoMode) return demo.demoSetCreditLimit(businessId, customerId, limit)
+  return msg((await db().rpc('set_customer_credit_limit', { p_customer: customerId, p_limit: limit })).error)
+}
+
+export async function listSuppliers(businessId: string): Promise<SupplierDto[]> {
+  if (isDemoMode) { demo.ensureDemoTrade(businessId); return demo.getTrade().suppliers.filter((s) => s.businessId === businessId).map((s) => ({ id: s.id, name: s.name, phone: s.phone })) }
+  const r = await db().from('suppliers').select('id, name, phone').eq('business_id', businessId).eq('status', 'active').order('name')
+  if (r.error) throw new Error(r.error.message)
+  return (r.data ?? []) as SupplierDto[]
+}
+export async function createSupplier(businessId: string, name: string, phone: string) {
+  if (isDemoMode) return demo.demoCreateSupplier(businessId, name, phone)
+  return msg((await db().from('suppliers').insert({ business_id: businessId, name: name.trim(), phone: phone.trim() || null })).error)
+}
+
+// ------------------------------------------------------------------------------------ sales
+const saleFromDemo = (s: demo.DSale): SaleDto => ({ id: s.id, number: s.number, soldAt: s.soldAt, customerId: s.customerId, status: s.status, paymentStatus: s.paymentStatus, grandTotal: s.grandTotal, amountPaid: s.amountPaid, balanceDue: s.balanceDue, returnedTotal: s.returnedTotal, refundDue: s.refundDue })
+const saleFromRow = (s: Record<string, unknown>): SaleDto => ({ id: String(s.id), number: String(s.sale_number), soldAt: String(s.sold_at), customerId: (s.customer_id as string | null) ?? null, status: String(s.status), paymentStatus: String(s.payment_status), grandTotal: n(s.grand_total), amountPaid: n(s.amount_paid), balanceDue: n(s.balance_due), returnedTotal: n(s.returned_total), refundDue: n(s.refund_due) })
+
+export async function listSales(businessId: string): Promise<SaleDto[]> {
+  if (isDemoMode) return demo.getTrade().sales.filter((s) => s.businessId === businessId).map(saleFromDemo).reverse().slice(0, 100)
+  const r = await db().from('sales').select('*').eq('business_id', businessId).order('sold_at', { ascending: false }).limit(100)
+  if (r.error) throw new Error(r.error.message)
+  return (r.data ?? []).map(saleFromRow)
+}
+
+const payFromDemo = (p: demo.DPayment): PaymentDto => ({ id: p.id, type: p.type, method: p.method, amount: p.amount, status: p.status, reference: p.reference, at: p.at })
+const payFromRow = (p: Record<string, unknown>): PaymentDto => ({ id: String(p.id), type: String(p.payment_type), method: String(p.payment_method), amount: n(p.amount), status: String(p.status), reference: (p.provider_reference as string | null) ?? null, at: String(p.received_at ?? p.created_at) })
+
+export async function saleDetail(_businessId: string, saleId: string): Promise<SaleDetail> {
+  if (isDemoMode) {
+    const t = demo.getTrade()
+    const s = t.sales.find((x) => x.id === saleId)!
+    return {
+      sale: saleFromDemo(s),
+      items: t.saleItems.filter((i) => i.saleId === saleId).map((i) => ({ id: i.id, productId: i.productId, description: i.description, quantity: i.quantity, unitPrice: i.unitPrice, discount: i.discount, tax: i.tax, total: i.total, returnedQty: t.returnItems.filter((r) => r.saleItemId === i.id).reduce((a, r) => a + r.quantity, 0) })),
+      payments: t.payments.filter((p) => p.saleId === saleId).map(payFromDemo),
+    }
+  }
+  const [s, i, p, r] = await Promise.all([
+    db().from('sales').select('*').eq('id', saleId).single(),
+    db().from('sale_items').select('*').eq('sale_id', saleId).order('id'),
+    db().from('payments').select('*').eq('sale_id', saleId).order('created_at'),
+    db().from('sale_return_items').select('sale_item_id, quantity'),
+  ])
+  if (s.error) throw new Error(s.error.message)
+  return {
+    sale: saleFromRow(s.data),
+    items: (i.data ?? []).map((x) => ({ id: x.id, productId: x.product_id, description: x.description_snapshot, quantity: n(x.quantity), unitPrice: n(x.unit_price), discount: n(x.discount_amount), tax: n(x.tax_amount), total: n(x.line_total), returnedQty: (r.data ?? []).filter((y) => y.sale_item_id === x.id).reduce((a, y) => a + n(y.quantity), 0) })),
+    payments: (p.data ?? []).map(payFromRow),
+  }
+}
+
+export interface CartLineInput { productId: string; quantity: number; unitPrice: number; discount: number }
+export interface TillPayment { method: string; amount: number; status?: 'pending' | 'successful'; reference?: string }
+
+export async function postSale(b: string, locationId: string, customerId: string | null, lines: CartLineInput[], payments: TillPayment[], key: string): Promise<{ saleId?: string; error?: string }> {
+  if (isDemoMode) {
+    const r = demo.demoPostSale(b, locationId, customerId, lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })), payments, key)
+    return r.error ? { error: r.error } : { saleId: r.result!.saleId }
+  }
+  const { data, error } = await db().rpc('post_sale', {
+    p_business: b, p_location: locationId, p_customer: customerId, p_key: key,
+    p_items: lines.map((l) => ({ product_id: l.productId, quantity: l.quantity, unit_price: l.unitPrice, discount_amount: l.discount })),
+    p_payments: payments.map((p) => ({ method: p.method, amount: p.amount, status: p.status ?? 'successful', reference: p.reference ?? null })),
+  })
+  return error ? { error: error.message } : { saleId: (data as { sale_id: string }).sale_id }
+}
+
+export async function addPayment(b: string, saleId: string, p: TillPayment, key: string) {
+  if (isDemoMode) return demo.demoAddPayment(b, saleId, p, key)
+  return msg((await db().rpc('record_sale_payment', { p_sale: saleId, p_method: p.method, p_amount: p.amount, p_status: p.status ?? 'successful', p_reference: p.reference ?? null, p_key: key })).error)
+}
+export async function confirmPayment(b: string, paymentId: string, key: string) {
+  if (isDemoMode) return demo.demoConfirmPayment(b, paymentId, key)
+  return msg((await db().rpc('confirm_payment', { p_payment: paymentId, p_key: key })).error)
+}
+export async function reversePayment(b: string, paymentId: string, reason: string, key: string) {
+  if (isDemoMode) return demo.demoReversePayment(b, paymentId, reason, key)
+  return msg((await db().rpc('reverse_payment', { p_payment: paymentId, p_reason: reason, p_key: key })).error)
+}
+export async function returnSale(b: string, saleId: string, lines: { saleItemId: string; quantity: number; disposition: 'restock' | 'discard' }[], reason: string, refund: { method: string; amount: number } | null, key: string) {
+  if (isDemoMode) return demo.demoReturnSale(b, saleId, lines, reason, refund, key).error
+  return msg((await db().rpc('return_sale', { p_sale: saleId, p_items: lines.map((l) => ({ sale_item_id: l.saleItemId, quantity: l.quantity, disposition: l.disposition })), p_reason: reason, p_refund: refund, p_key: key })).error)
+}
+export async function voidSale(b: string, saleId: string, reason: string, key: string) {
+  if (isDemoMode) return demo.demoVoidSale(b, saleId, reason, key)
+  return msg((await db().rpc('void_sale', { p_sale: saleId, p_reason: reason, p_key: key })).error)
+}
+
+export async function receiptData(b: string, saleId: string): Promise<ReceiptData> {
+  if (isDemoMode) {
+    const d = await saleDetail(b, saleId)
+    const t = demo.getTrade()
+    const sale = t.sales.find((x) => x.id === saleId)!
+    const cust = t.customers.find((c) => c.id === sale.customerId)
+    return {
+      business: { name: getDemoState().businesses.find((x) => x.id === b)?.name ?? 'Business', currency: 'NGN' },
+      sale: { sale_number: sale.number, sold_at: sale.soldAt, subtotal: sale.subtotal, discount_total: sale.discountTotal, tax_total: sale.taxTotal, grand_total: sale.grandTotal, amount_paid: sale.amountPaid, balance_due: sale.balanceDue, status: sale.status },
+      customer: cust ? { name: cust.name } : null,
+      items: d.items.map((i) => ({ description: i.description, quantity: i.quantity, unit_price: i.unitPrice, discount: i.discount, tax: i.tax, total: i.total })),
+      payments: d.payments.map((p) => ({ method: p.method, amount: p.amount, status: p.status, type: p.type, at: p.at })),
+    }
+  }
+  const { data, error } = await db().rpc('sale_receipt', { p_sale: saleId })
+  if (error) throw new Error(error.message)
+  return data as ReceiptData
+}
+
+// -------------------------------------------------------------------------------- purchasing
+export async function listPurchases(businessId: string): Promise<PurchaseDto[]> {
+  const fromRow = (p: Record<string, unknown>): PurchaseDto => ({ id: String(p.id), number: String(p.purchase_number), supplierId: String(p.supplier_id), reference: (p.supplier_reference as string | null) ?? null, status: String(p.status), paymentStatus: String(p.payment_status), total: n(p.total_amount), amountPaid: n(p.amount_paid), at: String(p.purchased_at) })
+  if (isDemoMode) return demo.getTrade().purchases.filter((p) => p.businessId === businessId).map((p) => ({ id: p.id, number: p.number, supplierId: p.supplierId, reference: p.reference, status: p.status, paymentStatus: p.paymentStatus, total: p.total, amountPaid: p.amountPaid, at: p.at })).reverse()
+  const r = await db().from('purchases').select('*').eq('business_id', businessId).order('purchased_at', { ascending: false }).limit(100)
+  if (r.error) throw new Error(r.error.message)
+  return (r.data ?? []).map(fromRow)
+}
+
+export async function purchaseDetail(_businessId: string, id: string): Promise<PurchaseDetail> {
+  if (isDemoMode) {
+    const t = demo.getTrade()
+    const p = t.purchases.find((x) => x.id === id)!
+    return {
+      purchase: { id: p.id, number: p.number, supplierId: p.supplierId, reference: p.reference, status: p.status, paymentStatus: p.paymentStatus, total: p.total, amountPaid: p.amountPaid, at: p.at },
+      items: t.purchaseItems.filter((i) => i.purchaseId === id).map((i) => ({ id: i.id, productId: i.productId, ordered: i.ordered, received: i.received, unitCost: i.unitCost, lineTotal: i.lineTotal })),
+      payments: t.payments.filter((x) => x.purchaseId === id).map(payFromDemo),
+    }
+  }
+  const [p, i, pay] = await Promise.all([
+    db().from('purchases').select('*').eq('id', id).single(),
+    db().from('purchase_items').select('*').eq('purchase_id', id).order('id'),
+    db().from('payments').select('*').eq('purchase_id', id).order('created_at'),
+  ])
+  if (p.error) throw new Error(p.error.message)
+  const x = p.data
+  return {
+    purchase: { id: x.id, number: x.purchase_number, supplierId: x.supplier_id, reference: x.supplier_reference, status: x.status, paymentStatus: x.payment_status, total: n(x.total_amount), amountPaid: n(x.amount_paid), at: x.purchased_at },
+    items: (i.data ?? []).map((y) => ({ id: y.id, productId: y.product_id, ordered: n(y.quantity_ordered), received: n(y.quantity_received), unitCost: n(y.unit_cost), lineTotal: n(y.line_total) })),
+    payments: (pay.data ?? []).map(payFromRow),
+  }
+}
+
+export async function createPurchase(b: string, supplierId: string, lines: { productId: string; quantity: number; unitCost: number }[], reference: string, key: string) {
+  if (isDemoMode) return demo.demoCreatePurchase(b, supplierId, lines, reference, key).error
+  return msg((await db().rpc('create_purchase', { p_business: b, p_supplier: supplierId, p_reference: reference || null, p_key: key, p_items: lines.map((l) => ({ product_id: l.productId, quantity: l.quantity, unit_cost: l.unitCost })) })).error)
+}
+export async function receivePurchase(b: string, purchaseId: string, locationId: string, lines: { purchaseItemId: string; quantity: number }[], key: string) {
+  if (isDemoMode) return demo.demoReceivePurchase(b, purchaseId, locationId, lines, key)
+  return msg((await db().rpc('receive_purchase', { p_purchase: purchaseId, p_location: locationId, p_note: null, p_key: key, p_lines: lines.map((l) => ({ purchase_item_id: l.purchaseItemId, quantity: l.quantity })) })).error)
+}
+export async function payPurchase(b: string, purchaseId: string, method: string, amount: number, reference: string, key: string) {
+  if (isDemoMode) return demo.demoPayPurchase(b, purchaseId, method, amount, reference, key)
+  return msg((await db().rpc('pay_purchase', { p_purchase: purchaseId, p_method: method, p_amount: amount, p_reference: reference || null, p_key: key })).error)
+}
+export async function cancelPurchase(b: string, purchaseId: string, reason: string, key: string) {
+  if (isDemoMode) return demo.demoCancelPurchase(b, purchaseId, reason, key)
+  return msg((await db().rpc('cancel_purchase', { p_purchase: purchaseId, p_reason: reason, p_key: key })).error)
+}
