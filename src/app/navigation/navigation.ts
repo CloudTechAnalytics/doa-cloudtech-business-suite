@@ -37,9 +37,10 @@ export const industryColor = (id: string) => INDUSTRY_COLORS[id] ?? '#1971c2'
 
 const COLOR_PRIORITY = ['sales', 'inventory', 'finance', 'staff', 'crm', 'purchase', 'settings']
 /** An industry section that holds shared modules (stock, sales, finance, staff) keeps those apps' familiar colours; the rest use the industry colour. */
-function sectionColor(industry: IndustryCode, codes: ModuleCode[]): string {
+const OWN_PALETTE = ['#e03131', '#5c940d', '#f08c00', '#1098ad', '#4263eb']
+function sectionColor(codes: ModuleCode[], fallbackIndex: number): string {
   const spec = COLOR_PRIORITY.map((id) => AFTER.find((a) => a.id === id)!).find((a) => a.modules.some((m) => codes.includes(m)))
-  return spec?.color ?? INDUSTRY_COLORS[industry] ?? '#1971c2'
+  return spec?.color ?? OWN_PALETTE[fallbackIndex % OWN_PALETTE.length]
 }
 
 /** Apps for a business. Only usable modules (enabled, entitled, permitted) appear; this is presentation only. */
@@ -49,9 +50,14 @@ export function buildApps(industry: IndustryCode, usable: ReadonlySet<ModuleCode
     const modules = pick(s.modules)
     return modules.length ? { id: s.id, label: s.label, color: s.color, icon: modules[0].icon, modules } : null
   }
+  const hasShared = (codes: ModuleCode[]) => COLOR_PRIORITY.some((id) => AFTER.find((a) => a.id === id)!.modules.some((m) => codes.includes(m)))
+  const pure = getIndustry(industry).navigation.filter((sec) => !hasShared(sec.modules)).length
+  let own = 0 // sections with no shared module get their own colours in turn (a lone one keeps the industry colour)
   const industryApps: (AppDef | null)[] = getIndustry(industry).navigation.map((section, i) => {
     const modules = pick(section.modules)
-    return modules.length ? { id: `${industry}-${i}`, label: section.label, color: sectionColor(industry, section.modules), icon: modules[0].icon, modules } : null
+    if (!modules.length) return null
+    const color = hasShared(section.modules) ? sectionColor(section.modules, 0) : pure === 1 ? (INDUSTRY_COLORS[industry] ?? '#1971c2') : OWN_PALETTE[own++ % OWN_PALETTE.length]
+    return { id: `${industry}-${i}`, label: section.label, color, icon: modules[0].icon, modules }
   })
   // A module an industry lists in its own sections (e.g. the farm's Inventory) is not repeated under the generic apps.
   const claimed = new Set(getIndustry(industry).navigation.flatMap((s) => s.modules))
