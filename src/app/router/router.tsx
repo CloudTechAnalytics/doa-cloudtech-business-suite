@@ -5,6 +5,7 @@ import { AppsHome } from '@/app/layouts/AppsHome'
 import { LandingPage } from '@/app/landing/LandingPage'
 import { SignInPage, SignUpPage } from '@/core/auth/AuthPages'
 import { RequireAuth } from '@/core/auth/AuthProvider'
+import { BusinessesPage } from '@/core/businesses/BusinessesPage'
 import { OnboardingPage } from '@/core/businesses/OnboardingPage'
 import { ModuleRoute } from '@/core/module-registry/ModuleRoute'
 import { buildModuleRoutes } from '@/core/module-registry/routes'
@@ -28,6 +29,7 @@ export function AppRoutes() {
       <Route path="/sign-up" element={<SignUpPage />} />
       <Route path="/start" element={<StartPage />} />
       <Route path="/onboarding" element={<StartPage />} />
+      <Route path="/businesses" element={<RequireAuth><BusinessesPage /></RequireAuth>} />
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<AppsHome />} />
         <Route path="platform-admin" element={<PlatformAdminPage />} />

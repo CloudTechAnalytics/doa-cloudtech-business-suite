@@ -20,7 +20,7 @@ const COLLAPSE_KEY = 'doa.sidebar.collapsed'
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1' } catch { return false } }
 
 const initialsOf = (name: string) => name.split(/[\s@.]+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join('').toUpperCase()
-function BusinessSwitcher() {
+function BusinessSwitcher({ light }: { light: boolean }) {
   const { businesses, active, select } = useBusiness()
   if (!active) return null
   return (
@@ -28,42 +28,43 @@ function BusinessSwitcher() {
       label="Switch business"
       trigger={({ toggle, open }) => (
         <button type="button" onClick={toggle} aria-haspopup="menu" aria-expanded={open} aria-label={`Business: ${active.name}. Switch business`}
-          className="flex h-8 max-w-[11rem] items-center gap-1.5 rounded-full bg-white/10 px-3 text-sm text-white hover:bg-white/20">
+          className={`flex h-8 max-w-[11rem] items-center gap-1.5 rounded-full px-3 text-sm ${light ? 'bg-canvas text-ink hover:bg-line' : 'bg-white/10 text-white hover:bg-white/20'}`}>
           <Building2 className="size-4 shrink-0" aria-hidden />
           <span className="hidden truncate sm:inline">{active.name}</span>
-          <ChevronDown className="size-4 shrink-0 text-white/70" aria-hidden />
+          <ChevronDown className={`size-4 shrink-0 ${light ? 'text-ink/60' : 'text-white/70'}`} aria-hidden />
         </button>
       )}
       items={[
         { label: 'Your businesses', heading: true },
         ...businesses.map((b) => ({ label: b.name, icon: b.id === active.id ? <Check className="size-4 text-brand" /> : <span className="size-4" />, onSelect: () => select(b.id) })),
-        { label: 'Add business', to: '/onboarding', icon: <Plus className="size-4" />, divider: true },
+        { label: 'All businesses', to: '/businesses', icon: <LayoutGrid className="size-4" />, divider: true },
+        { label: 'Add business', to: '/onboarding', icon: <Plus className="size-4" /> },
       ]}
     />
   )
 }
 
-function UserMenu() {
+function UserMenu({ light }: { light: boolean }) {
   const { email, signOut } = useAuth()
   const name = email ?? 'Account'
   return (
     <Menu
       label="Account menu"
       trigger={({ toggle }) => (
-        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className="grid size-8 place-items-center rounded-full bg-white/20 text-xs font-semibold text-white hover:bg-white/30">{initialsOf(name)}</button>
+        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className={`grid size-8 place-items-center rounded-full text-xs font-semibold text-white ${light ? 'bg-brand hover:bg-brand-dark' : 'bg-white/20 hover:bg-white/30'}`}>{initialsOf(name)}</button>
       )}
       items={[{ label: name, heading: true }, { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut }]}
     />
   )
 }
 
-function RecordMenu({ items }: { items: { label: string; to: string }[] }) {
+function RecordMenu({ items, light }: { items: { label: string; to: string }[]; light: boolean }) {
   if (!items.length) return null
   return (
     <Menu
       label="Record"
       trigger={({ toggle }) => (
-        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Record" className="flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-sm font-medium text-brand hover:bg-white/90"><Plus className="size-4" aria-hidden /><span className="hidden sm:inline" aria-hidden>Record</span></button>
+        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Record" className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium ${light ? 'bg-brand text-white hover:bg-brand-dark' : 'bg-white text-brand hover:bg-white/90'}`}><Plus className="size-4" aria-hidden /><span className="hidden sm:inline" aria-hidden>Record</span></button>
       )}
       items={items}
     />
@@ -102,17 +103,17 @@ export function AppShell() {
           <button className="underline" onClick={() => { demoReset(); resetDemoInventory(); resetDemoTrade(); resetDemoCrm(); resetDemoFarm() }}>Reset demo data</button>
         </div>
       )}
-      <header className="no-print sticky top-0 z-40 h-12 bg-brand text-white shadow-sm">
+      <header className={`no-print sticky top-0 z-40 h-12 ${isHome ? 'border-b border-line/60 bg-white text-ink' : 'bg-brand text-white shadow-sm'}`}>
         <div className="flex h-full items-center gap-1 px-2 sm:px-3">
           {!isHome && (
             <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-white/10 lg:hidden"><MenuIcon className="size-5" aria-hidden /></button>
           )}
-          <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-white/10"><LayoutGrid className="size-5" aria-hidden /></NavLink>
+          <NavLink to="/app" end aria-label="Apps home" className={`grid size-9 shrink-0 place-items-center rounded-md ${isHome ? 'hover:bg-surface' : 'hover:bg-white/10'}`}><LayoutGrid className="size-5" aria-hidden /></NavLink>
           <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA B-Suite'}</span>
           <div className="ml-auto flex items-center gap-2">
-            <RecordMenu items={quick} />
-            <BusinessSwitcher />
-            <UserMenu />
+            <RecordMenu items={quick} light={isHome} />
+            <BusinessSwitcher light={isHome} />
+            <UserMenu light={isHome} />
           </div>
         </div>
       </header>

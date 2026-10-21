@@ -61,6 +61,8 @@ export function OnboardingPage() {
 
   // Registry order keeps the page stable however the cards were ticked.
   const defs = listIndustries().filter((d) => selected.includes(d.id))
+  // More than one new business: let them choose which to open first.
+  const opened = defs.length > 1 ? '/businesses' : '/app'
   const allCreated = defs.length > 0 && defs.every((d) => results[d.id]?.id)
   const toggleAddon = (industry: IndustryCode, code: ModuleCode) => setAddons((a) => {
     const set = new Set(a[industry] ?? [])
@@ -105,7 +107,7 @@ export function OnboardingPage() {
     await refresh()
     const created = defs.map((d) => out[d.id]?.id).filter((x): x is string => !!x)
     if (created.length) { select(created[0]); clearDraft() }
-    if (defs.every((d) => out[d.id]?.id && out[d.id].notes.length === 0)) navigate('/app')
+    if (defs.every((d) => out[d.id]?.id && out[d.id].notes.length === 0)) navigate(opened)
     else if (created.length === 0) setFormError('No business was created. Check the messages below and try again.')
   }
 
@@ -172,7 +174,7 @@ export function OnboardingPage() {
 
           {step === 2 && (
             <form onSubmit={onDetails} noValidate className="space-y-4">
-              {Object.keys(results).length > 0 && <Progress defs={defs} results={results} names={names} allCreated={allCreated} onOpen={() => navigate('/app')} />}
+              {Object.keys(results).length > 0 && <Progress defs={defs} results={results} names={names} allCreated={allCreated} onOpen={() => navigate(opened)} />}
               <Card>
                 <h2 className="mb-3 text-sm font-semibold">{defs.length > 1 ? 'Settings for all of them' : 'Settings'}</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -207,7 +209,7 @@ export function OnboardingPage() {
 
           {step === 3 && (
             <div className="space-y-4">
-              {Object.keys(results).length > 0 && <Progress defs={defs} results={results} names={names} allCreated={allCreated} onOpen={() => navigate('/app')} />}
+              {Object.keys(results).length > 0 && <Progress defs={defs} results={results} names={names} allCreated={allCreated} onOpen={() => navigate(opened)} />}
               {awaitingEmail ? (
                 <Card>
                   <h2 className="text-lg font-bold">Check your email</h2>

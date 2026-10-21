@@ -13,7 +13,7 @@ import { INDUSTRY_TEMPLATES, compatibleModules, defaultModules } from '@/core/mo
 
 export interface DemoUser { id: string; email: string; password: string; name: string }
 export interface DemoSettings { tax_rate_percent?: number; setup?: Record<string, string | number | boolean> }
-export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings }
+export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean }
 export interface DemoMember { id: string; businessId: string; userId: string | null; email: string; name: string; role: RoleName; status: 'active' | 'suspended' | 'revoked' | 'invited' }
 
 export interface DemoBusinessModules { plan: PlanCode | null; enabled: ModuleCode[]; disabledHistory: ModuleCode[] }
@@ -104,6 +104,15 @@ export function demoSignUp(name: string, email: string, password: string): strin
 }
 
 export function demoSignOut() { commit({ ...state, userId: null }) }
+
+/** Mirrors archive_business(): owner only, exact name to confirm, data kept but the business disappears. */
+export function demoArchiveBusiness(businessId: string, confirmName: string): string | null {
+  const b = state.businesses.find((x) => x.id === businessId && !x.archived)
+  if (!b || !isOwner(businessId)) return 'only the owner can delete a business'
+  if (confirmName.trim() !== b.name) return 'type the business name exactly to confirm'
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, archived: true } : x)) })
+  return null
+}
 
 export function demoReset() { commit({ ...seed() }) }
 

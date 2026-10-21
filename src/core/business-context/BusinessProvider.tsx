@@ -11,6 +11,8 @@ export interface BusinessSummary {
   name: string
   industry: IndustryCode
   role?: RoleName | null
+  /** Only the owner may delete (archive) a business. */
+  isOwner?: boolean
 }
 
 interface BusinessState {
@@ -55,12 +57,12 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     await supabase.rpc('accept_my_invitations')
     const { data, error } = await supabase
       .from('businesses')
-      .select('id, name, primary_industry_code')
+      .select('id, name, primary_industry_code, owner_user_id')
       .order('created_at')
     if (error) setError(error.message)
     else {
       setError(null)
-      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode })))
+      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode, isOwner: b.owner_user_id === userId })))
     }
     setLoading(false)
     setLoadedFor(userId)
@@ -75,7 +77,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const businesses: BusinessSummary[] = isDemoMode
     ? demo.members
         .filter((m) => m.userId === userId && m.status === 'active')
-        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId).map((b) => ({ ...b, role: demoRoleIn(b.id) })))
+        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner' })))
     : fetched
   const loading = isDemoMode ? false : fetchLoading || (!!userId && loadedFor !== userId)
   const active = businesses.find((b) => b.id === activeId) ?? businesses[0] ?? null
