@@ -39,9 +39,9 @@ export function LandingPage() {
 
       <section className="relative isolate overflow-hidden bg-gradient-to-b from-[#f1f6fb] via-white to-white px-4 pb-24 pt-16 text-center sm:px-6 sm:pb-32 sm:pt-24">
         <HeroBackdrop />
-        <h1 className="anim-fade-up relative mx-auto max-w-4xl text-5xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl" style={d(60)}>
-          All your business on{' '}
-          <span className="relative whitespace-nowrap"><span aria-hidden className="anim-marker absolute -inset-x-2 inset-y-1 -z-0 -rotate-1 rounded-xl bg-[#fbb130]" style={d(700)} /><span className="relative">one platform</span></span>.
+        <h1 aria-label="All your business on one platform." className="relative mx-auto max-w-4xl text-5xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl">
+          {['All', 'your', 'business', 'on'].map((w, i) => <span key={w} aria-hidden className="word-mask mr-[0.25em]"><span style={d(80 + i * 90)}>{w}</span></span>)}
+          <span aria-hidden className="relative whitespace-nowrap"><span className="anim-marker absolute -inset-x-2 inset-y-1 -z-0 -rotate-1 rounded-xl bg-[#fbb130]" style={d(900)} /><span className="word-mask relative"><span style={d(450)}>one platform.</span></span></span>
         </h1>
         <p className="anim-fade-up relative mx-auto mt-8 max-w-2xl text-xl font-medium text-ink/80 sm:text-2xl" style={d(220)}>
           Shops, farms, bakeries, pharmacies and schools, each with{' '}
@@ -92,7 +92,7 @@ export function LandingPage() {
           </section>
 
           <section id="why" className="mt-24 scroll-mt-24">
-            <Reveal><h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Why <Mark>DOA B-Suite</Mark></h2></Reveal>
+            <Reveal><h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Why <Mark>DOA</Mark></h2></Reveal>
             <dl className="mt-10 grid gap-10 sm:grid-cols-3">
               <Reveal><dt className="text-lg font-bold">One login, <Mark>separate books</Mark></dt><dd className="mt-2 text-ink/70">Create a farm, a bakery, a shop, a pharmacy or a school under one account. Each has its own records, staff, modules and subscription, and none can see another.</dd></Reveal>
               <Reveal delay={100}><dt className="text-lg font-bold">Numbers you can <Mark>trust</Mark></dt><dd className="mt-2 text-ink/70">Stock, sales and payments are recorded as an unchangeable history. Mistakes are corrected with new entries, never erased, and every important change is logged.</dd></Reveal>

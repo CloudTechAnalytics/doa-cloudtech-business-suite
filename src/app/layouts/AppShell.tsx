@@ -125,7 +125,7 @@ export function AppShell() {
             <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface lg:hidden"><MenuIcon className="size-5" aria-hidden /></button>
           )}
           <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface"><LayoutGrid className="size-5" aria-hidden /></NavLink>
-          <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA B-Suite'}</span>
+          <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA'}</span>
           <div className="ml-auto flex items-center gap-2">
             <RecordMenu items={quick} />
             <BusinessSwitcher />

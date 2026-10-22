@@ -68,7 +68,7 @@ export function BusinessesPage() {
     <div className="min-h-dvh bg-white">
       <header className="sticky top-0 z-30 border-b border-line/60 bg-surface">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" aria-label="DOA B-Suite home"><BrandLockup /></Link>
+          <Link to="/" aria-label="DOA home"><BrandLockup /></Link>
           <SiteNav />
           <Menu
             label="Account menu"

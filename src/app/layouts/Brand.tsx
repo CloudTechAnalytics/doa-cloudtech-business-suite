@@ -1,20 +1,27 @@
 import clsx from 'clsx'
 
-/** Rounded navy tile with a white "D". */
+/**
+ * The DOA mark: a "D" cut into two interlocking blocks, a white stem and an amber bowl, on a navy tile.
+ * The pieces are separate paths so the loading screen can slide them together.
+ */
+export const STEM_PATH = 'M9 9h8v22H9z'
+export const BOWL_PATH = 'M19.5 9H22c5.5 0 9 4.4 9 11s-3.5 11-9 11h-2.5v-6.5H22c2 0 3-1.8 3-4.5s-1-4.5-3-4.5h-2.5z'
+
 export function BrandMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={clsx('size-8 shrink-0', className)} aria-hidden>
-      <rect width="40" height="40" rx="10" fill="#071b33" />
-      <path fill="#ffffff" fillRule="evenodd" d="M12 10h8.5c6 0 9.5 3.6 9.5 10s-3.5 10-9.5 10H12V10Zm5 4.6v10.8h3.3c3.1 0 4.7-2 4.7-5.4s-1.6-5.4-4.7-5.4H17Z" />
+      <rect width="40" height="40" rx="11" fill="#071b33" />
+      <path fill="#ffffff" d={STEM_PATH} />
+      <path fill="#fbb130" d={BOWL_PATH} />
     </svg>
   )
 }
 
 export function BrandLockup({ light = false, className }: { light?: boolean; className?: string }) {
   return (
-    <div className={clsx('flex items-center gap-2.5', className)}>
-      <BrandMark />
-      <span className={clsx('text-[17px] font-semibold leading-none tracking-tight', light ? 'text-white' : 'text-ink')}>DOA B-Suite</span>
+    <div className={clsx('group flex items-center gap-2.5', className)}>
+      <BrandMark className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105" />
+      <span className={clsx('text-[19px] font-extrabold leading-none tracking-tight', light ? 'text-white' : 'text-ink')}>DOA</span>
     </div>
   )
 }

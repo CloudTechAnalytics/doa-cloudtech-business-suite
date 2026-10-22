@@ -1,4 +1,4 @@
-# CloudTech Business Suite (DOA B-Suite)
+# CloudTech Business Suite (DOA)
 
 A multi-tenant, multi-industry business management platform from CloudTech Analytics. One owner can run several separate businesses (a farm, a bakery, a retail shop), each with its own industry, staff, data, modules and subscription. Retail (Mart), Farm, Bakery and Pharmacy are registered.
 
