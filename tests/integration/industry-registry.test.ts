@@ -71,7 +71,7 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     const apps = buildApps('farm', usableFor('farm'))
     expect(apps[0].id).toBe('dashboard')
     expect(apps[1].label).toBe('Overview')
-    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Stock and procurement', 'Sales and customers', 'Finance', 'People and administration'])
+    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Sales and customers', 'Stock and procurement', 'Finance', 'People and administration'])
   })
 
   it('gives each app a menu of its own modules and finds the open app from the URL', () => {
@@ -99,7 +99,9 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     expect(heading('Stock and procurement')).toBeLessThan(link('inventory'))
     expect(link('inventory')).toBeLessThan(link('suppliers'))
     expect(heading('Sales and customers')).toBeLessThan(link('farm-products'))
-    expect(link('farm-products')).toBeLessThan(link('sales'))
+    expect(link('customers')).toBeLessThan(link('sales')) // customers and selling come before stock
+    expect(link('sales')).toBeLessThan(link('farm-products'))
+    expect(heading('Sales and customers')).toBeLessThan(heading('Stock and procurement'))
     expect(heading('Finance')).toBeLessThan(link('farm-cashbook'))
     expect(heading('People and administration')).toBeLessThan(link('staff'))
     expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'settings' } })
