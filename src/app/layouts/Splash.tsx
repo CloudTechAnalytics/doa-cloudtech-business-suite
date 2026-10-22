@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react'
 import { BOWL_PATH, STEM_PATH } from './Brand'
 
-const SEEN = 'doa.splash.v1'
-const seen = () => { try { return sessionStorage.getItem(SEEN) === '1' } catch { return false } }
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 /** While the opening screen is up, page animations wait so the landing page plays from the start once it lifts. */
 const hold = (on: boolean) => document.documentElement.classList.toggle('splash-on', on)
 
 /**
  * Opening screen: the two halves of the mark slide together while a 0 to 100 counter fills a bar, then the screen lifts away.
- * It shows once per browser session, and the count waits at 99 until the page has really finished loading.
+ * It plays every time the landing page is loaded or refreshed (not when moving around inside the site), and the count waits at 99 until the page has really finished loading.
  */
 export function Splash() {
-  const [show, setShow] = useState(() => { const s = !seen() && !reduced(); hold(s); return s })
+  const [show, setShow] = useState(() => { const s = location.pathname === '/' && !reduced(); hold(s); return s })
   const [pct, setPct] = useState(0)
   const [leaving, setLeaving] = useState(false)
 
@@ -30,7 +28,6 @@ export function Splash() {
       setPct(v)
       if (v < 100) raf = requestAnimationFrame(tick)
       else {
-        try { sessionStorage.setItem(SEEN, '1') } catch { /* private window */ }
         timers.push(window.setTimeout(() => { setLeaving(true); hold(false) }, 250), window.setTimeout(() => { setShow(false); hold(false); document.body.style.overflow = '' }, 1050))
       }
     }
