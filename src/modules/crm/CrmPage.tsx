@@ -14,6 +14,7 @@ import { ActivityForms, Tags } from './CrmParts'
 import { CustomerProfile } from './CustomerProfile'
 import * as api from './crmApi'
 import type { CustomerRow, LeadRow, LeadStatus, Parent } from './crmApi'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const TABS = ['Customers', 'Leads', 'Follow-ups'] as const
 const PAGE = 10
@@ -180,7 +181,7 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
   const reload = async () => { await Promise.all([d.refresh(), onChanged()]) }
   const converted = lead.status === 'converted'
   return (
-    <DetailPage title={lead.name} onClose={onClose} wide>
+    <DetailPage title={lead.name} onClose={onClose} wide actions={can('customers.manage') ? <DeleteButton businessId={businessId} kind="lead" id={id} label={lead.name} noun="lead" onDeleted={async () => { await onChanged(); onClose() }} /> : undefined}>
       {error && <ErrorState message={error} />}
       {result && <Notice>{result}</Notice>}
       <p className="mb-3 text-sm text-ink/70">{[lead.phone, lead.email, lead.source && `via ${lead.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>

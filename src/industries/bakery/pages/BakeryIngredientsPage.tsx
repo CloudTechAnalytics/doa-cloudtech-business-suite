@@ -12,6 +12,7 @@ import { naira, qty } from '@/shared/utilities/format'
 import { loadIngredients, saveIngredient } from '../services/bakeryApi'
 import type { IngredientRow } from '../services/bakeryApi'
 import { openRow } from '@/shared/utilities/rows'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const UNIT_CHOICES = [['kg', 'Kilogram (kg)'], ['g', 'Gram (g)'], ['l', 'Litre (l)'], ['ml', 'Millilitre (ml)'], ['each', 'Each'], ['dozen', 'Dozen']] as const
 
@@ -78,7 +79,7 @@ function IngredientDialog({ businessId, ingredient, locations, onClose, onSaved 
     }, k), 'Saved.')
   }
   return (
-    <DetailPage title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose} view={!!ingredient} modal={!ingredient}>
+    <DetailPage title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose} view={!!ingredient} modal={!ingredient} actions={ingredient ? <DeleteButton businessId={businessId} kind="product" id={ingredient.id} label={ingredient.name} noun="ingredient" onDeleted={onSaved} /> : undefined}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={ingredient?.name} error={errors.name} autoFocus maxLength={200} />
         <div className="grid gap-4 sm:grid-cols-2">

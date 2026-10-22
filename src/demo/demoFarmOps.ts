@@ -243,3 +243,6 @@ export function demoAlerts(biz: string): AlertRow[] {
   }
   return out
 }
+
+/** For the delete mirror: change this store in one step. */
+export function mutateOps(fn: (s: typeof state) => typeof state) { commit(fn(state)) }

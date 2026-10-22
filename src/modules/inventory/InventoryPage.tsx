@@ -12,6 +12,7 @@ import * as api from '@/modules/inventory/inventoryApi'
 import type { InventoryData, MovementRow, Product } from '@/modules/inventory/inventoryApi'
 import { stockStatus } from '@/modules/inventory/ledger'
 import type { StockStatus } from '@/modules/inventory/ledger'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const TABS = ['Stock', 'Products', 'Locations', 'Movements', 'Receive', 'Adjust / issue', 'Transfer'] as const
 type Tab = (typeof TABS)[number]
@@ -228,13 +229,13 @@ function ProductsTab({ data, businessId, canWrite, onChanged }: { data: Inventor
           </table>
         </Card>
       )}
-      {open && <ProductDetail data={data} id={open} onClose={() => setOpen(null)} />}
+      {open && <ProductDetail data={data} id={open} onClose={() => setOpen(null)} actions={canWrite && data.products.find((x) => x.id === open) ? <DeleteButton businessId={businessId} kind="product" id={open} label={data.products.find((x) => x.id === open)!.name} noun="product" onDeleted={async () => { setOpen(null); await onChanged() }} /> : undefined} />}
     </>
   )
 }
 
 /** A product's own page: its details, where its stock is, and the ledger entries behind that stock. */
-function ProductDetail({ data, id, onClose }: { data: InventoryData; id: string; onClose: () => void }) {
+function ProductDetail({ data, id, onClose, actions }: { data: InventoryData; id: string; onClose: () => void; actions?: ReactNode }) {
   const p = data.products.find((x) => x.id === id)
   if (!p) return null
   const bals = data.balances.filter((b) => b.productId === id)
@@ -244,7 +245,7 @@ function ProductDetail({ data, id, onClose }: { data: InventoryData; id: string;
   const where = (lid: string) => data.locations.find((l) => l.id === lid)?.name ?? 'Location'
   const st = stockStatus(qty, p.reorderLevel)
   return (
-    <DetailPage title={p.name} onClose={onClose} wide>
+    <DetailPage title={p.name} onClose={onClose} wide actions={actions}>
       <div className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-4">
           {([['On hand', `${fmt(qty)} ${p.unit}`], ['Stock value', naira(value)], ['Selling price', naira(p.sellingPrice)], ['Default cost', naira(p.defaultCost)]] as const).map(([t, v]) => (
@@ -303,6 +304,7 @@ function LocationsTab({ businessId, industry, canWrite, onChanged }: { businessI
                   <span className="ml-auto flex gap-1">
                     <Button variant="ghost" onClick={() => setEditing(l)}>Rename</Button>
                     {l.active ? <Button variant="ghost" onClick={() => void setStatus(l, 'archived')}>Archive</Button> : <Button variant="ghost" onClick={() => void setStatus(l, 'active')}>Restore</Button>}
+                    <DeleteButton compact businessId={businessId} kind="location" id={l.id} label={l.name} noun="location" onDeleted={refresh} />
                   </span>
                 )}
               </li>

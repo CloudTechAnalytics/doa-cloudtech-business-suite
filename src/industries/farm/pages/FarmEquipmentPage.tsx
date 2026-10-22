@@ -14,6 +14,7 @@ import { today } from '../components/farmUi'
 import { ASSET_TYPES, listAssets, listMaintenance, recordMaintenance, saveAsset, voidMaintenance } from '../services/opsApi'
 import type { AssetRow, MaintenanceDto } from '../services/opsApi'
 import { openRow } from '@/shared/utilities/rows'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const TONE = { active: 'success', under_repair: 'warning', retired: 'neutral' } as const
 
@@ -77,7 +78,7 @@ function AssetDialog({ businessId, asset, onClose, onSaved }: { businessId: stri
     await runner.run((k) => saveAsset(businessId, { id: asset?.id ?? null, name: s('name'), type: s('type'), serial: s('serial'), purchaseDate: s('date') || null, purchaseCost: s('cost') === '' ? null : Number(s('cost')), status: (s('status') || 'active') as AssetRow['status'], intervalDays: s('interval') === '' ? null : Number(s('interval')), notes: s('notes') }, k), 'Saved.')
   }
   return (
-    <DetailPage title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose} view={!!asset} modal={!asset}>
+    <DetailPage title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose} view={!!asset} modal={!asset} actions={asset ? <DeleteButton businessId={businessId} kind="equipment" id={asset.id} label={asset.name} noun="piece of equipment" onDeleted={onSaved} /> : undefined}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={asset?.name} error={problem} autoFocus maxLength={120} />
         <div className="grid gap-4 sm:grid-cols-2">

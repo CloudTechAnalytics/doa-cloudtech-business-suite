@@ -435,3 +435,6 @@ export function ensureDemoPharmacy(biz: string) {
 }
 
 export { getMart }
+
+/** For the delete mirror: change this store in one step. */
+export function mutatePharmacy(fn: (s: typeof state) => typeof state) { commit(fn(state)) }

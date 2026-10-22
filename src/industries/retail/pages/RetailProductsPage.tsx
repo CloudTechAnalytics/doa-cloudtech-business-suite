@@ -14,6 +14,7 @@ import { loadCategories, loadLots, loadProducts, receiveStock, saveProduct, setL
 import type { MartLotRow, MartProductInput, MartProductRow } from '../services/martApi'
 import { parseCsv, toCsv } from '../csv'
 import { openRow } from '@/shared/utilities/rows'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const UNITS = [['each', 'Each (piece)'], ['dozen', 'Dozen'], ['kg', 'Kilogram'], ['g', 'Gram'], ['l', 'Litre'], ['ml', 'Millilitre']] as const
 
@@ -144,7 +145,7 @@ function ProductDialog({ businessId, product, categories, suppliers, onClose, on
     await runner.run((k) => saveProduct(businessId, input, k), 'Saved.')
   }
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} wide>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} actions={product ? <DeleteButton businessId={businessId} kind="product" id={product.id} label={product.name} noun="product" onDeleted={onSaved} /> : undefined} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} autoFocus maxLength={200} /></div>

@@ -15,6 +15,7 @@ import { loadCategories } from '../../retail/services/martApi'
 import { CLASSIFICATIONS, CLASS_LABEL, DOSAGE_FORMS, loadBatches, loadMedicines, receiveGoods, saveMedicine } from '../services/pharmacyApi'
 import type { Classification, MedicineInput, MedicineRow, ReceiveItem } from '../services/pharmacyApi'
 import { openRow } from '@/shared/utilities/rows'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const UNITS = [['each', 'Each (tablet, capsule, piece)'], ['dozen', 'Dozen'], ['kg', 'Kilogram'], ['g', 'Gram'], ['l', 'Litre'], ['ml', 'Millilitre']] as const
 const CLASS_TONE: Record<string, 'neutral' | 'info' | 'warning' | 'danger'> = { otc: 'neutral', prescription_only: 'warning', controlled: 'danger', device: 'info', general: 'neutral' }
@@ -119,7 +120,7 @@ function MedicineDialog({ businessId, medicine, categories, suppliers, onClose, 
     await runner.run((k) => saveMedicine(businessId, input, k), 'Saved.')
   }
   return (
-    <DetailPage title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} view={!!medicine} modal={!medicine} wide>
+    <DetailPage title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} view={!!medicine} modal={!medicine} actions={medicine ? <DeleteButton businessId={businessId} kind="product" id={medicine.id} label={medicine.name} noun="medicine" onDeleted={onSaved} /> : undefined} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={medicine?.name} error={errors.name} autoFocus maxLength={200} /></div>

@@ -12,6 +12,7 @@ import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira, qty } from '@/shared/utilities/format'
 import { LOSS_REASONS, loadLosses, loadProducts, recordLoss, voidLoss } from '../services/martApi'
 import type { LossReason, MartLoss } from '../services/martApi'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 /** Damaged, expired and missing stock. Each entry is a stock movement with its estimated loss; an expired lot is taken out oldest first. */
 export function RetailLossesPage() {
@@ -53,7 +54,7 @@ export function RetailLossesPage() {
                   <td className="tabular p-3 text-right">{qty(w.quantity)} {unit(w.productId)}</td>
                   <td className="p-3"><Badge>{label(w.reason)}</Badge></td>
                   <td className="tabular p-3 text-right">{naira(w.loss)}</td>
-                  {manage && <td className="p-3 text-right">{w.status === 'posted' && <Button variant="ghost" onClick={() => setVoiding(w)}>Void</Button>}</td>}
+                  {manage && <td className="p-3 text-right">{w.status === 'posted' ? <Button variant="ghost" onClick={() => setVoiding(w)}>Void</Button> : <DeleteButton compact businessId={businessId} kind="loss" id={w.id} label={w.number} noun="entry" onDeleted={refresh} />}</td>}
                 </tr>
               ))}
             </tbody>

@@ -12,6 +12,7 @@ import { setCreditLimit } from '@/modules/sales/tradeApi'
 import { ActivityForms, Tags } from './CrmParts'
 import * as api from './crmApi'
 import type { CustomerRow, Parent } from './crmApi'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const dayOf = (v: string | null) => (v ? v.slice(0, 10) : '–')
 
@@ -126,7 +127,7 @@ export function CustomerProfile({ businessId, id, can, onClose, onChanged }: { b
   const section = sections.find((s) => s.id === tab)
 
   return (
-    <DetailPage title={c.name} onClose={onClose} wide>
+    <DetailPage title={c.name} onClose={onClose} wide actions={can('customers.manage') ? <DeleteButton businessId={businessId} kind="customer" id={id} label={c.name} noun="customer" onDeleted={async () => { await onChanged(); onClose() }} /> : undefined}>
       <div role="tablist" aria-label="Customer sections" className="mb-4 flex flex-wrap gap-1 border-b border-ink/10">
         {tabs.map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}

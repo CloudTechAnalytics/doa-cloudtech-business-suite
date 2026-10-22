@@ -134,3 +134,6 @@ export function demoRemoveTag(biz: string, parent: { customerId?: string; leadId
 
 /** Customers' sales history for the demo (sales live in the trade store). */
 export const demoSalesFor = (customerId: string) => getTrade().sales.filter((s) => s.customerId === customerId)
+
+/** For the delete mirror: change this store in one step. */
+export function mutateCrm(fn: (s: typeof state) => typeof state) { commit(fn(state)) }

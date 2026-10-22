@@ -21,6 +21,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0015_pharmacy` | roles `pharmacist` and `pharmacy_technician`, permissions `pharmacy.manage` / `pharmacy.rx` / `pharmacy.dispense`, `pharmacy-*` modules, `pharmacy_settings`, `pharmacy_medicine_profiles` (classification), batch status on `mart_lots`, `pharmacy_batch_events`, goods receipts with rejected quantities, prescriptions and dispensings (RLS: `pharmacy.rx` only), pharmacy-aware `mart_track_lots` (expired, quarantined and undated batches never sell), `sale_items` guard for restricted medicines, `pharmacy_*` functions and `pharmacy_overview`; `_mart_guard` maps retail modules to pharmacy modules. See docs/pharmacy.md |
 | `…0016_customer_profiles` | `customers` gains `company`, `contact_person`, `city`, `notes`; view `customer_summary` (orders, spend net of tax and returns, paid, owed, first and last purchase) and `customer_top_products()`; both respect sales and customer RLS |
 | `…0017_location_guard` | trigger refusing to archive a stock location that still holds stock or is the last active one |
+| `…0018_delete_record` | `delete_record(kind, id)`: deletes a never-used customer, supplier, product, category, location, lead, voided stock loss, or farm worker, equipment or task; refuses records with history; audited |
 
 ## Tables named in the architecture brief
 

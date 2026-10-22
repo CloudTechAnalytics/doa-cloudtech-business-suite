@@ -415,3 +415,6 @@ export function demoCancelPurchase(biz: string, purchaseId: string, reason: stri
     return {}
   }).error
 }
+
+/** For the delete mirror: change this store in one step. */
+export function mutateTrade(fn: (s: typeof state) => typeof state) { commit(fn(state)) }

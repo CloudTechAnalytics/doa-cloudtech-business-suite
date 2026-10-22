@@ -12,6 +12,7 @@ import { createFarmProduct, loadFarmProducts, updateFarmProduct } from '../servi
 import { PRODUCT_AREA_LABEL, PRODUCT_SOURCE_LABEL } from '../types'
 import type { FarmProduct, ProductArea, ProductSource } from '../types'
 import { openRow } from '@/shared/utilities/rows'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const UNITS = [['each', 'Each'], ['dozen', 'Dozen'], ['kg', 'Kilogram'], ['g', 'Gram'], ['l', 'Litre'], ['ml', 'Millilitre']] as const
 const qty = (n: number) => Math.round(n * 100) / 100
@@ -123,7 +124,7 @@ function ProductDialog({ product, businessId, species, onClose, onSaved }: { pro
   }
 
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product}>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} actions={product ? <DeleteButton businessId={businessId} kind="product" id={product.id} label={product.name} noun="product" onDeleted={onSaved} /> : undefined}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} placeholder="e.g. Eggs (crate)" maxLength={120} autoFocus />
         {product ? (

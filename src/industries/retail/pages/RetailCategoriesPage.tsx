@@ -10,6 +10,7 @@ import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { loadCategories, loadProducts, saveCategory } from '../services/martApi'
 import type { MartCategory } from '../services/martApi'
 import { openRow } from '@/shared/utilities/rows'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 /** Product categories, used to group the shelf, the stock count and the sales reports. */
 export function RetailCategoriesPage() {
@@ -55,7 +56,7 @@ function CategoryDialog({ businessId, category, onClose, onSaved }: { businessId
     await runner.run(async () => saveCategory(businessId, { id: category?.id ?? null, name }), 'Saved.')
   }
   return (
-    <DetailPage title={category ? 'Rename category' : 'Add a category'} onClose={onClose} view={!!category} modal={!category}>
+    <DetailPage title={category ? 'Rename category' : 'Add a category'} onClose={onClose} view={!!category} modal={!category} actions={category ? <DeleteButton businessId={businessId} kind="category" id={category.id} label={category.name} noun="category" onDeleted={onSaved} /> : undefined}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={category?.name} error={error ?? undefined} autoFocus maxLength={80} />
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}

@@ -8,6 +8,7 @@ import { DetailPage } from '@/shared/components/detail-page'
 import { label, naira } from '@/shared/utilities/format'
 import * as api from '@/modules/sales/tradeApi'
 import type { PurchaseDto, SupplierDto } from '@/modules/sales/tradeApi'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 export function SuppliersPage() {
   const { active } = useBusiness()
@@ -83,7 +84,7 @@ function SupplierDetail({ supplier: s, purchases, businessId, canEdit, onClose, 
     if (!err) { setEditingDetails(false); await onSaved() }
   }
   return (
-    <DetailPage title={s.name} onClose={onClose} wide>
+    <DetailPage title={s.name} onClose={onClose} wide actions={canEdit ? <DeleteButton businessId={businessId} kind="supplier" id={s.id} label={s.name} noun="supplier" onDeleted={async () => { await onSaved(); onClose() }} /> : undefined}>
       <div className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-4">
           {[['Orders', String(live.length)], ['Total bought', naira(total)], ['Paid', naira(paid)], ['Still owed', naira(Math.max(Math.round((total - paid) * 100) / 100, 0))]].map(([t, v]) => (

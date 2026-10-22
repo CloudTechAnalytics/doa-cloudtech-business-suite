@@ -15,7 +15,7 @@ export const DetailSlotContext = createContext<DetailSlot | null>(null)
  * With `modal` (adding a record, or a quick action) it is a floating box instead: adding is a small job done over the list, while
  * reading a record deserves a page. Outside the app shell (no slot) it also falls back to a dialog.
  */
-export function DetailPage({ title, onClose, children, wide = false, view = false, modal = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; view?: boolean; modal?: boolean }) {
+export function DetailPage({ title, onClose, children, wide = false, view = false, modal = false, actions }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; view?: boolean; modal?: boolean; actions?: ReactNode }) {
   const slot = useContext(DetailSlotContext)
   const asBox = modal
   const [editing, setEditing] = useState(!view)
@@ -43,7 +43,10 @@ export function DetailPage({ title, onClose, children, wide = false, view = fals
       <div className={`rounded-lg border border-line bg-white p-5 shadow-card sm:p-6 ${wide ? '' : 'max-w-3xl'}`}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <h1 className="text-xl font-semibold">{shown}</h1>
-          {reading && <button type="button" onClick={() => setEditing(true)} className="no-print inline-flex shrink-0 items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface"><Pencil className="size-4" aria-hidden /> Edit</button>}
+          <div className="flex shrink-0 items-center gap-2">
+            {reading && <button type="button" onClick={() => setEditing(true)} className="no-print inline-flex shrink-0 items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface"><Pencil className="size-4" aria-hidden /> Edit</button>}
+            {actions}
+          </div>
         </div>
         <fieldset disabled={reading} className={reading ? 'record-read' : undefined}>{children}</fieldset>
       </div>

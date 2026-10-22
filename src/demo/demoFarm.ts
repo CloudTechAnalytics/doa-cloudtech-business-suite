@@ -354,3 +354,6 @@ export function demoVoidHealth(biz: string, id: string, reason: string, key: str
 }
 
 export const demoWithdrawals = (biz: string) => state.health.filter((h) => h.businessId === biz && h.status === 'posted' && h.withdrawalEndsOn !== null && h.withdrawalEndsOn >= today())
+
+/** For the delete mirror: change this store in one step. */
+export function mutateFarm(fn: (s: typeof state) => typeof state) { commit(fn(state)) }

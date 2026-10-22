@@ -12,6 +12,7 @@ import { today } from '../components/farmUi'
 import { listWorkerNames, listTasks, saveTask, setTaskStatus } from '../services/opsApi'
 import { loadFarm } from '../services/farmApi'
 import type { TaskDto, TaskStatus } from '../services/opsApi'
+import { DeleteButton } from '@/shared/components/delete-button'
 
 const TONE: Record<TaskStatus, 'neutral' | 'info' | 'warning' | 'success' | 'danger'> = { todo: 'neutral', in_progress: 'info', review: 'warning', done: 'success', cancelled: 'danger' }
 const PRIORITY_TONE = { low: 'neutral', normal: 'info', high: 'danger' } as const
@@ -89,7 +90,7 @@ function TaskDialog({ businessId, task, workers, batches, onClose, onSaved }: { 
     await runner.run((k) => saveTask(businessId, { id: task?.id ?? null, title: s('title'), description: s('description'), due: s('due') || null, priority: s('priority') as TaskDto['priority'], assigneeId: s('assignee') || null, batchId: s('batch') || null, requiresReview: f.get('review') === 'on' }, k), 'Task saved.')
   }
   return (
-    <DetailPage title={task ? 'Edit task' : 'New task'} onClose={onClose} view={!!task} modal={!task}>
+    <DetailPage title={task ? 'Edit task' : 'New task'} onClose={onClose} view={!!task} modal={!task} actions={task ? <DeleteButton businessId={businessId} kind="task" id={task.id} label={task.title} noun="task" onDeleted={onSaved} /> : undefined}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Task" name="title" defaultValue={task?.title} error={problem} autoFocus maxLength={200} />
         <TextField label="Details (optional)" name="description" defaultValue={task?.description ?? ''} />

@@ -114,6 +114,7 @@ function ExpenseDetail({ e, supplier, batch, onClose }: { e: ExpenseDto; supplie
         {batch && <div><dt className="text-xs text-ink/60">Batch</dt><dd>{batch}</dd></div>}
         {e.status === 'voided' && <div className="sm:col-span-2"><dt className="text-xs text-ink/60">Why it was voided</dt><dd>{e.voidReason}</dd></div>}
       </dl>
+      <p className="mt-4 text-xs text-ink/60">Expenses are never deleted, because they are money records. To correct a mistake, void the entry with a reason: it stays on record but is left out of every total.</p>
       <div className="mt-5 flex justify-end"><Button variant="secondary" onClick={onClose}>Back to expenses</Button></div>
     </DetailPage>
   )
