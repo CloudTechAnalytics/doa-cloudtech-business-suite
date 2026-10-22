@@ -1,5 +1,5 @@
 import { ArrowRight, ChevronDown, Menu as MenuIcon, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { landingMenus } from '@/app/navigation/navigation'
@@ -38,32 +38,27 @@ function Column({ col, onNavigate }: { col: SiteMenuColumn; onNavigate: () => vo
 }
 
 /**
- * The public site's navigation. "Apps" and "Industries" open wide panels (on hover or click, Escape closes)
+ * The public site's navigation. "Apps" and "Industries" open wide panels (on click; Escape or a click outside closes)
  * built from the registries; on phones they collapse into a simple list.
  */
 export function SiteNav() {
   const menus = useMemo(() => landingMenus(), [])
   const [open, setOpen] = useState<Key | null>(null)
   const [mobile, setMobile] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const hoveredAt = useRef(0)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(null); setMobile(false) } }
     document.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('keydown', onKey); clearTimeout(timer.current) }
+    return () => document.removeEventListener('keydown', onKey)
   }, [])
 
   const close = () => { setOpen(null); setMobile(false) }
-  const hoverOpen = (k: Key, at: number) => { clearTimeout(timer.current); hoveredAt.current = at; setOpen(k) }
-  const hoverClose = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(null), 160) }
-  // A tap fires mouseenter then click; ignore the click so it does not immediately close what the tap opened.
-  const click = (k: Key, at: number) => setOpen(open === k && at - hoveredAt.current > 400 ? null : k)
+  const toggle = (k: Key) => setOpen(open === k ? null : k)
 
   const trigger = (k: Key, label: string) => (
     <button
       type="button" aria-haspopup="true" aria-expanded={open === k} aria-controls={`menu-${k}`}
-      onMouseEnter={(e) => hoverOpen(k, e.timeStamp)} onClick={(e) => click(k, e.timeStamp)}
+      onClick={() => toggle(k)}
       className={`flex h-16 items-center gap-1 px-1 text-[15px] font-medium transition-colors ${open === k ? 'text-brand' : 'text-ink/80 hover:text-ink'}`}
     >
       {label}<ChevronDown className={`size-4 transition-transform ${open === k ? 'rotate-180' : ''}`} aria-hidden />
@@ -86,7 +81,7 @@ export function SiteNav() {
   )
 
   return (
-    <div onMouseLeave={hoverClose} onMouseEnter={() => clearTimeout(timer.current)}>
+    <div>
       <nav aria-label="Site" className="hidden items-center gap-7 md:flex">
         {trigger('apps', 'Apps')}
         {trigger('industries', 'Industries')}
