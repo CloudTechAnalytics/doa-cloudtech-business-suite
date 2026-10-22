@@ -21,17 +21,17 @@ function AppRow({ app, index, to }: { app: LandingApp; index: number; to: string
   const flip = index % 2 === 1
   return (
     <li className="border-t border-ink/15 first:border-t-0">
-      <div className="grid items-center gap-8 py-12 md:grid-cols-2 md:gap-14">
-        <Reveal className={flip ? 'md:order-2' : ''}>
+      <div className="grid items-center gap-6 py-9 md:grid-cols-12 md:gap-10">
+        <Reveal className={`md:col-span-5 ${flip ? 'md:order-2' : ''}`}>
           <span className="grid size-12 place-items-center rounded-xl text-white" style={{ background: app.color }}><app.icon className="size-6" aria-hidden strokeWidth={1.75} /></span>
-          <h4 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl">{app.label}</h4>
+          <h4 className="mt-4 text-2xl font-bold tracking-tight">{app.label}</h4>
           <p className="mt-3 max-w-md text-base font-medium text-ink/70 sm:text-lg">{app.blurb}</p>
           <Link to={to} className="group mt-6 inline-flex items-center gap-2 text-sm font-bold text-ink underline decoration-amber decoration-2 underline-offset-4">Start with {app.label}<ArrowRight className="size-4 transition duration-300 group-hover:translate-x-1" aria-hidden /></Link>
         </Reveal>
-        <Reveal delay={120} className={flip ? 'md:order-1' : ''}>
+        <Reveal delay={120} className={`md:col-span-7 ${flip ? 'md:order-1' : ''}`}>
           <div className="overflow-hidden rounded-xl bg-white shadow-raised ring-1 ring-ink/10 transition duration-500 hover:-translate-y-1">
             <div className="flex items-center gap-1.5 border-b border-line bg-surface px-3 py-2" aria-hidden><span className="size-2.5 rounded-full bg-[#ff5f57]" /><span className="size-2.5 rounded-full bg-[#febc2e]" /><span className="size-2.5 rounded-full bg-[#28c840]" /></div>
-            <img src={`/screens/${app.id}.jpg`} alt={`The ${app.label} page in DOA`} loading="lazy" width={1366} height={599} className="block aspect-[1366/520] w-full object-cover object-top" />
+            <img src={`/screens/${app.id}.jpg`} alt={`The ${app.label} page in DOA`} loading="lazy" width={1366} height={599} className="block aspect-[1366/560] w-full object-cover object-top" />
           </div>
         </Reveal>
       </div>
@@ -67,7 +67,7 @@ export function LandingPage() {
       </section>
 
       <div className="relative -mt-px bg-canvas pb-20 pt-20" style={{ borderTopLeftRadius: '50% 7rem', borderTopRightRadius: '50% 7rem' }}>
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <Reveal as="section" className="text-center">
             <span id="apps" className="relative -top-28 block h-0" />
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Choose your <Mark>apps</Mark></h2>
