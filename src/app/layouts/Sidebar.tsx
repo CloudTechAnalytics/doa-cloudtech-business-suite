@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { appPath, sidebarEntries } from '@/app/navigation/navigation'
@@ -33,10 +33,6 @@ export function Sidebar({ apps, collapsed = false, onToggle, onNavigate }: { app
   return (
     <nav aria-label="Main navigation" className="flex h-full flex-col">
       <div className={clsx('min-h-0 flex-1 space-y-0.5 overflow-y-auto py-3', collapsed ? 'flex flex-col items-center px-2' : 'px-3')}>
-        <NavLink to="/app" end onClick={onNavigate} title="All apps" className={item}>
-          <LayoutGrid className="size-[18px] shrink-0" aria-hidden />
-          {!collapsed && 'All apps'}
-        </NavLink>
         {entries.map((e) =>
           e.kind === 'heading' ? (
             collapsed ? <hr key={e.key} className="my-2 w-6 border-line" /> : (
