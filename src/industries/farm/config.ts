@@ -15,8 +15,8 @@ export const farmConfig = {
   defaultModules: [
     'farm-overview', 'farm-units', 'farm-batches', 'farm-daily', 'farm-feeding', 'farm-mortality', 'farm-harvests', 'farm-products', 'farm-expenses',
     'farm-alerts', 'farm-tasks', 'farm-health', 'farm-equipment', 'farm-crops', 'farm-purchase-requests', 'farm-supplier-bills', 'farm-sales-orders', 'farm-receivables', 'farm-payables', 'farm-cashbook', 'farm-workers',
-    'inventory', 'sales', 'reports',
+    'inventory', 'sales', 'customers', 'reports',
   ] as ModuleCode[],
-  optionalModules: ['purchases', 'suppliers', 'expenses', 'customers'] as ModuleCode[],
+  optionalModules: ['purchases', 'suppliers', 'expenses'] as ModuleCode[],
   requiredModules: ['farm-overview'] as ModuleCode[],
 }

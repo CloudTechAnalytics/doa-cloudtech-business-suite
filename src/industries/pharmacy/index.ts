@@ -15,6 +15,9 @@ const PharmacyDashboardWidget = lazy(() => import('./components/PharmacyOverview
  * pharmacist review). It does not diagnose, prescribe, or decide that a prescription is clinically safe, and the legal requirements
  * of the pharmacy's jurisdiction must be confirmed with qualified professionals before production use.
  */
+const PrescriptionsSection = lazy(() => import('./components/PharmacyCustomerPrescriptions').then((m) => ({ default: m.PharmacyCustomerPrescriptions })))
+const CreditSection = lazy(() => import('@/modules/crm/CustomerCredit').then((m) => ({ default: m.CustomerCredit })))
+
 export const pharmacy = defineIndustry({
   ...pharmacyConfig,
   modules: pharmacyModules,
@@ -23,6 +26,7 @@ export const pharmacy = defineIndustry({
   routes: pharmacyRoutes,
   onboarding: { questions: pharmacySetupQuestions },
   dashboardWidgets: [{ id: 'pharmacy-kpis', title: 'Pharmacy overview', component: PharmacyDashboardWidget }],
+  customerSections: [{ id: 'prescriptions', title: 'Prescriptions', component: PrescriptionsSection }, { id: 'credit', title: 'Credit account', component: CreditSection }],
   workflows: [
     { id: 'receive-goods', label: 'Receive goods with batch and expiry', module: 'pharmacy-products', description: 'Record a delivery with batch numbers, expiry dates and rejected quantities.' },
     { id: 'review-prescription', label: 'Review prescriptions', module: 'pharmacy-prescriptions', description: 'Approve or reject prescriptions awaiting a pharmacist.' },

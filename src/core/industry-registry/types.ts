@@ -44,6 +44,16 @@ export interface SetupQuestion {
   settingsKey?: 'tax_rate_percent'
 }
 
+/** What an industry's customer tab receives. */
+export interface CustomerSectionProps { businessId: string; customerId: string; customerName: string }
+
+/** An extra tab on the customer profile (farm orders, pharmacy prescriptions, credit account). Lazy-load the component. */
+export interface CustomerSection {
+  id: string
+  title: string
+  component: ComponentType<CustomerSectionProps> | LazyExoticComponent<ComponentType<CustomerSectionProps>>
+}
+
 export interface DashboardWidget {
   id: string
   title: string
@@ -96,6 +106,8 @@ export interface IndustryDefinition {
   }
   dashboardWidgets: DashboardWidget[]
   workflows: WorkflowEntry[]
+  /** Extra tabs on the customer profile; omit for none. */
+  customerSections?: CustomerSection[]
 }
 
 export class IndustryDefinitionError extends Error {

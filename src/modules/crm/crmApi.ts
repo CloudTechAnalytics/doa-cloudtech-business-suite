@@ -5,7 +5,13 @@ import { supabase } from '@/shared/utilities/supabase'
 
 /** CRM data access. Live mode uses row-level-secured tables and database functions; demo mode runs a browser mirror. */
 
-export interface CustomerRow { id: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; outstanding: number; createdAt: string }
+export interface CustomerSummary { orders: number; lifetimeSpend: number; paid: number; firstPurchaseAt: string | null; lastPurchaseAt: string | null }
+export interface CustomerRow {
+  id: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; outstanding: number; createdAt: string
+  company: string | null; contactPerson: string | null; city: string | null; address: string | null; notes: string | null; summary: CustomerSummary
+}
+export interface CustomerInput { name: string; phone: string; email: string; source: string; category: string; company?: string; contactPerson?: string; city?: string; address?: string; notes?: string }
+const NO_SUMMARY: CustomerSummary = { orders: 0, lifetimeSpend: 0, paid: 0, firstPurchaseAt: null, lastPurchaseAt: null }
 export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'lost', 'converted'] as const
 export type LeadStatus = (typeof LEAD_STATUSES)[number]
 export interface LeadRow { id: string; name: string; phone: string | null; email: string | null; source: string | null; notes: string; status: LeadStatus; customerId: string | null; createdAt: string }
@@ -23,7 +29,8 @@ const err = (e: { message: string } | null) => e?.message ?? null
 /** Keeps user text from breaking PostgREST filter syntax. */
 const safe = (q: string) => q.replace(/[,()%*_\\"']/g, ' ').trim()
 
-const custFromRow = (r: Record<string, unknown>, outstanding = 0): CustomerRow => ({ id: String(r.id), name: String(r.name), phone: (r.phone as string | null) ?? null, email: (r.email as string | null) ?? null, source: (r.source as string | null) ?? null, category: (r.category as string | null) ?? null, creditLimit: n(r.credit_limit), outstanding, createdAt: String(r.created_at) })
+const custFromRow = (r: Record<string, unknown>, outstanding = 0): CustomerRow => ({ id: String(r.id), name: String(r.name), phone: (r.phone as string | null) ?? null, email: (r.email as string | null) ?? null, source: (r.source as string | null) ?? null, category: (r.category as string | null) ?? null, creditLimit: n(r.credit_limit), outstanding, createdAt: String(r.created_at),
+  company: (r.company as string | null) ?? null, contactPerson: (r.contact_person as string | null) ?? null, city: (r.city as string | null) ?? null, address: (r.address as string | null) ?? null, notes: (r.notes as string | null) ?? null, summary: NO_SUMMARY })
 const leadFromRow = (r: Record<string, unknown>): LeadRow => ({ id: String(r.id), name: String(r.name), phone: (r.phone as string | null) ?? null, email: (r.email as string | null) ?? null, source: (r.source as string | null) ?? null, notes: String(r.notes ?? ''), status: r.status as LeadStatus, customerId: (r.customer_id as string | null) ?? null, createdAt: String(r.created_at) })
 const taskFromRow = (r: Record<string, unknown>): TaskRow => ({ id: String(r.id), title: String(r.title), dueAt: (r.due_at as string | null) ?? null, status: String(r.status), customerId: (r.customer_id as string | null) ?? null, leadId: (r.lead_id as string | null) ?? null })
 
@@ -33,7 +40,8 @@ export async function searchCustomers(b: string, o: { q: string; category: strin
     const t = trade.getTrade()
     const q = o.q.trim().toLowerCase()
     const all = t.customers.filter((c) => c.businessId === b && (!q || [c.name, c.phone, c.email].some((v) => v?.toLowerCase().includes(q))) && (!o.category || c.category === o.category))
-    const rows = all.slice(o.page * o.pageSize, (o.page + 1) * o.pageSize).map((c) => ({ id: c.id, name: c.name, phone: c.phone, email: c.email, source: c.source, category: c.category, creditLimit: c.creditLimit, createdAt: c.createdAt, outstanding: t.sales.filter((s) => s.customerId === c.id && s.status !== 'voided').reduce((a, s) => a + s.balanceDue, 0) }))
+    const rows = all.slice(o.page * o.pageSize, (o.page + 1) * o.pageSize).map((c) => ({ id: c.id, name: c.name, phone: c.phone, email: c.email, source: c.source, category: c.category, creditLimit: c.creditLimit, createdAt: c.createdAt, outstanding: t.sales.filter((s) => s.customerId === c.id && s.status !== 'voided').reduce((a, s) => a + s.balanceDue, 0),
+      company: c.company ?? null, contactPerson: c.contactPerson ?? null, city: c.city ?? null, address: c.address ?? null, notes: c.notes ?? null, summary: trade.demoCustomerSummary(b, c.id) }))
     return { rows, total: all.length }
   }
   let query = db().from('customers').select('*', { count: 'exact' }).eq('business_id', b).eq('status', 'active')
@@ -44,7 +52,9 @@ export async function searchCustomers(b: string, o: { q: string; category: strin
   if (r.error) throw new Error(r.error.message)
   const ids = (r.data ?? []).map((x) => x.id)
   const sales = ids.length ? await db().from('sales').select('customer_id, balance_due').in('customer_id', ids).neq('status', 'voided') : { data: [] }
-  return { rows: (r.data ?? []).map((x) => custFromRow(x, (sales.data ?? []).filter((s) => s.customer_id === x.id).reduce((a, s) => a + n(s.balance_due), 0))), total: r.count ?? 0 }
+  const sums = ids.length ? await db().from('customer_summary').select('*').in('customer_id', ids) : { data: [] }
+  const summaryOf = (id: string): CustomerSummary => { const s = (sums.data ?? []).find((x) => x.customer_id === id); return s ? { orders: n(s.orders), lifetimeSpend: n(s.lifetime_spend), paid: n(s.paid), firstPurchaseAt: s.first_purchase_at ?? null, lastPurchaseAt: s.last_purchase_at ?? null } : NO_SUMMARY }
+  return { rows: (r.data ?? []).map((x) => ({ ...custFromRow(x, (sales.data ?? []).filter((s) => s.customer_id === x.id).reduce((a, s) => a + n(s.balance_due), 0)), summary: summaryOf(x.id) })), total: r.count ?? 0 }
 }
 
 export async function listCategories(b: string): Promise<string[]> {
@@ -53,9 +63,24 @@ export async function listCategories(b: string): Promise<string[]> {
   return [...new Set((r.data ?? []).map((x) => String(x.category)))].sort()
 }
 
-export async function createCustomer(b: string, c: { name: string; phone: string; email: string; source: string; category: string }) {
-  if (isDemoMode) return trade.demoCreateCustomer(b, c.name, c.phone, { email: c.email, source: c.source, category: c.category })
-  return err((await db().from('customers').insert({ business_id: b, name: c.name.trim(), phone: c.phone.trim() || null, email: c.email.trim() || null, source: c.source.trim() || null, category: c.category.trim() || null })).error)
+const cols = (c: CustomerInput) => ({ name: c.name.trim(), phone: c.phone.trim() || null, email: c.email.trim() || null, source: c.source.trim() || null, category: c.category.trim() || null, company: c.company?.trim() || null, contact_person: c.contactPerson?.trim() || null, city: c.city?.trim() || null, address: c.address?.trim() || null, notes: c.notes?.trim() || null })
+
+export async function updateCustomer(b: string, id: string, c: CustomerInput) {
+  if (isDemoMode) return trade.demoUpdateCustomer(b, id, c)
+  if (!c.name.trim()) return 'Enter the customer name.'
+  return err((await db().from('customers').update(cols(c)).eq('id', id).eq('business_id', b)).error)
+}
+
+export async function customerTopProducts(b: string, id: string): Promise<{ product: string; units: number; revenue: number }[]> {
+  if (isDemoMode) return trade.demoCustomerTopProducts(b, id)
+  const r = await db().rpc('customer_top_products', { p_customer: id, p_limit: 5 })
+  if (r.error) return []
+  return (r.data as { product: string; units: number; revenue: number }[]).map((x) => ({ product: x.product, units: n(x.units), revenue: n(x.revenue) }))
+}
+
+export async function createCustomer(b: string, c: CustomerInput) {
+  if (isDemoMode) return trade.demoCreateCustomer(b, c.name, c.phone, { email: c.email, source: c.source, category: c.category, company: c.company, contactPerson: c.contactPerson, city: c.city, address: c.address, notes: c.notes })
+  return err((await db().from('customers').insert({ business_id: b, ...cols(c) })).error)
 }
 
 export async function searchLeads(b: string, o: { q: string; status: string; page: number; pageSize: number }): Promise<Paged<LeadRow>> {

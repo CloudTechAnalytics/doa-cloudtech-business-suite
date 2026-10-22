@@ -10,7 +10,7 @@ import { demoModuleStatuses, demoRoleIn, getDemoState } from '@/demo/demoStore'
  * Mirrors the rules of supabase/migrations/20261021000004_sales_purchasing.sql (same server-side pricing,
  * payment caps, credit limits, eligible-return checks, goods-receipt-only stock increases, idempotency).
  */
-export interface DCustomer { id: string; businessId: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; createdAt: string }
+export interface DCustomer { id: string; businessId: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; createdAt: string; company?: string | null; contactPerson?: string | null; city?: string | null; address?: string | null; notes?: string | null }
 export interface DSupplier { id: string; businessId: string; name: string; phone: string | null }
 export interface DPayment { by?: string | null; id: string; businessId: string; saleId: string | null; purchaseId: string | null; returnId: string | null; type: 'sale_receipt' | 'refund' | 'purchase_payment'; method: string; amount: number; status: 'pending' | 'successful' | 'reversed'; reference: string | null; at: string }
 export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null }
@@ -140,14 +140,45 @@ function addPayment(t: Trade, biz: string, spec: { saleId?: string; purchaseId?:
 }
 
 // -------------------------------------------------------------------- customers & suppliers
-export interface CustomerExtras { email?: string; source?: string; category?: string }
+export interface CustomerExtras { email?: string; source?: string; category?: string; company?: string; contactPerson?: string; city?: string; address?: string; notes?: string }
+const clean = (v: string | undefined) => v?.trim() || null
 export function demoCreateCustomer(biz: string, name: string, phone: string, extra: CustomerExtras = {}): string | null {
   if (!allowed(biz, 'customers', 'customers.manage')) return 'permission denied'
   if (!name.trim()) return 'Enter the customer name.'
-  commit({ ...state, customers: [...state.customers, { id: newId('c'), businessId: biz, name: name.trim(), phone: phone.trim() || null, email: extra.email?.trim() || null, source: extra.source?.trim() || null, category: extra.category?.trim() || null, creditLimit: 0, createdAt: new Date().toISOString() }] })
+  commit({ ...state, customers: [...state.customers, { id: newId('c'), businessId: biz, name: name.trim(), phone: phone.trim() || null, email: extra.email?.trim() || null, source: extra.source?.trim() || null, category: extra.category?.trim() || null, creditLimit: 0, createdAt: new Date().toISOString(), company: clean(extra.company), contactPerson: clean(extra.contactPerson), city: clean(extra.city), address: clean(extra.address), notes: clean(extra.notes) }] })
   return null
 }
 /** Used by the demo CRM when a lead is converted into a new customer. */
+/** Edits a customer's details (mirrors an update behind the customers.manage policy). */
+export function demoUpdateCustomer(biz: string, id: string, v: { name: string; phone: string; email: string; source: string; category: string } & CustomerExtras): string | null {
+  if (!allowed(biz, 'customers', 'customers.manage')) return 'permission denied'
+  if (!v.name.trim()) return 'Enter the customer name.'
+  if (!state.customers.some((c) => c.id === id && c.businessId === biz)) return 'Customer not found.'
+  if ((v.notes ?? '').length > 2000) return 'Notes are limited to 2000 characters.'
+  commit({ ...state, customers: state.customers.map((c) => (c.id === id ? { ...c, name: v.name.trim(), phone: clean(v.phone), email: clean(v.email), source: clean(v.source), category: clean(v.category), company: clean(v.company), contactPerson: clean(v.contactPerson), city: clean(v.city), address: clean(v.address), notes: clean(v.notes) } : c)) })
+  return null
+}
+
+export interface CustomerSummary { orders: number; lifetimeSpend: number; paid: number; firstPurchaseAt: string | null; lastPurchaseAt: string | null }
+/** Mirrors the customer_summary view: spend is net of tax and returns, voided sales are left out, and only roles that can read sales see figures. */
+export function demoCustomerSummary(biz: string, id: string): CustomerSummary {
+  const none: CustomerSummary = { orders: 0, lifetimeSpend: 0, paid: 0, firstPurchaseAt: null, lastPurchaseAt: null }
+  if (!allowed(biz, 'sales', 'sales.read')) return none
+  const sales = state.sales.filter((s) => s.businessId === biz && s.customerId === id && s.status !== 'voided')
+  if (!sales.length) return none
+  const at = sales.map((s) => s.soldAt).sort()
+  return { orders: sales.length, lifetimeSpend: sales.reduce((a, s) => a + cents(s.grandTotal) - cents(s.taxTotal) - cents(s.returnedTotal), 0) / 100, paid: sales.reduce((a, s) => a + cents(s.amountPaid), 0) / 100, firstPurchaseAt: at[0], lastPurchaseAt: at[at.length - 1] }
+}
+
+/** Mirrors customer_top_products(): most-bought products by net revenue. */
+export function demoCustomerTopProducts(biz: string, id: string, limit = 5): { product: string; units: number; revenue: number }[] {
+  if (!allowed(biz, 'sales', 'sales.read')) return []
+  const ids = new Set(state.sales.filter((s) => s.businessId === biz && s.customerId === id && s.status !== 'voided').map((s) => s.id))
+  const by = new Map<string, { units: number; revenue: number }>()
+  for (const i of state.saleItems.filter((x) => ids.has(x.saleId))) { const cur = by.get(i.description) ?? { units: 0, revenue: 0 }; by.set(i.description, { units: cur.units + i.quantity, revenue: cur.revenue + cents(i.total) - cents(i.tax) }) }
+  return [...by].sort((a, b) => b[1].revenue - a[1].revenue).slice(0, limit).map(([product, v]) => ({ product, units: v.units, revenue: v.revenue / 100 }))
+}
+
 export function demoInsertCustomer(c: DCustomer) {
   commit({ ...state, customers: [...state.customers, c] })
 }

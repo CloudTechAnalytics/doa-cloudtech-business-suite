@@ -1,5 +1,4 @@
 import clsx from 'clsx'
-import { X } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -10,7 +9,9 @@ import { useDebounced } from '@/shared/hooks/useDebounced'
 import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey'
 import { DataTable } from '@/shared/tables/DataTable'
 import { dateTime, label, naira } from '@/shared/utilities/format'
-import { setCreditLimit, myTradePermissions } from '@/modules/sales/tradeApi'
+import { myTradePermissions } from '@/modules/sales/tradeApi'
+import { ActivityForms, Tags } from './CrmParts'
+import { CustomerProfile } from './CustomerProfile'
 import * as api from './crmApi'
 import type { CustomerRow, LeadRow, LeadStatus, Parent } from './crmApi'
 
@@ -55,7 +56,7 @@ function Customers({ businessId, can }: { businessId: string; can: (p: string) =
   return (
     <>
       <div className="mb-3 grid items-end gap-3 sm:grid-cols-[1fr_200px_auto]">
-        <TextField label="Search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="Name, phone or email" />
+        <TextField label="Search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="Name, company, phone or email" />
         <SelectField label="Category" value={category} onChange={(e) => { setCategory(e.target.value); setPage(0) }}>
           <option value="">All categories</option>{categories.data?.map((c) => <option key={c} value={c}>{c}</option>)}
         </SelectField>
@@ -67,14 +68,15 @@ function Customers({ businessId, can }: { businessId: string; can: (p: string) =
         rows={list.data?.rows ?? []} total={list.data?.total ?? 0} page={page} pageSize={PAGE} onPage={setPage} loading={list.loading}
         rowKey={(r) => r.id} onRowClick={(r) => setOpen(r.id)} emptyTitle={q || category ? 'No customers match' : 'No customers yet'} emptyHint="Walk-in sales do not need a customer record."
         columns={[
-          { key: 'name', header: 'Customer', render: (r) => <><b>{r.name}</b><div className="text-xs text-ink/60">{r.phone ?? r.email ?? 'No contact'}</div></> },
+          { key: 'name', header: 'Customer', render: (r) => <><b>{r.name}</b>{r.company && <span className="text-ink/70"> · {r.company}</span>}<div className="text-xs text-ink/60">{[r.phone ?? r.email, r.city].filter(Boolean).join(' · ') || 'No contact'}</div></> },
           { key: 'category', header: 'Category', render: (r) => r.category ?? '–' },
-          { key: 'source', header: 'Source', render: (r) => r.source ?? '–' },
-          { key: 'limit', header: 'Credit limit', align: 'right', render: (r) => naira(r.creditLimit) },
-          { key: 'owes', header: 'Owes', align: 'right', render: (r) => naira(r.outstanding) },
+          { key: 'orders', header: 'Orders', align: 'right', render: (r) => r.summary.orders },
+          { key: 'spent', header: 'Total spent', align: 'right', render: (r) => naira(r.summary.lifetimeSpend) },
+          { key: 'owes', header: 'Owes', align: 'right', render: (r) => (r.outstanding > 0 ? <span className="text-warning">{naira(r.outstanding)}</span> : naira(0)) },
+          { key: 'last', header: 'Last purchase', render: (r) => (r.summary.lastPurchaseAt ? r.summary.lastPurchaseAt.slice(0, 10) : '–') },
         ]}
       />
-      {open && <CustomerDialog businessId={businessId} id={open} can={can} onClose={() => setOpen(null)} onChanged={list.refresh} />}
+      {open && <CustomerProfile businessId={businessId} id={open} can={can} onClose={() => setOpen(null)} onChanged={list.refresh} />}
     </>
   )
 }
@@ -88,7 +90,7 @@ function AddCustomer({ businessId, onDone }: { businessId: string; onDone: () =>
     const s = (k: string) => String(f.get(k) ?? '')
     if (!s('name').trim()) return setNameErr('Enter the customer name.')
     setNameErr(undefined)
-    const err = await api.createCustomer(businessId, { name: s('name'), phone: s('phone'), email: s('email'), source: s('source'), category: s('category') })
+    const err = await api.createCustomer(businessId, { name: s('name'), phone: s('phone'), email: s('email'), source: s('source'), category: s('category'), company: s('company'), city: s('city'), address: s('address') })
     setError(err)
     if (!err) await onDone()
   }
@@ -100,6 +102,9 @@ function AddCustomer({ businessId, onDone }: { businessId: string; onDone: () =>
         <TextField label="Email" name="email" type="email" />
         <TextField label="Source" name="source" placeholder="walk-in, referral…" />
         <TextField label="Category" name="category" placeholder="Retailer, Wholesale…" />
+        <TextField label="Company" name="company" />
+        <TextField label="City" name="city" />
+        <div className="sm:col-span-3"><TextField label="Address" name="address" /></div>
         <div className="flex items-end"><Button type="submit">Save customer</Button></div>
         {error && <div className="sm:col-span-3"><ErrorState message={error} /></div>}
       </form>
@@ -107,93 +112,6 @@ function AddCustomer({ businessId, onDone }: { businessId: string; onDone: () =>
   )
 }
 
-function CustomerDialog({ businessId, id, can, onClose, onChanged }: { businessId: string; id: string; can: (p: string) => boolean; onClose: () => void; onChanged: () => Promise<void> }) {
-  const d = useAsync(() => api.customerDetail(businessId, id), [businessId, id])
-  const [error, setError] = useState<string | null>(null)
-  if (!d.data) return <Dialog title="Customer" onClose={onClose}>{d.error ? <ErrorState message={d.error} /> : <Spinner />}</Dialog>
-  const { customer: c, history, tasks, tags } = d.data
-  const parent: Parent = { customerId: id }
-  const reload = async () => { await Promise.all([d.refresh(), onChanged()]) }
-  return (
-    <Dialog title={c.name} onClose={onClose} wide>
-      {error && <ErrorState message={error} />}
-      <p className="mb-3 text-sm text-ink/70">{[c.phone, c.email, c.category, c.source && `via ${c.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>
-      <dl className="mb-4 grid grid-cols-2 gap-4 text-sm">
-        <div><dt className="text-xs text-ink/60">Owes you</dt><dd className="tabular font-semibold">{naira(c.outstanding)}</dd></div>
-        <div>
-          <dt className="text-xs text-ink/60">Credit limit</dt>
-          <dd className="tabular">
-            {can('customers.credit') ? (
-              <input aria-label="Credit limit" type="number" min="0" step="1" defaultValue={c.creditLimit} className="w-32 rounded border border-ink/20 px-2 py-1"
-                onBlur={async (e) => { const v = Number(e.target.value); if (v !== c.creditLimit) { setError(await setCreditLimit(businessId, id, v)); await reload() } }} />
-            ) : naira(c.creditLimit)}
-          </dd>
-        </div>
-      </dl>
-      <Tags tags={tags} canEdit={can('customers.manage')} onAdd={async (n) => { setError(await api.addTag(businessId, parent, n)); await d.refresh() }} onRemove={async (t) => { setError(await api.removeTag(businessId, parent, t)); await d.refresh() }} />
-      {can('customers.manage') && <ActivityForms onNote={async (k, s) => { const e = await api.addInteraction(businessId, parent, k, s); setError(e); if (!e) await d.refresh(); return e }} onTask={async (t, due) => { const e = await api.addTask(businessId, parent, t, due); setError(e); if (!e) await d.refresh(); return e }} />}
-      {tasks.some((t) => t.status === 'open') && (
-        <div className="mt-4">
-          <h3 className="mb-1 text-sm font-semibold">Open follow-ups</h3>
-          <ul className="divide-y divide-ink/10 text-sm">
-            {tasks.filter((t) => t.status === 'open').map((t) => (
-              <li key={t.id} className="flex items-center gap-2 py-1.5"><span>{t.title}{t.dueAt && <span className="ml-2 text-xs text-ink/60">due {dateTime(t.dueAt)}</span>}</span>
-                {can('customers.manage') && <Button variant="secondary" className="ml-auto" onClick={async () => { setError(await api.setTaskStatus(businessId, t.id, 'done')); await d.refresh() }}>Done</Button>}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <h3 className="mb-1 mt-4 text-sm font-semibold">History</h3>
-      {history.length === 0 ? <p className="text-sm text-ink/60">Nothing recorded yet.</p> : (
-        <ul className="divide-y divide-ink/10 text-sm">
-          {history.map((h, i) => (
-            <li key={i} className="flex flex-wrap items-baseline gap-2 py-1.5">
-              <Badge tone={h.kind === 'sale' ? 'success' : h.kind === 'task' ? 'warning' : 'neutral'}>{label(h.kind === 'interaction' ? h.label : h.kind)}</Badge>
-              <span>{h.detail}</span>
-              {h.amount !== undefined && <span className="tabular text-ink/70">{naira(h.amount)}{h.balance ? ` (owes ${naira(h.balance)})` : ''}</span>}
-              <span className="ml-auto text-xs text-ink/50">{dateTime(h.at)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Dialog>
-  )
-}
-
-function Tags({ tags, canEdit, onAdd, onRemove }: { tags: { id: string; name: string }[]; canEdit: boolean; onAdd: (name: string) => Promise<void>; onRemove: (id: string) => Promise<void> }) {
-  return (
-    <div className="mb-3 flex flex-wrap items-center gap-2">
-      {tags.map((t) => (
-        <span key={t.id} className="inline-flex items-center gap-1 rounded-md bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand-ink">{t.name}
-          {canEdit && <button type="button" aria-label={`Remove tag ${t.name}`} onClick={() => void onRemove(t.id)}><X className="size-3" /></button>}</span>
-      ))}
-      {canEdit && (
-        <form className="flex gap-1" onSubmit={async (e) => { e.preventDefault(); const f = e.currentTarget; const v = String(new FormData(f).get('tag') ?? ''); if (v.trim()) { await onAdd(v); f.reset() } }}>
-          <input name="tag" aria-label="New tag" placeholder="Add tag" className="w-28 rounded border border-ink/20 px-2 py-0.5 text-xs" />
-        </form>
-      )}
-    </div>
-  )
-}
-
-function ActivityForms({ onNote, onTask }: { onNote: (kind: string, summary: string) => Promise<string | null>; onTask: (title: string, due: string | null) => Promise<string | null> }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <form className="space-y-2" noValidate onSubmit={async (e) => { e.preventDefault(); const f = e.currentTarget; const d = new FormData(f); if (!(await onNote(String(d.get('kind')), String(d.get('summary'))))) f.reset() }}>
-        <h3 className="text-sm font-semibold">Log an interaction</h3>
-        <SelectField label="Type" name="kind"><option value="note">Note</option><option value="call">Call</option><option value="visit">Visit</option><option value="message">Message</option><option value="other">Other</option></SelectField>
-        <TextField label="Summary" name="summary" />
-        <Button type="submit" variant="secondary">Add</Button>
-      </form>
-      <form className="space-y-2" noValidate onSubmit={async (e) => { e.preventDefault(); const f = e.currentTarget; const d = new FormData(f); const due = String(d.get('due') ?? ''); if (!(await onTask(String(d.get('title')), due ? new Date(due).toISOString() : null))) f.reset() }}>
-        <h3 className="text-sm font-semibold">Schedule a follow-up</h3>
-        <TextField label="What to do" name="title" />
-        <TextField label="Due" name="due" type="datetime-local" />
-        <Button type="submit" variant="secondary">Schedule</Button>
-      </form>
-    </div>
-  )
-}
 
 // -------------------------------------------------------------------------------- leads
 function Leads({ businessId, can }: { businessId: string; can: (p: string) => boolean }) {

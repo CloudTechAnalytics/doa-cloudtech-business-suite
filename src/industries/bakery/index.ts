@@ -10,6 +10,8 @@ import { bakerySetupQuestions } from './setup'
 // Loaded on demand so the registry never imports bakery screens or data code.
 const BakeryDashboardWidget = lazy(() => import('./components/BakeryOverview').then((m) => ({ default: m.BakeryOverview })))
 
+const CreditSection = lazy(() => import('@/modules/crm/CustomerCredit').then((m) => ({ default: m.CustomerCredit })))
+
 export const bakery = defineIndustry({
   ...bakeryConfig,
   modules: bakeryModules,
@@ -18,6 +20,7 @@ export const bakery = defineIndustry({
   routes: bakeryRoutes,
   onboarding: { questions: bakerySetupQuestions },
   dashboardWidgets: [{ id: 'bakery-kpis', title: 'Bakery overview', component: BakeryDashboardWidget }],
+  customerSections: [{ id: 'credit', title: 'Credit account', component: CreditSection }],
   workflows: [
     { id: 'start-production', label: 'Plan production', module: 'bakery-production', description: 'Plan a production batch.' },
     { id: 'record-waste', label: 'Record waste', module: 'bakery-waste', description: 'Record waste or spoilage.' },

@@ -10,6 +10,9 @@ import { farmSetupQuestions, validateFarmSetup } from './setup'
 // Loaded on demand so the registry never imports farm screens or data hooks.
 const FarmDashboardWidget = lazy(() => import('./components/FarmKpis').then((m) => ({ default: m.FarmDashboardWidget })))
 
+const OrdersSection = lazy(() => import('./components/FarmCustomerOrders').then((m) => ({ default: m.FarmCustomerOrders })))
+const CreditSection = lazy(() => import('@/modules/crm/CustomerCredit').then((m) => ({ default: m.CustomerCredit })))
+
 export const farm = defineIndustry({
   ...farmConfig,
   modules: farmModules,
@@ -18,6 +21,7 @@ export const farm = defineIndustry({
   routes: farmRoutes,
   onboarding: { questions: farmSetupQuestions, validate: validateFarmSetup },
   dashboardWidgets: [{ id: 'farm-kpis', title: 'Farm overview', component: FarmDashboardWidget }],
+  customerSections: [{ id: 'orders', title: 'Orders', component: OrdersSection }, { id: 'credit', title: 'Credit account', component: CreditSection }],
   workflows: [
     { id: 'record-mortality', label: 'Record mortality', module: 'farm-mortality', description: 'Record deaths in a batch.' },
     { id: 'record-feeding', label: 'Record feeding', module: 'farm-feeding', description: 'Record feed given to a batch.' },

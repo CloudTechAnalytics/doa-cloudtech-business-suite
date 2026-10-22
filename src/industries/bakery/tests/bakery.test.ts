@@ -17,7 +17,7 @@ describe('bakery industry', () => {
   })
 
   it('treats customers (wholesale and custom orders) as the shared CRM, not a bakery copy', () => {
-    expect(bakery.optionalModules).toEqual(['customers'])
+    expect(bakery.defaultModules).toContain('customers')
     expect(bakery.modules.some((m) => m.code.includes('customer'))).toBe(false)
   })
 })
