@@ -16,15 +16,26 @@ const d = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties
 const primaryBtn = 'inline-flex h-12 items-center justify-center rounded-md bg-amber px-6 text-base font-bold text-ink shadow-card transition duration-200 hover:-translate-y-0.5 hover:bg-amber-dark hover:shadow-raised active:translate-y-0'
 const quietBtn = 'inline-flex h-12 items-center justify-center rounded-md bg-white/80 px-6 text-base font-semibold text-ink ring-2 ring-amber transition duration-200 hover:-translate-y-0.5 hover:bg-amber/15 hover:shadow-card active:translate-y-0'
 
-function AppCard({ app, index }: { app: LandingApp; index: number }) {
+/** One app per row: the words on one side and a real screenshot of the page on the other, alternating, with a line between rows. */
+function AppRow({ app, index, to }: { app: LandingApp; index: number; to: string }) {
+  const flip = index % 2 === 1
   return (
-    <Reveal as="li" delay={(index % 3) * 70} className="group flex items-center gap-3 rounded-lg bg-white p-4 shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-raised">
-      <span className="grid size-11 shrink-0 place-items-center rounded-lg text-white transition duration-300 group-hover:-rotate-3 group-hover:scale-110" style={{ background: app.color }}><app.icon className="size-6" aria-hidden strokeWidth={1.75} /></span>
-      <span className="min-w-0">
-        <span className="block font-semibold text-ink">{app.label}</span>
-        <span className="block text-sm text-ink/60">{app.blurb}</span>
-      </span>
-    </Reveal>
+    <li className="border-t border-ink/15 first:border-t-0">
+      <div className="grid items-center gap-8 py-12 md:grid-cols-2 md:gap-14">
+        <Reveal className={flip ? 'md:order-2' : ''}>
+          <span className="grid size-12 place-items-center rounded-xl text-white" style={{ background: app.color }}><app.icon className="size-6" aria-hidden strokeWidth={1.75} /></span>
+          <h4 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl">{app.label}</h4>
+          <p className="mt-3 max-w-md text-base font-medium text-ink/70 sm:text-lg">{app.blurb}</p>
+          <Link to={to} className="group mt-6 inline-flex items-center gap-2 text-sm font-bold text-ink underline decoration-amber decoration-2 underline-offset-4">Start with {app.label}<ArrowRight className="size-4 transition duration-300 group-hover:translate-x-1" aria-hidden /></Link>
+        </Reveal>
+        <Reveal delay={120} className={flip ? 'md:order-1' : ''}>
+          <div className="overflow-hidden rounded-xl bg-white shadow-raised ring-1 ring-ink/10 transition duration-500 hover:-translate-y-1">
+            <div className="flex items-center gap-1.5 border-b border-line bg-surface px-3 py-2" aria-hidden><span className="size-2.5 rounded-full bg-[#ff5f57]" /><span className="size-2.5 rounded-full bg-[#febc2e]" /><span className="size-2.5 rounded-full bg-[#28c840]" /></div>
+            <img src={`/screens/${app.id}.jpg`} alt={`The ${app.label} page in DOA`} loading="lazy" width={1366} height={599} className="block aspect-[1366/520] w-full object-cover object-top" />
+          </div>
+        </Reveal>
+      </div>
+    </li>
   )
 }
 
@@ -64,9 +75,9 @@ export function LandingPage() {
           </Reveal>
 
           <Reveal><h3 className="mb-3 mt-10 text-xl font-bold">Business apps</h3></Reveal>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{businessApps.map((a, i) => <AppCard key={a.id} app={a} index={i} />)}</ul>
+          <ul className="mt-2">{businessApps.map((a, i) => <AppRow key={a.id} app={a} index={i} to="/start" />)}</ul>
           <Reveal><h3 className="mb-3 mt-10 text-xl font-bold">Industry apps</h3></Reveal>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{industries.map((a, i) => <AppCard key={a.id} app={a} index={i} />)}</ul>
+          <ul className="mt-2">{industries.map((a, i) => <AppRow key={a.id} app={a} index={i} to={`/start?type=${a.id}`} />)}</ul>
 
           <section id="industries" className="mt-24 scroll-mt-24">
             <Reveal>
