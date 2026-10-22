@@ -1,3 +1,4 @@
+import { Pencil } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -69,7 +70,7 @@ export function SuppliersPage() {
 
 function SupplierDetail({ supplier: s, purchases, businessId, canEdit, onClose, onSaved }: { supplier: SupplierDto; purchases: PurchaseDto[]; businessId: string; canEdit: boolean; onClose: () => void; onSaved: () => Promise<void> }) {
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
   const live = purchases.filter((p) => p.status !== 'cancelled')
   const total = live.reduce((a, p) => a + Math.round(p.total * 100), 0) / 100
   const paid = live.reduce((a, p) => a + Math.round(p.amountPaid * 100), 0) / 100
@@ -78,8 +79,8 @@ function SupplierDetail({ supplier: s, purchases, businessId, canEdit, onClose, 
     e.preventDefault()
     const f = new FormData(e.currentTarget); const v = (k: string) => String(f.get(k) ?? '')
     const err = await api.updateSupplier(businessId, s.id, { name: v('name'), phone: v('phone'), contactName: v('contact'), email: v('email'), address: v('address') })
-    setError(err); setSaved(!err)
-    if (!err) await onSaved()
+    setError(err)
+    if (!err) { setEditingDetails(false); await onSaved() }
   }
   return (
     <DetailPage title={s.name} onClose={onClose} wide>
@@ -91,17 +92,34 @@ function SupplierDetail({ supplier: s, purchases, businessId, canEdit, onClose, 
         </div>
         {last && <p className="text-sm text-ink/70">Last order {last.slice(0, 10)}.</p>}
         {error && <ErrorState message={error} />}
+        {!editingDetails ? (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Details</h3>
+              {canEdit && <button type="button" onClick={() => setEditingDetails(true)} className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface"><Pencil className="size-4" aria-hidden /> Edit</button>}
+            </div>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div><dt className="text-xs text-ink/60">Name</dt><dd className="text-sm">{s.name || '–'}</dd></div>
+              <div><dt className="text-xs text-ink/60">Contact person</dt><dd className="text-sm">{s.contactName || '–'}</dd></div>
+              <div><dt className="text-xs text-ink/60">Phone</dt><dd className="text-sm">{s.phone || '–'}</dd></div>
+              <div><dt className="text-xs text-ink/60">Email</dt><dd className="text-sm">{s.email || '–'}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-xs text-ink/60">Address</dt><dd className="text-sm">{s.address || '–'}</dd></div>
+            </dl>
+            {!canEdit && <Notice>Your role can view suppliers but not change them.</Notice>}
+          </section>
+        ) : (
         <form onSubmit={save} noValidate className="space-y-3">
-          <h3 className="text-sm font-semibold">Details</h3>
+          <h3 className="text-sm font-semibold">Edit details</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            <TextField label="Name" name="name" defaultValue={s.name} disabled={!canEdit} />
-            <TextField label="Contact person" name="contact" defaultValue={s.contactName ?? ''} disabled={!canEdit} />
-            <TextField label="Phone" name="phone" defaultValue={s.phone ?? ''} disabled={!canEdit} />
-            <TextField label="Email" name="email" type="email" defaultValue={s.email ?? ''} disabled={!canEdit} />
-            <div className="sm:col-span-2"><TextField label="Address" name="address" defaultValue={s.address ?? ''} disabled={!canEdit} /></div>
+            <TextField label="Name" name="name" defaultValue={s.name} />
+            <TextField label="Contact person" name="contact" defaultValue={s.contactName ?? ''} />
+            <TextField label="Phone" name="phone" defaultValue={s.phone ?? ''} />
+            <TextField label="Email" name="email" type="email" defaultValue={s.email ?? ''} />
+            <div className="sm:col-span-2"><TextField label="Address" name="address" defaultValue={s.address ?? ''} /></div>
           </div>
-          {canEdit ? <div className="flex items-center gap-3"><Button type="submit">Save details</Button>{saved && <span className="text-sm text-success">Saved.</span>}</div> : <Notice>Your role can view suppliers but not change them.</Notice>}
+          <div className="flex items-center gap-3"><Button type="submit">Save changes</Button><Button type="button" variant="secondary" onClick={() => setEditingDetails(false)}>Cancel</Button></div>
         </form>
+        )}
         <div>
           <h3 className="mb-1 text-sm font-semibold">Purchase orders</h3>
           {purchases.length === 0 ? <p className="text-sm text-ink/60">Nothing bought from this supplier yet.</p> : (

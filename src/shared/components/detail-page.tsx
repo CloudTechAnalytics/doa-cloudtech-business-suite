@@ -1,5 +1,5 @@
-import { ArrowLeft } from 'lucide-react'
-import { createContext, useContext, useEffect, useLayoutEffect } from 'react'
+import { ArrowLeft, Pencil } from 'lucide-react'
+import { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Dialog } from './dialog'
@@ -10,10 +10,14 @@ export const DetailSlotContext = createContext<DetailSlot | null>(null)
 
 /**
  * A record's own page: opens in place of the list, with a Back button, and closes back to it. Used for a record's details,
- * and for the forms that create or edit one. Outside the app shell (no slot) it falls back to a dialog.
+ * and for the forms that create or edit one. With `view`, an existing record opens to read (fields shown as plain text, no Save button)
+ * and an Edit button switches the same page to the form; without it (a new record, or an action) the form is open at once.
+ * Outside the app shell (no slot) it falls back to a dialog.
  */
-export function DetailPage({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function DetailPage({ title, onClose, children, wide = false, view = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; view?: boolean }) {
   const slot = useContext(DetailSlotContext)
+  const [editing, setEditing] = useState(!view)
+  const reading = view && !editing
   useLayoutEffect(() => {
     slot?.enter()
     window.scrollTo(0, 0)
@@ -25,15 +29,19 @@ export function DetailPage({ title, onClose, children, wide = false }: { title: 
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
-  if (!slot?.node) return <Dialog title={title} onClose={onClose} wide={wide}>{children}</Dialog>
+  const shown = reading ? title.replace(/^(Edit|Rename) /, '') : title
+  if (!slot?.node) return <Dialog title={shown} onClose={onClose} wide={wide}>{children}</Dialog>
   return createPortal(
     <section aria-label={title} className="pb-10">
       <button type="button" onClick={onClose} className="no-print mb-3 inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-sm font-medium text-ink/70 hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> Back
       </button>
       <div className={`rounded-lg border border-line bg-white p-5 shadow-card sm:p-6 ${wide ? '' : 'max-w-3xl'}`}>
-        <h1 className="mb-4 text-xl font-semibold">{title}</h1>
-        {children}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h1 className="text-xl font-semibold">{shown}</h1>
+          {reading && <button type="button" onClick={() => setEditing(true)} className="no-print inline-flex shrink-0 items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface"><Pencil className="size-4" aria-hidden /> Edit</button>}
+        </div>
+        <fieldset disabled={reading} className={reading ? 'record-read' : undefined}>{children}</fieldset>
       </div>
     </section>,
     slot.node,

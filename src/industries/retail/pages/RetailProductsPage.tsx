@@ -1,4 +1,4 @@
-import { Download, PackagePlus, Pencil, Plus, Upload, X } from 'lucide-react'
+import { Download, PackagePlus, ChevronRight, Plus, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -82,7 +82,7 @@ export function RetailProductsPage() {
                   <td className="tabular p-3 text-right">{p.avgCost !== null ? naira(p.avgCost) : p.costPrice !== null ? naira(p.costPrice) : '–'}</td>
                   <td className="tabular p-3 text-right">{qty(p.onHand)} {p.unit}{p.reorder ? <div className="text-xs text-ink/60">Reorder at {qty(p.reorder)}</div> : null}</td>
                   <td className="tabular p-3 text-right">{naira(p.stockValue)}</td>
-                  {manage && <td className="p-3 text-right"><button type="button" aria-label={`Edit ${p.name}`} onClick={() => setEditing(p)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button></td>}
+                  {manage && <td className="p-3 text-right"><button type="button" aria-label={`Open ${p.name}`} onClick={() => setEditing(p)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button></td>}
                 </tr>
               ))}
             </tbody>
@@ -144,7 +144,7 @@ function ProductDialog({ businessId, product, categories, suppliers, onClose, on
     await runner.run((k) => saveProduct(businessId, input, k), 'Saved.')
   }
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} wide>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} autoFocus maxLength={200} /></div>

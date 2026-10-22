@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Building2, Check, ChevronDown, LayoutGrid, LogOut, Menu as MenuIcon, Plus, X } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
+import { ACCOUNT_MODULES, appPath, buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
+import type { ModuleDefinition } from '@/shared/types/domain'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { useModules } from '@/core/module-registry/ModulesProvider'
@@ -48,7 +49,7 @@ function BusinessSwitcher() {
   )
 }
 
-function UserMenu() {
+function UserMenu({ modules }: { modules: ModuleDefinition[] }) {
   const { email, signOut } = useAuth()
   const name = email ?? 'Account'
   return (
@@ -57,7 +58,11 @@ function UserMenu() {
       trigger={({ toggle }) => (
         <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className={`grid size-8 place-items-center rounded-full text-xs font-bold text-ink bg-amber hover:bg-amber-dark`}>{initialsOf(name)}</button>
       )}
-      items={[{ label: name, heading: true }, { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut }]}
+      items={[
+        { label: name, heading: true },
+        ...modules.map((m) => ({ label: m.name, to: appPath(m), icon: <m.icon className="size-4" /> })),
+        { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut, divider: modules.length > 0 },
+      ]}
     />
   )
 }
@@ -123,7 +128,7 @@ export function AppShell() {
           <div className="ml-auto flex items-center gap-2">
             <RecordMenu items={quick} />
             <BusinessSwitcher />
-            <UserMenu />
+            <UserMenu modules={[...new Map(apps.flatMap((a) => a.modules).filter((m) => ACCOUNT_MODULES.includes(m.code)).map((m) => [m.code, m])).values()]} />
           </div>
         </div>
       </header>

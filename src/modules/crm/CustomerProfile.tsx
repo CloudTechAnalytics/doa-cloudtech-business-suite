@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { Pencil } from 'lucide-react'
 import { Suspense, useState } from 'react'
 import type { FormEvent } from 'react'
 import { getIndustry } from '@/core/industry-registry'
@@ -25,7 +26,7 @@ function Stat({ title, value, note, tone }: { title: string; value: string; note
 }
 
 function Overview({ c, can, businessId, onSaved, setError, tags, addTag, removeTag }: { c: CustomerRow; can: (p: string) => boolean; businessId: string; onSaved: () => Promise<void>; setError: (e: string | null) => void; tags: { id: string; name: string }[]; addTag: (n: string) => Promise<void>; removeTag: (id: string) => Promise<void> }) {
-  const [saved, setSaved] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
   const edit = can('customers.manage')
   const s = c.summary
   const avg = s.orders ? s.lifetimeSpend / s.orders : null
@@ -35,8 +36,8 @@ function Overview({ c, can, businessId, onSaved, setError, tags, addTag, removeT
     const f = new FormData(e.currentTarget); const v = (k: string) => String(f.get(k) ?? '')
     if (!v('name').trim()) return setError('Enter the customer name.')
     const err = await api.updateCustomer(businessId, c.id, { name: v('name'), phone: v('phone'), email: v('email'), source: v('source'), category: v('category'), company: v('company'), contactPerson: v('contact'), city: v('city'), address: v('address'), notes: v('notes') })
-    setError(err); setSaved(!err)
-    if (!err) await onSaved()
+    setError(err)
+    if (!err) { setEditingDetails(false); await onSaved() }
   }
   return (
     <div className="space-y-5">
@@ -65,22 +66,45 @@ function Overview({ c, can, businessId, onSaved, setError, tags, addTag, removeT
         {used !== null && <div className="mt-2 h-2 rounded-full bg-canvas" role="img" aria-label={`${Math.round(used * 100)}% of the credit limit used`}><div className={clsx('h-2 rounded-full', used >= 0.9 ? 'bg-danger' : 'bg-amber')} style={{ width: `${Math.max(used * 100, 2)}%` }} /></div>}
       </Card>
       <Tags tags={tags} canEdit={edit} onAdd={addTag} onRemove={removeTag} />
+      {!editingDetails ? (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Details</h3>
+            {edit && <button type="button" onClick={() => setEditingDetails(true)} className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface"><Pencil className="size-4" aria-hidden /> Edit</button>}
+          </div>
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div><dt className="text-xs text-ink/60">Name</dt><dd className="whitespace-pre-wrap text-sm">{c.name || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">Company</dt><dd className="whitespace-pre-wrap text-sm">{c.company || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">Contact person</dt><dd className="whitespace-pre-wrap text-sm">{c.contactPerson || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">Phone</dt><dd className="whitespace-pre-wrap text-sm">{c.phone || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">Email</dt><dd className="whitespace-pre-wrap text-sm">{c.email || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">City</dt><dd className="whitespace-pre-wrap text-sm">{c.city || '–'}</dd></div>
+            <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs text-ink/60">Address</dt><dd className="text-sm">{c.address || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">Category</dt><dd className="whitespace-pre-wrap text-sm">{c.category || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">How they found you</dt><dd className="whitespace-pre-wrap text-sm">{c.source || '–'}</dd></div>
+            <div><dt className="text-xs text-ink/60">Customer since</dt><dd className="whitespace-pre-wrap text-sm">{dayOf(c.createdAt) || '–'}</dd></div>
+            <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs text-ink/60">Notes</dt><dd className="whitespace-pre-wrap text-sm">{c.notes || '–'}</dd></div>
+          </dl>
+          {!edit && <Notice>Your role can view customers but not change their details.</Notice>}
+        </section>
+      ) : (
       <form onSubmit={save} noValidate className="space-y-3" key={c.id + c.name + (c.notes ?? '')}>
-        <h3 className="text-sm font-semibold">Details</h3>
+        <h3 className="text-sm font-semibold">Edit details</h3>
         <div className="grid gap-3 sm:grid-cols-3">
-          <TextField label="Name" name="name" defaultValue={c.name} disabled={!edit} />
-          <TextField label="Company" name="company" defaultValue={c.company ?? ''} disabled={!edit} />
-          <TextField label="Contact person" name="contact" defaultValue={c.contactPerson ?? ''} disabled={!edit} />
-          <TextField label="Phone" name="phone" defaultValue={c.phone ?? ''} disabled={!edit} />
-          <TextField label="Email" name="email" type="email" defaultValue={c.email ?? ''} disabled={!edit} />
-          <TextField label="City" name="city" defaultValue={c.city ?? ''} disabled={!edit} />
-          <div className="sm:col-span-3"><TextField label="Address" name="address" defaultValue={c.address ?? ''} disabled={!edit} /></div>
-          <TextField label="Category" name="category" defaultValue={c.category ?? ''} disabled={!edit} placeholder="Retailer, Wholesale…" />
-          <TextField label="How they found you" name="source" defaultValue={c.source ?? ''} disabled={!edit} placeholder="walk-in, referral…" />
-          <div className="sm:col-span-3"><label className="block text-sm font-medium">Notes<textarea name="notes" defaultValue={c.notes ?? ''} disabled={!edit} maxLength={2000} rows={3} className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm disabled:bg-surface" /></label></div>
+          <TextField label="Name" name="name" defaultValue={c.name} />
+          <TextField label="Company" name="company" defaultValue={c.company ?? ''} />
+          <TextField label="Contact person" name="contact" defaultValue={c.contactPerson ?? ''} />
+          <TextField label="Phone" name="phone" defaultValue={c.phone ?? ''} />
+          <TextField label="Email" name="email" type="email" defaultValue={c.email ?? ''} />
+          <TextField label="City" name="city" defaultValue={c.city ?? ''} />
+          <div className="sm:col-span-3"><TextField label="Address" name="address" defaultValue={c.address ?? ''} /></div>
+          <TextField label="Category" name="category" defaultValue={c.category ?? ''} placeholder="Retailer, Wholesale…" />
+          <TextField label="How they found you" name="source" defaultValue={c.source ?? ''} placeholder="walk-in, referral…" />
+          <div className="sm:col-span-3"><label className="block text-sm font-medium">Notes<textarea name="notes" defaultValue={c.notes ?? ''} maxLength={2000} rows={3} className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm" /></label></div>
         </div>
-        {edit ? <div className="flex items-center gap-3"><Button type="submit">Save details</Button>{saved && <span className="text-sm text-success">Saved.</span>}</div> : <Notice>Your role can view customers but not change their details.</Notice>}
+        <div className="flex items-center gap-3"><Button type="submit">Save changes</Button><Button type="button" variant="secondary" onClick={() => setEditingDetails(false)}>Cancel</Button></div>
       </form>
+      )}
     </div>
   )
 }

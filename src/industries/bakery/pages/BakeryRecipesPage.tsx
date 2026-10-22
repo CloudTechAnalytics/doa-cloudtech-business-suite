@@ -1,4 +1,4 @@
-import { Pencil, Plus, X } from 'lucide-react'
+import { ChevronRight, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -47,7 +47,7 @@ export function BakeryRecipesPage() {
                 <div className="flex items-center gap-4">
                   <div className="text-right text-sm"><p className="tabular font-semibold">{naira(r.batchCost)}</p><p className="text-xs text-ink/60">per batch</p></div>
                   <div className="text-right text-sm"><p className="tabular font-semibold">{naira(r.unitCost)}</p><p className="text-xs text-ink/60">per unit</p></div>
-                  {manage && <button type="button" aria-label={`Edit ${r.name}`} onClick={() => setEditing(r)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button>}
+                  {manage && <button type="button" aria-label={`Open ${r.name}`} onClick={() => setEditing(r)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button>}
                 </div>
               </div>
               <ul className="mt-3 divide-y divide-ink/10 text-sm">
@@ -88,7 +88,7 @@ function RecipeDialog({ businessId, recipe, ingredients, products, onClose, onSa
   }
 
   return (
-    <DetailPage title={recipe ? `Edit ${recipe.name}` : 'New recipe'} onClose={onClose} wide>
+    <DetailPage title={recipe ? `Edit ${recipe.name}` : 'New recipe'} onClose={onClose} view={!!recipe} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         {recipe && <Notice>Saving creates version {recipe.version + 1}. Batches already made keep the version they used.</Notice>}
         <div className="grid gap-4 sm:grid-cols-3">

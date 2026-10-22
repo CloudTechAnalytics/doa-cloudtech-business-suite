@@ -1,4 +1,4 @@
-import { Pencil, Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -48,7 +48,7 @@ export function BakeryIngredientsPage() {
                   <td className="tabular p-3 text-right">{i.avgCost === null ? '–' : `${naira(i.avgCost)} / ${i.unit}`}</td>
                   <td className="tabular p-3 text-right">{i.reorder ? `${qty(i.reorder)} ${i.unit}` : '–'}</td>
                   <td className="p-3">{!i.active ? <Badge>Archived</Badge> : i.low ? <Badge tone="warning">Low stock</Badge> : <Badge tone="success">OK</Badge>}</td>
-                  {allowed && <td className="p-3 text-right"><button type="button" aria-label={`Edit ${i.name}`} onClick={() => setEditing(i)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button></td>}
+                  {allowed && <td className="p-3 text-right"><button type="button" aria-label={`Open ${i.name}`} onClick={() => setEditing(i)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button></td>}
                 </tr>
               ))}
             </tbody>
@@ -78,7 +78,7 @@ function IngredientDialog({ businessId, ingredient, locations, onClose, onSaved 
     }, k), 'Saved.')
   }
   return (
-    <DetailPage title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose}>
+    <DetailPage title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose} view={!!ingredient}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={ingredient?.name} error={errors.name} autoFocus maxLength={200} />
         <div className="grid gap-4 sm:grid-cols-2">

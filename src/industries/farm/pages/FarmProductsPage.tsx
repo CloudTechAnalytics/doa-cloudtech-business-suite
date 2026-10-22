@@ -1,4 +1,4 @@
-import { Pencil, Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -80,7 +80,7 @@ export function FarmProductsPage() {
                       <td className="p-3">{sourceNote(p)}</td>
                       <td className="tabular p-3 text-right">{naira(p.price)} <span className="text-ink/50">/ {p.unit}</span></td>
                       <td className="tabular p-3 text-right font-medium">{p.available === null ? '–' : `${qty(p.available)} ${p.unit}`}</td>
-                      {canManage && <td className="p-3 text-right"><button type="button" aria-label={`Edit ${p.name}`} onClick={() => setEditing(p)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button></td>}
+                      {canManage && <td className="p-3 text-right"><button type="button" aria-label={`Open ${p.name}`} onClick={() => setEditing(p)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button></td>}
                     </tr>
                   ))}
                 </tbody>
@@ -123,7 +123,7 @@ function ProductDialog({ product, businessId, species, onClose, onSaved }: { pro
   }
 
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose}>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} placeholder="e.g. Eggs (crate)" maxLength={120} autoFocus />
         {product ? (

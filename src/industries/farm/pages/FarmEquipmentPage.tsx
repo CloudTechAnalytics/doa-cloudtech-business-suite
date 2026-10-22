@@ -1,4 +1,4 @@
-import { History, Pencil, Plus, Wrench } from 'lucide-react'
+import { History, ChevronRight, Plus, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -51,7 +51,7 @@ export function FarmEquipmentPage() {
                   <td className="whitespace-nowrap p-3 text-right">
                     <button type="button" aria-label={`History of ${a.name}`} onClick={() => setViewing(a)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><History className="size-4" aria-hidden /></button>
                     {manage && a.status !== 'retired' && <button type="button" aria-label={`Record maintenance for ${a.name}`} onClick={() => setServicing(a)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Wrench className="size-4" aria-hidden /></button>}
-                    {manage && <button type="button" aria-label={`Edit ${a.name}`} onClick={() => setEditing(a)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button>}
+                    {manage && <button type="button" aria-label={`Open ${a.name}`} onClick={() => setEditing(a)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button>}
                   </td>
                 </tr>
               ))}
@@ -77,7 +77,7 @@ function AssetDialog({ businessId, asset, onClose, onSaved }: { businessId: stri
     await runner.run((k) => saveAsset(businessId, { id: asset?.id ?? null, name: s('name'), type: s('type'), serial: s('serial'), purchaseDate: s('date') || null, purchaseCost: s('cost') === '' ? null : Number(s('cost')), status: (s('status') || 'active') as AssetRow['status'], intervalDays: s('interval') === '' ? null : Number(s('interval')), notes: s('notes') }, k), 'Saved.')
   }
   return (
-    <DetailPage title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose}>
+    <DetailPage title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose} view={!!asset}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={asset?.name} error={problem} autoFocus maxLength={120} />
         <div className="grid gap-4 sm:grid-cols-2">

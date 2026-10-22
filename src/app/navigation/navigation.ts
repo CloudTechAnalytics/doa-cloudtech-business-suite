@@ -72,6 +72,9 @@ export function findCurrentApp(apps: AppDef[], pathname: string): AppDef | null 
   return apps.find((a) => a.modules.some((m) => pathname === appPath(m) || pathname.startsWith(`${appPath(m)}/`))) ?? null
 }
 
+/** Modules that live in the account menu (top right) instead of the sidebar: the people who work here, who has access, and settings. */
+export const ACCOUNT_MODULES: readonly ModuleCode[] = ['farm-workers', 'staff', 'settings']
+
 export type SidebarEntry =
   | { kind: 'heading'; key: string; label: string }
   | { kind: 'link'; key: string; module: ModuleDefinition; app: AppDef }
@@ -80,7 +83,8 @@ export type SidebarEntry =
  * What the sidebar shows. An app with several modules gets a heading and its links; an app with a single
  * module is just a link (a heading would repeat its name).
  */
-export function sidebarEntries(apps: AppDef[]): SidebarEntry[] {
+export function sidebarEntries(allApps: AppDef[]): SidebarEntry[] {
+  const apps = allApps.map((a) => ({ ...a, modules: a.modules.filter((m) => !ACCOUNT_MODULES.includes(m.code)) })).filter((a) => a.modules.length > 0)
   return apps.flatMap((app): SidebarEntry[] => {
     const links = app.modules.map((module) => ({ kind: 'link' as const, key: module.code, module, app }))
     return app.modules.length > 1 ? [{ kind: 'heading', key: `h-${app.id}`, label: app.label }, ...links] : links

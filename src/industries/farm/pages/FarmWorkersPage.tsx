@@ -1,4 +1,4 @@
-import { Pencil, Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -35,7 +35,7 @@ export function FarmWorkersPage() {
                 <tr data-row-link onClick={openRow} key={w.id} className={w.active ? '' : 'text-ink/50'}>
                   <td className="p-3 font-medium">{w.name}</td><td className="p-3">{w.role ?? '–'}</td><td className="p-3">{w.phone ?? '–'}</td>
                   <td className="p-3"><Badge tone={w.active ? 'success' : 'neutral'}>{w.active ? 'Active' : 'Inactive'}</Badge></td>
-                  {manage && <td className="p-3 text-right"><button type="button" aria-label={`Edit ${w.name}`} onClick={() => setEditing(w)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button></td>}
+                  {manage && <td className="p-3 text-right"><button type="button" aria-label={`Open ${w.name}`} onClick={() => setEditing(w)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button></td>}
                 </tr>
               ))}
             </tbody>
@@ -59,7 +59,7 @@ function WorkerDialog({ businessId, worker, onClose, onSaved }: { businessId: st
     await runner.run(async () => saveWorker(businessId, { id: worker?.id ?? null, name: s('name'), phone: s('phone'), role: s('role'), active: f.get('active') === 'on' || !worker }), 'Saved.')
   }
   return (
-    <DetailPage title={worker ? `Edit ${worker.name}` : 'Add a worker'} onClose={onClose}>
+    <DetailPage title={worker ? `Edit ${worker.name}` : 'Add a worker'} onClose={onClose} view={!!worker}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={worker?.name} error={problem} autoFocus maxLength={120} />
         <div className="grid gap-4 sm:grid-cols-2"><TextField label="Role (optional)" name="role" defaultValue={worker?.role ?? ''} placeholder="e.g. Poultry attendant" /><TextField label="Phone (optional)" name="phone" defaultValue={worker?.phone ?? ''} /></div>

@@ -1,4 +1,4 @@
-import { Pencil, Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -65,7 +65,7 @@ export function FarmTasksPage() {
                     {manage && t.status === 'review' && <><Button onClick={() => void move(t, 'done')}>Approve</Button><Button variant="secondary" onClick={() => void move(t, 'in_progress')}>Send back</Button></>}
                     {manage && OPEN.includes(t.status) && <Button variant="ghost" onClick={() => void move(t, 'cancelled')}>Cancel</Button>}
                     {manage && (t.status === 'done' || t.status === 'cancelled') && <Button variant="ghost" onClick={() => void move(t, 'todo')}>Reopen</Button>}
-                    {manage && OPEN.includes(t.status) && <button type="button" aria-label={`Edit ${t.title}`} onClick={() => setEditing(t)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button>}
+                    {manage && OPEN.includes(t.status) && <button type="button" aria-label={`Open ${t.title}`} onClick={() => setEditing(t)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button>}
                   </div>
                 </div>
               </Card>
@@ -89,7 +89,7 @@ function TaskDialog({ businessId, task, workers, batches, onClose, onSaved }: { 
     await runner.run((k) => saveTask(businessId, { id: task?.id ?? null, title: s('title'), description: s('description'), due: s('due') || null, priority: s('priority') as TaskDto['priority'], assigneeId: s('assignee') || null, batchId: s('batch') || null, requiresReview: f.get('review') === 'on' }, k), 'Task saved.')
   }
   return (
-    <DetailPage title={task ? 'Edit task' : 'New task'} onClose={onClose}>
+    <DetailPage title={task ? 'Edit task' : 'New task'} onClose={onClose} view={!!task}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Task" name="title" defaultValue={task?.title} error={problem} autoFocus maxLength={200} />
         <TextField label="Details (optional)" name="description" defaultValue={task?.description ?? ''} />

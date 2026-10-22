@@ -1,4 +1,4 @@
-import { Pencil, Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
@@ -51,7 +51,7 @@ export function BakeryProductsPage() {
                   <td className="tabular p-3 text-right">{p.avgCost === null ? '–' : naira(p.avgCost)}</td>
                   <td className="p-3">{p.shelfLifeDays ? `${p.shelfLifeDays} day${p.shelfLifeDays === 1 ? '' : 's'}` : 'Not set'}</td>
                   <td className="p-3">{p.nextExpiry ?? '–'}</td>
-                  {manage && <td className="p-3 text-right"><button type="button" aria-label={`Edit ${p.name}`} onClick={() => setEditing(p)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button></td>}
+                  {manage && <td className="p-3 text-right"><button type="button" aria-label={`Open ${p.name}`} onClick={() => setEditing(p)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button></td>}
                 </tr>
               ))}
             </tbody>
@@ -98,7 +98,7 @@ function ProductDialog({ businessId, product, onClose, onSaved }: { businessId: 
     }, k), 'Saved.')
   }
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose}>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} autoFocus maxLength={200} />
         <div className="grid gap-4 sm:grid-cols-2">

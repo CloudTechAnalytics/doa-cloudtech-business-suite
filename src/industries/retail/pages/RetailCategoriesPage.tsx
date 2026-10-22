@@ -1,4 +1,4 @@
-import { Pencil, Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -33,7 +33,7 @@ export function RetailCategoriesPage() {
             {categories.data.map((c) => (
               <li data-row-link onClick={openRow} key={c.id} className="flex items-center justify-between p-3 text-sm">
                 <span className="font-medium">{c.name} <span className="font-normal text-ink/60">{count(c.id)} product{count(c.id) === 1 ? '' : 's'}</span></span>
-                {manage && <button type="button" aria-label={`Rename ${c.name}`} onClick={() => setEditing(c)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button>}
+                {manage && <button type="button" aria-label={`Open ${c.name}`} onClick={() => setEditing(c)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button>}
               </li>
             ))}
           </ul>
@@ -55,7 +55,7 @@ function CategoryDialog({ businessId, category, onClose, onSaved }: { businessId
     await runner.run(async () => saveCategory(businessId, { id: category?.id ?? null, name }), 'Saved.')
   }
   return (
-    <DetailPage title={category ? 'Rename category' : 'Add a category'} onClose={onClose}>
+    <DetailPage title={category ? 'Rename category' : 'Add a category'} onClose={onClose} view={!!category}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={category?.name} error={error ?? undefined} autoFocus maxLength={80} />
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}

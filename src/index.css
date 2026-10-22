@@ -124,5 +124,14 @@ input[type="number"] {
 @media (prefers-reduced-motion: reduce) { .mark-scroll { transform: scaleX(1); transition: none; } }
 
 /* A table row (or list item) that opens its record when clicked: it holds an Edit or Rename button. */
-[data-row-link]:has(button[aria-label^="Edit"], button[aria-label^="Rename"]) { cursor: pointer; }
-[data-row-link]:has(button[aria-label^="Edit"], button[aria-label^="Rename"]):hover { background-color: color-mix(in srgb, var(--color-amber, #fbb130) 8%, white); }
+[data-row-link]:has(button[aria-label^="Open"]) { cursor: pointer; }
+[data-row-link]:has(button[aria-label^="Open"]):hover { background-color: color-mix(in srgb, var(--color-amber, #fbb130) 8%, white); }
+
+/* A record opened to read: the form's fields look like plain text and its Save and Cancel row is hidden until Edit is pressed. */
+fieldset.record-read { border: 0; margin: 0; padding: 0; min-width: 0; }
+.record-read input:not([type='checkbox']):not([type='radio']), .record-read select, .record-read textarea {
+  border-color: transparent; background: transparent; padding-left: 0; box-shadow: none; appearance: none; -webkit-appearance: none; color: inherit; opacity: 1; resize: none;
+}
+.record-read input::placeholder, .record-read textarea::placeholder { color: transparent; }
+.record-read form > div:last-child.justify-end { display: none; }
+.record-read [aria-label^='Remove'] { display: none; }

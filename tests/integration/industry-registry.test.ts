@@ -103,8 +103,10 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     expect(link('sales')).toBeLessThan(link('farm-products'))
     expect(heading('Sales and customers')).toBeLessThan(heading('Stock and procurement'))
     expect(heading('Finance')).toBeLessThan(link('farm-cashbook'))
-    expect(heading('People and administration')).toBeLessThan(link('staff'))
-    expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'settings' } })
+    // workers, staff and settings are in the account menu (top right), not the sidebar
+    for (const code of ['farm-workers', 'staff', 'settings']) expect(link(code), code).toBe(-1)
+    expect(entries.some((e) => e.kind === 'heading' && e.label === 'People and administration')).toBe(false)
+    expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'reports' } })
   })
 
   it('offers industry workflows in the Record menu only when their module is usable', () => {

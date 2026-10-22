@@ -1,4 +1,4 @@
-import { Download, PackagePlus, Pencil, Plus, Upload, X } from 'lucide-react'
+import { Download, PackagePlus, ChevronRight, Plus, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -82,7 +82,7 @@ export function PharmacyMedicinesPage() {
                     <td className="tabular p-3 text-right">{qty(m.saleable)} {m.unit}{m.reorder ? <div className="text-xs text-ink/60">Reorder at {qty(m.reorder)}</div> : null}</td>
                     <td className="tabular p-3 text-right">{blocked > 0 ? <span className="text-warning">{qty(blocked)}<div className="text-xs text-ink/60">{[m.expired && `${qty(m.expired)} expired`, m.quarantined && `${qty(m.quarantined)} quarantined`, m.undated && `${qty(m.undated)} undated`].filter(Boolean).join(', ')}</div></span> : '–'}</td>
                     <td className="tabular p-3 text-right">{naira(m.stockValue)}</td>
-                    {manage && <td className="p-3 text-right"><button type="button" aria-label={`Edit ${m.name}`} onClick={() => setEditing(m)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button></td>}
+                    {manage && <td className="p-3 text-right"><button type="button" aria-label={`Open ${m.name}`} onClick={() => setEditing(m)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><ChevronRight className="size-4" aria-hidden /></button></td>}
                   </tr>
                 )
               })}
@@ -119,7 +119,7 @@ function MedicineDialog({ businessId, medicine, categories, suppliers, onClose, 
     await runner.run((k) => saveMedicine(businessId, input, k), 'Saved.')
   }
   return (
-    <DetailPage title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} wide>
+    <DetailPage title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} view={!!medicine} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={medicine?.name} error={errors.name} autoFocus maxLength={200} /></div>
