@@ -144,7 +144,7 @@ function ProductDialog({ businessId, product, categories, suppliers, onClose, on
     await runner.run((k) => saveProduct(businessId, input, k), 'Saved.')
   }
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} wide>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} autoFocus maxLength={200} /></div>

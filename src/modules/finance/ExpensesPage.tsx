@@ -137,7 +137,7 @@ function ExpenseDialog({ businessId, suppliers, batches, onClose, onSaved }: { b
     }, k), 'Expense recorded.')
   }
   return (
-    <DetailPage title="Record an expense" onClose={onClose}>
+    <DetailPage modal title="Record an expense" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="What was it for?" name="description" error={errors.description} placeholder="e.g. 20 bags of layer mash" maxLength={300} autoFocus />
         <div className="grid gap-4 sm:grid-cols-2">

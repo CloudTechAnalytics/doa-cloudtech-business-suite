@@ -119,7 +119,7 @@ function MedicineDialog({ businessId, medicine, categories, suppliers, onClose, 
     await runner.run((k) => saveMedicine(businessId, input, k), 'Saved.')
   }
   return (
-    <DetailPage title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} view={!!medicine} wide>
+    <DetailPage title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} view={!!medicine} modal={!medicine} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={medicine?.name} error={errors.name} autoFocus maxLength={200} /></div>
@@ -198,7 +198,7 @@ function ReceiveDialog({ businessId, medicines, locations, suppliers, onClose, o
     await runner.run((k) => receiveGoods(businessId, { locationId: s('location'), purchaseId: purchaseId || null, supplierId: s('supplier') || null, invoice: s('invoice'), items }, k), 'Goods received.')
   }
   return (
-    <DetailPage title="Receive goods" onClose={onClose} wide>
+    <DetailPage modal title="Receive goods" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-4">
           <SelectField label="Against purchase order" value={purchaseId} onChange={(e) => void choosePurchase(e.target.value)}><option value="">No purchase order</option>{open.map((p) => <option key={p.id} value={p.id}>{p.number}</option>)}</SelectField>

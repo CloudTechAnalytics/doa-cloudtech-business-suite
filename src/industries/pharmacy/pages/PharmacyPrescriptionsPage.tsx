@@ -80,7 +80,7 @@ function NewDialog({ businessId, medicines, customers, onClose, onSaved }: { bus
     await runner.run((k) => savePrescription(businessId, { id: null, customerId: s('customer') || null, patient: s('patient'), prescriber: s('prescriber'), licence: s('licence'), prescribedOn: s('date'), validUntil: s('valid'), refills: Number(s('refills') || 0), notes: s('notes'), submit, items: items.map((x) => ({ productId: x.productId, quantity: Number(x.quantity), directions: x.directions })) }, k), submit ? 'Submitted for review.' : 'Draft saved.')
   }
   return (
-    <DetailPage title="New prescription" onClose={onClose} wide>
+    <DetailPage modal title="New prescription" onClose={onClose} wide>
       <form onSubmit={(e) => { e.preventDefault(); void save(true, new FormData(e.currentTarget)) }} noValidate className="space-y-4" id="rx-form">
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField label="Patient name" name="patient" autoFocus />

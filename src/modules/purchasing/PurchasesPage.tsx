@@ -91,7 +91,7 @@ function NewPurchase({ businessId, suppliers, catalog, onClose, onDone }: { busi
   }
 
   return (
-    <DetailPage title="New purchase order" onClose={onClose} wide>
+    <DetailPage modal title="New purchase order" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectField label="Supplier" name="supplier" defaultValue=""><option value="" disabled>Select…</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</SelectField>

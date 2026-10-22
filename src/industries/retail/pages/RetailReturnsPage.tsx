@@ -68,7 +68,7 @@ function ReturnDialog({ businessId, suppliers, products, locations, onClose, onS
     await runner.run((k) => supplierReturn(businessId, { supplierId: s('supplier'), purchaseId: null, locationId: s('location'), reason: s('reason'), items: lines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), unitCost: Number(l.cost) })) }, k), 'Return recorded.')
   }
   return (
-    <DetailPage title="Return goods to a supplier" onClose={onClose} wide>
+    <DetailPage modal title="Return goods to a supplier" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField label="Supplier" name="supplier" defaultValue=""><option value="">Select…</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</SelectField>

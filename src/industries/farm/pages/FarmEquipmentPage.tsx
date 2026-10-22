@@ -77,7 +77,7 @@ function AssetDialog({ businessId, asset, onClose, onSaved }: { businessId: stri
     await runner.run((k) => saveAsset(businessId, { id: asset?.id ?? null, name: s('name'), type: s('type'), serial: s('serial'), purchaseDate: s('date') || null, purchaseCost: s('cost') === '' ? null : Number(s('cost')), status: (s('status') || 'active') as AssetRow['status'], intervalDays: s('interval') === '' ? null : Number(s('interval')), notes: s('notes') }, k), 'Saved.')
   }
   return (
-    <DetailPage title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose} view={!!asset}>
+    <DetailPage title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose} view={!!asset} modal={!asset}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={asset?.name} error={problem} autoFocus maxLength={120} />
         <div className="grid gap-4 sm:grid-cols-2">

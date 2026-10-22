@@ -59,7 +59,7 @@ function WorkerDialog({ businessId, worker, onClose, onSaved }: { businessId: st
     await runner.run(async () => saveWorker(businessId, { id: worker?.id ?? null, name: s('name'), phone: s('phone'), role: s('role'), active: f.get('active') === 'on' || !worker }), 'Saved.')
   }
   return (
-    <DetailPage title={worker ? `Edit ${worker.name}` : 'Add a worker'} onClose={onClose} view={!!worker}>
+    <DetailPage title={worker ? `Edit ${worker.name}` : 'Add a worker'} onClose={onClose} view={!!worker} modal={!worker}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={worker?.name} error={problem} autoFocus maxLength={120} />
         <div className="grid gap-4 sm:grid-cols-2"><TextField label="Role (optional)" name="role" defaultValue={worker?.role ?? ''} placeholder="e.g. Poultry attendant" /><TextField label="Phone (optional)" name="phone" defaultValue={worker?.phone ?? ''} /></div>

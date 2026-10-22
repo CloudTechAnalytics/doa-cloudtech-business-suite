@@ -76,7 +76,7 @@ function NewOrder({ businessId, customers, products, onClose, onSaved }: { busin
     await runner.run((k) => createOrder(businessId, String(f.get('customer')), clean.map((l) => ({ productId: l.productId, quantity: Number(l.quantity) })), String(f.get('expected') ?? '') || null, String(f.get('note') ?? ''), k), 'Order created.')
   }
   return (
-    <DetailPage title="New sales order" onClose={onClose} wide>
+    <DetailPage modal title="New sales order" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectField label="Customer" name="customer" defaultValue=""><option value="" disabled>Select…</option>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField>

@@ -89,7 +89,7 @@ function HealthDialog({ businessId, batches, products, locations, onClose, onSav
     await runner.run((k) => recordHealth(businessId, { batchId: s('batch'), type, title: s('title'), productId: medical && s('product') ? s('product') : null, locationId: s('location'), quantity: medical && s('product') ? Number(s('qty')) : null, on: s('date'), withdrawalDays: medical ? Number(s('days') || 0) : 0, notes: s('notes') }, k), 'Recorded.')
   }
   return (
-    <DetailPage title="Record a health event" onClose={onClose}>
+    <DetailPage modal title="Record a health event" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField label="Batch" name="batch" defaultValue="" error={errors.batch}><option value="" disabled>Select…</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.species}</option>)}</SelectField>

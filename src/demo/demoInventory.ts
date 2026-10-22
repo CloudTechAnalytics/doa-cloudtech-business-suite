@@ -10,7 +10,7 @@ export interface DProduct { id: string; businessId: string; sku: string | null; 
 /** A batch of finished goods with an expiry date; stock leaves the oldest-expiring lot first (mirrors bakery_lots). */
 export interface DLot { batchNumber?: string | null; status?: 'active' | 'quarantined'; statusReason?: string | null; manufacturedOn?: string | null; supplierId?: string | null; locationId?: string | null; id: string; businessId: string; productId: string; batchId: string; quantity: number; remaining: number; producedOn: string; expiresOn: string | null; voided: boolean }
 export interface DAlloc { lotId: string; movementId: string; quantity: number; restored: boolean }
-export interface DLocation { id: string; businessId: string; name: string }
+export interface DLocation { id: string; businessId: string; name: string; type?: string; status?: 'active' | 'archived' }
 export interface DMovement { id: string; businessId: string; productId: string; locationId: string; type: string; delta: number; unitCost: number; reason: string | null; at: string; reversalOf: string | null; groupId: string }
 export interface Inv {
   products: DProduct[]
@@ -144,6 +144,36 @@ function guard(businessId: string): string | null {
   if (!role || !usable || !rolePermissions(role).has('inventory.adjust')) return 'permission denied'
   return null
 }
+
+const LOCATION_TYPES = ['store', 'shelf', 'warehouse', 'farm_store', 'kitchen']
+const onHandAt = (businessId: string, locationId: string) => Object.entries(state.balances).filter(([k, v]) => k.startsWith(`${businessId}|`) && k.endsWith(`|${locationId}`) && v.qty !== 0).length
+
+/** Adds, renames or archives a stock location (mirrors the inventory_locations policies and the guard trigger). */
+export function demoSaveLocation(businessId: string, v: { id: string | null; name: string; type: string }): string | null {
+  const denied = guard(businessId); if (denied) return denied
+  const name = v.name.trim()
+  if (!name) return 'Enter the location name.'
+  if (!LOCATION_TYPES.includes(v.type)) return 'Choose what kind of place it is.'
+  if (state.locations.some((l) => l.businessId === businessId && l.id !== v.id && l.name.trim().toLowerCase() === name.toLowerCase())) return 'duplicate key: a location with this name already exists'
+  if (v.id === null) { commit({ ...state, locations: [...state.locations, { id: id('l'), businessId, name, type: v.type, status: 'active' }] }); return null }
+  if (!state.locations.some((l) => l.id === v.id && l.businessId === businessId)) return 'Location not found.'
+  commit({ ...state, locations: state.locations.map((l) => (l.id === v.id ? { ...l, name, type: v.type } : l)) })
+  return null
+}
+export function demoSetLocationStatus(businessId: string, locationId: string, status: 'active' | 'archived'): string | null {
+  const denied = guard(businessId); if (denied) return denied
+  const loc = state.locations.find((l) => l.id === locationId && l.businessId === businessId)
+  if (!loc) return 'Location not found.'
+  if (status === 'archived' && (loc.status ?? 'active') === 'active') {
+    if (onHandAt(businessId, locationId) > 0) return `move or sell the stock in "${loc.name}" before archiving it`
+    if (!state.locations.some((l) => l.businessId === businessId && l.id !== locationId && (l.status ?? 'active') === 'active')) return 'keep at least one active location'
+  }
+  commit({ ...state, locations: state.locations.map((l) => (l.id === locationId ? { ...l, status } : l)) })
+  return null
+}
+export const demoLocations = (businessId: string) => state.locations.filter((l) => l.businessId === businessId).map((l) => ({
+  id: l.id, name: l.name, type: l.type ?? 'store', active: (l.status ?? 'active') === 'active', stocked: onHandAt(businessId, l.id),
+}))
 
 export function demoCan(businessId: string, perm: string): boolean {
   const role = demoRoleIn(businessId)

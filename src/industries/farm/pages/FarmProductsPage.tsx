@@ -123,7 +123,7 @@ function ProductDialog({ product, businessId, species, onClose, onSaved }: { pro
   }
 
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product}>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} placeholder="e.g. Eggs (crate)" maxLength={120} autoFocus />
         {product ? (

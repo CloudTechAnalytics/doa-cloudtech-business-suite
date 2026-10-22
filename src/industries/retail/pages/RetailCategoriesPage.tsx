@@ -55,7 +55,7 @@ function CategoryDialog({ businessId, category, onClose, onSaved }: { businessId
     await runner.run(async () => saveCategory(businessId, { id: category?.id ?? null, name }), 'Saved.')
   }
   return (
-    <DetailPage title={category ? 'Rename category' : 'Add a category'} onClose={onClose} view={!!category}>
+    <DetailPage title={category ? 'Rename category' : 'Add a category'} onClose={onClose} view={!!category} modal={!category}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={category?.name} error={error ?? undefined} autoFocus maxLength={80} />
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}

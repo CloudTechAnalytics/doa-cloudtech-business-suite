@@ -6,12 +6,14 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { isDemoMode } from '@/shared/utilities/env'
 import { Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { DetailPage } from '@/shared/components/detail-page'
+import { Dialog } from '@/shared/components/dialog'
+import { useAsync } from '@/shared/hooks/useAsync'
 import * as api from '@/modules/inventory/inventoryApi'
 import type { InventoryData, MovementRow, Product } from '@/modules/inventory/inventoryApi'
 import { stockStatus } from '@/modules/inventory/ledger'
 import type { StockStatus } from '@/modules/inventory/ledger'
 
-const TABS = ['Stock', 'Products', 'Movements', 'Receive', 'Adjust / issue', 'Transfer'] as const
+const TABS = ['Stock', 'Products', 'Locations', 'Movements', 'Receive', 'Adjust / issue', 'Transfer'] as const
 type Tab = (typeof TABS)[number]
 
 const naira = (n: number | null) => (n === null ? '–' : `₦${n.toLocaleString('en-NG', { maximumFractionDigits: 2 })}`)
@@ -79,6 +81,7 @@ export function InventoryPage() {
           )}
           {tab === 'Stock' && <StockTab data={data} />}
           {tab === 'Products' && <ProductsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
+          {tab === 'Locations' && <LocationsTab businessId={businessId} industry={active.industry} canWrite={canWrite} onChanged={refresh} />}
           {tab === 'Movements' && <MovementsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
           {tab === 'Receive' && canWrite && <ReceiveForm data={data} businessId={businessId} onDone={refresh} />}
           {tab === 'Adjust / issue' && canWrite && <AdjustForm data={data} businessId={businessId} onDone={refresh} />}
@@ -270,6 +273,66 @@ function ProductDetail({ data, id, onClose }: { data: InventoryData; id: string;
         </div>
       </div>
     </DetailPage>
+  )
+}
+
+// ------------------------------------------------------------- locations
+/** The places stock is kept (a store, a shelf, a cold room). Add one, rename it, or archive it when it is no longer used. */
+function LocationsTab({ businessId, industry, canWrite, onChanged }: { businessId: string; industry: Parameters<typeof api.listLocations>[1]; canWrite: boolean; onChanged: () => Promise<void> }) {
+  const places = useAsync(() => api.listLocations(businessId, industry), [businessId, industry])
+  const [editing, setEditing] = useState<api.LocationRow | 'new' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const refresh = async () => { await Promise.all([places.refresh(), onChanged()]) }
+  async function setStatus(l: api.LocationRow, status: 'active' | 'archived') { setError(await api.setLocationStatus(businessId, l.id, status)); await refresh() }
+  const typeName = (t: string) => api.LOCATION_TYPES.find(([v]) => v === t)?.[1] ?? t
+  return (
+    <>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-2xl text-sm text-ink/70">The places your stock is kept. A new business starts with one (Main store). Add more if you keep stock in different places, and archive one you no longer use: it must be empty first, and its history stays.</p>
+        {canWrite && <Button onClick={() => setEditing('new')}>Add location</Button>}
+      </div>
+      {(error || places.error) && <ErrorState message={error ?? places.error!} />}
+      {places.loading ? <Spinner /> : (
+        <Card className="p-0">
+          <ul className="divide-y divide-ink/10 text-sm">
+            {(places.data ?? []).map((l) => (
+              <li key={l.id} className={clsx('flex flex-wrap items-center gap-3 p-3', !l.active && 'text-ink/50')}>
+                <span className="font-medium">{l.name}</span>
+                <span className="text-xs text-ink/60">{typeName(l.type)}{!l.active ? ' · archived' : l.stocked > 0 ? ` · ${l.stocked} product${l.stocked === 1 ? '' : 's'} in stock` : ' · empty'}</span>
+                {canWrite && (
+                  <span className="ml-auto flex gap-1">
+                    <Button variant="ghost" onClick={() => setEditing(l)}>Rename</Button>
+                    {l.active ? <Button variant="ghost" onClick={() => void setStatus(l, 'archived')}>Archive</Button> : <Button variant="ghost" onClick={() => void setStatus(l, 'active')}>Restore</Button>}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      {editing && <LocationDialog businessId={businessId} location={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await refresh() }} />}
+    </>
+  )
+}
+
+function LocationDialog({ businessId, location, onClose, onSaved }: { businessId: string; location: api.LocationRow | null; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [error, setError] = useState<string | null>(null)
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    const err = await api.saveLocation(businessId, { id: location?.id ?? null, name: String(f.get('name') ?? ''), type: String(f.get('type') ?? 'store') })
+    if (err) return setError(err)
+    await onSaved()
+  }
+  return (
+    <Dialog title={location ? 'Rename location' : 'Add a location'} onClose={onClose}>
+      <form onSubmit={submit} noValidate className="space-y-4">
+        <TextField label="Name" name="name" defaultValue={location?.name} autoFocus maxLength={80} placeholder="e.g. Shelf 2, Cold room" />
+        <SelectField label="What kind of place is it?" name="type" defaultValue={location?.type ?? 'store'}>{api.LOCATION_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</SelectField>
+        {error && <ErrorState title="Not saved" message={error} />}
+        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit">Save</Button></div>
+      </form>
+    </Dialog>
   )
 }
 

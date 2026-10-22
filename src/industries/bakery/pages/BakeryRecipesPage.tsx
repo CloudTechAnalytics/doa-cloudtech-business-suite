@@ -88,7 +88,7 @@ function RecipeDialog({ businessId, recipe, ingredients, products, onClose, onSa
   }
 
   return (
-    <DetailPage title={recipe ? `Edit ${recipe.name}` : 'New recipe'} onClose={onClose} view={!!recipe} wide>
+    <DetailPage title={recipe ? `Edit ${recipe.name}` : 'New recipe'} onClose={onClose} view={!!recipe} modal={!recipe} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         {recipe && <Notice>Saving creates version {recipe.version + 1}. Batches already made keep the version they used.</Notice>}
         <div className="grid gap-4 sm:grid-cols-3">

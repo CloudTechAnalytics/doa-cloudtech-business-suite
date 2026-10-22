@@ -78,7 +78,7 @@ function IngredientDialog({ businessId, ingredient, locations, onClose, onSaved 
     }, k), 'Saved.')
   }
   return (
-    <DetailPage title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose} view={!!ingredient}>
+    <DetailPage title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose} view={!!ingredient} modal={!ingredient}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={ingredient?.name} error={errors.name} autoFocus maxLength={200} />
         <div className="grid gap-4 sm:grid-cols-2">

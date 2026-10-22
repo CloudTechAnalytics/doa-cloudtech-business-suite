@@ -12,25 +12,29 @@ export const DetailSlotContext = createContext<DetailSlot | null>(null)
  * A record's own page: opens in place of the list, with a Back button, and closes back to it. Used for a record's details,
  * and for the forms that create or edit one. With `view`, an existing record opens to read (fields shown as plain text, no Save button)
  * and an Edit button switches the same page to the form; without it (a new record, or an action) the form is open at once.
- * Outside the app shell (no slot) it falls back to a dialog.
+ * With `modal` (adding a record, or a quick action) it is a floating box instead: adding is a small job done over the list, while
+ * reading a record deserves a page. Outside the app shell (no slot) it also falls back to a dialog.
  */
-export function DetailPage({ title, onClose, children, wide = false, view = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; view?: boolean }) {
+export function DetailPage({ title, onClose, children, wide = false, view = false, modal = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; view?: boolean; modal?: boolean }) {
   const slot = useContext(DetailSlotContext)
+  const asBox = modal
   const [editing, setEditing] = useState(!view)
   const reading = view && !editing
   useLayoutEffect(() => {
+    if (asBox) return
     slot?.enter()
     window.scrollTo(0, 0)
     return () => slot?.leave()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
+    if (asBox) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[role="dialog"]')) onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
   const shown = reading ? title.replace(/^(Edit|Rename) /, '') : title
-  if (!slot?.node) return <Dialog title={shown} onClose={onClose} wide={wide}>{children}</Dialog>
+  if (asBox || !slot?.node) return <Dialog title={shown} onClose={onClose} wide={wide}>{children}</Dialog>
   return createPortal(
     <section aria-label={title} className="pb-10">
       <button type="button" onClick={onClose} className="no-print mb-3 inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-sm font-medium text-ink/70 hover:text-ink">

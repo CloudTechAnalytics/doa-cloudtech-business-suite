@@ -95,7 +95,7 @@ function BillDialog({ businessId, purchases, bills, onClose, onSaved }: { busine
     await runner.run((k) => recordBill(businessId, { purchaseId, number: s('number'), billDate: s('billDate'), dueDate: s('dueDate'), amount: round(Number(s('amount'))) }, k), 'Bill recorded.')
   }
   return (
-    <DetailPage title="Record a supplier bill" onClose={onClose}>
+    <DetailPage modal title="Record a supplier bill" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <SelectField label="Purchase order" value={purchaseId} onChange={(e) => setPurchaseId(e.target.value)} error={errors.purchase} hint={chosen ? `Not yet billed: ${naira(room)}` : 'Only orders with an unbilled amount are listed.'}>
           <option value="">Select…</option>{choices.map((p) => <option key={p.id} value={p.id}>{p.number} · {naira(p.total)}</option>)}

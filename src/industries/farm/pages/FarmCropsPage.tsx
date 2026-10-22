@@ -92,7 +92,7 @@ function StartCycle({ businessId, fields, onClose, onSaved }: { businessId: stri
     await runner.run((k) => startBatch(businessId, { unitId: s('field'), code: s('code'), species: s('crop'), variety: s('variety'), productionType: 'crop', opening: Number(s('area')), startDate: s('start'), plannedEnd: s('end') || null, basis: 'exact' }, k), 'Crop cycle started.')
   }
   return (
-    <DetailPage title="Start a crop cycle" onClose={onClose}>
+    <DetailPage modal title="Start a crop cycle" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         {fields.length === 0 && <Notice>Add a field first: Production Units, production &quot;Crops&quot;.</Notice>}
         <div className="grid gap-4 sm:grid-cols-2">

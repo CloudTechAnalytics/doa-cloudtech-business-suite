@@ -82,7 +82,7 @@ function LossDialog({ businessId, products, locations, onClose, onSaved }: { bus
     await runner.run((k) => recordLoss(businessId, { productId, locationId: s('location'), quantity: Number(s('qty')), reason: s('reason') as LossReason, notes: s('notes') }, k), 'Loss recorded.')
   }
   return (
-    <DetailPage title="Record damaged or expired stock" onClose={onClose}>
+    <DetailPage modal title="Record damaged or expired stock" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <SelectField label="Product" value={productId} onChange={(e) => setProductId(e.target.value)} error={errors.item}><option value="">Select…</option>{products.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</SelectField>
         <div className="grid gap-4 sm:grid-cols-2">

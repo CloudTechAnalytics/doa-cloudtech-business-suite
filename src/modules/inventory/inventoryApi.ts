@@ -1,5 +1,5 @@
 import {
-  demoAdjust, demoCan, demoCreateProduct, demoIssue, demoReceive, demoReverse, demoSetProductStatus, demoTransfer,
+  demoAdjust, demoCan, demoCreateProduct, demoIssue, demoLocations, demoReceive, demoReverse, demoSaveLocation, demoSetLocationStatus, demoSetProductStatus, demoTransfer,
   ensureDemoInventory, useDemoInventory,
 } from '@/demo/demoInventory'
 import { isDemoMode } from '@/shared/utilities/env'
@@ -11,6 +11,33 @@ export interface Location { id: string; name: string }
 export interface StockLine { productId: string; locationId: string; qty: number; avgCost: number | null }
 export interface MovementRow { id: string; productId: string; locationId: string; type: string; delta: number; unitCost: number | null; reason: string | null; at: string; reversalOf: string | null; reversed: boolean }
 export interface InventoryData { products: Product[]; locations: Location[]; balances: StockLine[]; movements: MovementRow[]; units: string[] }
+export interface LocationRow { id: string; name: string; type: string; active: boolean; stocked: number }
+export const LOCATION_TYPES = [['store', 'Store'], ['shelf', 'Shelf'], ['warehouse', 'Warehouse'], ['farm_store', 'Farm store'], ['kitchen', 'Kitchen']] as const
+
+export async function listLocations(businessId: string, industry: IndustryCode): Promise<LocationRow[]> {
+  if (isDemoMode) { ensureDemoInventory(businessId, industry); return demoLocations(businessId) }
+  const db = supabase!
+  const [l, b] = await Promise.all([
+    db.from('inventory_locations').select('id, name, location_type, status').eq('business_id', businessId).order('name'),
+    db.from('inventory_balances').select('location_id, quantity_on_hand').eq('business_id', businessId),
+  ])
+  if (l.error) throw new Error(l.error.message)
+  return (l.data ?? []).map((x) => ({ id: x.id, name: x.name, type: x.location_type, active: x.status === 'active', stocked: (b.data ?? []).filter((y) => y.location_id === x.id && Number(y.quantity_on_hand) !== 0).length }))
+}
+export async function saveLocation(businessId: string, v: { id: string | null; name: string; type: string }) {
+  if (isDemoMode) return demoSaveLocation(businessId, v)
+  const name = v.name.trim()
+  if (!name) return 'Enter the location name.'
+  const db = supabase!
+  const res = v.id === null ? await db.from('inventory_locations').insert({ business_id: businessId, name, location_type: v.type }) : await db.from('inventory_locations').update({ name, location_type: v.type }).eq('id', v.id).eq('business_id', businessId)
+  if (res.error?.code === '23505') return 'duplicate key: a location with this name already exists'
+  return err(res.error)
+}
+export async function setLocationStatus(businessId: string, id: string, status: 'active' | 'archived') {
+  if (isDemoMode) return demoSetLocationStatus(businessId, id, status)
+  return err((await supabase!.from('inventory_locations').update({ status }).eq('id', id).eq('business_id', businessId)).error)
+}
+
 export interface Line { productId: string; quantity: number; unitCost?: number | null }
 export interface NewProduct { name: string; sku: string; barcode: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null }
 
@@ -50,7 +77,7 @@ export function useDemoData(businessId: string, industry: IndustryCode, enabled:
   return {
     units: ['each', 'dozen', 'kg', 'g', 'l', 'ml'],
     products: products.map((p) => ({ id: p.id, sku: p.sku, barcode: p.barcode, name: p.name, unit: p.unit, sellingPrice: p.sellingPrice, defaultCost: p.defaultCost, reorderLevel: p.reorderLevel, status: p.status })),
-    locations: inv.locations.filter((l) => l.businessId === businessId).map((l) => ({ id: l.id, name: l.name })),
+    locations: inv.locations.filter((l) => l.businessId === businessId && (l.status ?? 'active') === 'active').map((l) => ({ id: l.id, name: l.name })),
     balances: Object.entries(inv.balances)
       .filter(([k]) => k.startsWith(`${businessId}|`))
       .map(([k, v]) => { const [, productId, locationId] = k.split('|'); return { productId, locationId, qty: v.qty, avgCost: v.avg } }),

@@ -83,7 +83,7 @@ function NewRequest({ businessId, products, onClose, onSaved }: { businessId: st
     await runner.run((k) => createRequest(businessId, clean.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), estimatedCost: l.cost === '' ? null : Number(l.cost) })), note, k), 'Request sent.')
   }
   return (
-    <DetailPage title="New purchase request" onClose={onClose} wide>
+    <DetailPage modal title="New purchase request" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-3">
         <LinesEditor lines={lines} setLines={setLines} products={products} costLabel="Estimated cost (₦)" />
         <TextField label="Note (optional)" name="note" placeholder="Why it is needed" />

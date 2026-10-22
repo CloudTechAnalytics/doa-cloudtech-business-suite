@@ -80,7 +80,7 @@ function PlanDialog({ businessId, recipes, locations, people, onClose, onSaved }
     await runner.run((k) => planProduction(businessId, { recipeId, planned: Number(planned), date: s('date'), locationId: s('location'), assignedTo: s('assignee') || null, notes: s('notes') }, k), 'Batch planned.')
   }
   return (
-    <DetailPage title="Plan production" onClose={onClose} wide>
+    <DetailPage modal title="Plan production" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField label="Recipe" value={recipeId} onChange={(e) => setRecipeId(e.target.value)}><option value="">Select…</option>{recipes.map((r) => <option key={r.id} value={r.id}>{r.name} (makes {qty(r.output)})</option>)}</SelectField>
