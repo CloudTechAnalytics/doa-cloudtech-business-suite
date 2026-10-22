@@ -22,6 +22,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0016_customer_profiles` | `customers` gains `company`, `contact_person`, `city`, `notes`; view `customer_summary` (orders, spend net of tax and returns, paid, owed, first and last purchase) and `customer_top_products()`; both respect sales and customer RLS |
 | `…0017_location_guard` | trigger refusing to archive a stock location that still holds stock or is the last active one |
 | `…0018_delete_record` | `delete_record(kind, id)`: deletes a never-used customer, supplier, product, category, location, lead, voided stock loss, or farm worker, equipment or task; refuses records with history; audited |
+| `…0019_school` | industry `school`, roles `principal`, `teacher`, `bursar`, `admissions_officer`, `parent`, permissions `school.*`, `school-*` modules, sessions/terms/classes/subjects, students with enrolment history, guardians and links, admissions, staff and assignments, attendance, scores with approval workflow, remarks, fee items, bills, payments (reversed, never edited), announcements; RLS scoped so teachers reach their classes and parents their children (published results only); `school_*` functions and `school_overview`. See docs/school.md |
 
 ## Tables named in the architecture brief
 

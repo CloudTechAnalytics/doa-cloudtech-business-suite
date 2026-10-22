@@ -29,9 +29,12 @@ interface State {
 const KEY = 'doa.demo.v2'
 
 export const DEMO_LOGINS = [
-  { email: 'owner@demo.test', password: 'demo1234', note: 'Owner of 4 businesses (farm, bakery, retail, pharmacy)' },
+  { email: 'owner@demo.test', password: 'demo1234', note: 'Owner of 5 businesses (farm, bakery, retail, pharmacy, school)' },
   { email: 'cashier@demo.test', password: 'demo1234', note: 'Cashier at CityMart and CarePlus Pharmacy' },
   { email: 'pharmacist@demo.test', password: 'demo1234', note: 'Pharmacist at CarePlus Pharmacy' },
+  { email: 'teacher@demo.test', password: 'demo1234', note: 'Class teacher at Bright Future Academy' },
+  { email: 'parent@demo.test', password: 'demo1234', note: 'Parent at Bright Future Academy' },
+  { email: 'bursar@demo.test', password: 'demo1234', note: 'Bursar at Bright Future Academy' },
 ]
 
 const seed = (): State => ({
@@ -42,18 +45,24 @@ const seed = (): State => ({
     'b-bakery': { plan: 'starter', enabled: defaultModules('bakery'), disabledHistory: [] },
     'b-retail': { plan: 'growth', enabled: defaultModules('retail'), disabledHistory: [] },
     'b-pharmacy': { plan: 'growth', enabled: defaultModules('pharmacy'), disabledHistory: [] },
+    'b-school': { plan: 'growth', enabled: defaultModules('school'), disabledHistory: [] },
   },
   users: [
     { id: 'u-owner', email: 'owner@demo.test', password: 'demo1234', name: 'Demo Owner' },
     { id: 'u-cashier', email: 'cashier@demo.test', password: 'demo1234', name: 'Demo Cashier' },
     { id: 'u-acct', email: 'accountant@demo.test', password: 'demo1234', name: 'Demo Accountant' },
     { id: 'u-pharm', email: 'pharmacist@demo.test', password: 'demo1234', name: 'Demo Pharmacist' },
+    { id: 'u-teacher', email: 'teacher@demo.test', password: 'demo1234', name: 'Mr Teacher' },
+    { id: 'u-parent', email: 'parent@demo.test', password: 'demo1234', name: 'Mrs Obi' },
+    { id: 'u-bursar', email: 'bursar@demo.test', password: 'demo1234', name: 'Demo Bursar' },
+    { id: 'u-principal', email: 'principal@demo.test', password: 'demo1234', name: 'Demo Principal' },
   ],
   businesses: [
     { id: 'b-farm', name: 'Greenfield Farms', industry: 'farm' },
     { id: 'b-bakery', name: 'Sunrise Bakery', industry: 'bakery' },
     { id: 'b-retail', name: 'CityMart', industry: 'retail' },
     { id: 'b-pharmacy', name: 'CarePlus Pharmacy', industry: 'pharmacy' },
+    { id: 'b-school', name: 'Bright Future Academy', industry: 'school' },
   ],
   members: [
     { id: 'm1', businessId: 'b-farm', userId: 'u-owner', email: 'owner@demo.test', name: 'Demo Owner', role: 'owner', status: 'active' },
@@ -65,6 +74,11 @@ const seed = (): State => ({
     { id: 'm7', businessId: 'b-pharmacy', userId: 'u-owner', email: 'owner@demo.test', name: 'Demo Owner', role: 'owner', status: 'active' },
     { id: 'm8', businessId: 'b-pharmacy', userId: 'u-pharm', email: 'pharmacist@demo.test', name: 'Demo Pharmacist', role: 'pharmacist', status: 'active' },
     { id: 'm9', businessId: 'b-pharmacy', userId: 'u-cashier', email: 'cashier@demo.test', name: 'Demo Cashier', role: 'cashier', status: 'active' },
+    { id: 'm10', businessId: 'b-school', userId: 'u-owner', email: 'owner@demo.test', name: 'Demo Owner', role: 'owner', status: 'active' },
+    { id: 'm11', businessId: 'b-school', userId: 'u-principal', email: 'principal@demo.test', name: 'Demo Principal', role: 'principal', status: 'active' },
+    { id: 'm12', businessId: 'b-school', userId: 'u-teacher', email: 'teacher@demo.test', name: 'Mr Teacher', role: 'teacher', status: 'active' },
+    { id: 'm13', businessId: 'b-school', userId: 'u-bursar', email: 'bursar@demo.test', name: 'Demo Bursar', role: 'bursar', status: 'active' },
+    { id: 'm14', businessId: 'b-school', userId: 'u-parent', email: 'parent@demo.test', name: 'Mrs Obi', role: 'parent', status: 'active' },
   ],
 })
 

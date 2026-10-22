@@ -9,8 +9,8 @@ describe('landing page content comes from the registries', () => {
     const { shared, industries } = landingApps()
     expect(shared.map((a) => a.id)).toEqual(['sales', 'crm', 'inventory', 'purchase', 'finance', 'staff'])
     expect(shared.every((a) => a.blurb.length > 0)).toBe(true)
-    expect(industries.map((a) => a.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy'])
-    expect(industries.map((a) => a.label)).toEqual(['Mart', 'Farm operations', 'Bakery production', 'Pharmacy'])
+    expect(industries.map((a) => a.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy', 'school'])
+    expect(industries.map((a) => a.label)).toEqual(['Mart', 'Farm operations', 'Bakery production', 'Pharmacy', 'School'])
   })
 
   it('never advertises an unavailable industry', () => {
@@ -23,7 +23,7 @@ describe('the Apps and Industries menus come from the registries', () => {
   const labels = (id: string) => apps.find((c) => c.id === id)!.items.map((i) => i.label)
 
   it('groups shared modules by area and gives each active industry its own column', () => {
-    expect(apps.map((c) => c.title)).toEqual(['Sales', 'Stock and purchasing', 'Mart', 'Farm operations', 'Bakery production', 'Pharmacy', 'Finance', 'Administration'])
+    expect(apps.map((c) => c.title)).toEqual(['Sales', 'Stock and purchasing', 'Mart', 'Farm operations', 'Bakery production', 'Pharmacy', 'School', 'Finance', 'Administration'])
     expect(labels('Sales and customers')).toEqual(['Sales / POS', 'CRM'])
     expect(labels('farm')).toContain('Farm Batches')
     expect(labels('Stock and purchasing')).toEqual(['Inventory', 'Purchases', 'Suppliers'])
@@ -39,7 +39,7 @@ describe('the Apps and Industries menus come from the registries', () => {
   })
 
   it('lists every industry, each linking to a pre-selected picker', () => {
-    expect(industries.map((c) => c.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy'])
+    expect(industries.map((c) => c.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy', 'school'])
     for (const c of industries) {
       expect(c.cta?.to).toBe(`/start?type=${c.id}`)
       expect(c.items.length).toBeGreaterThan(0)

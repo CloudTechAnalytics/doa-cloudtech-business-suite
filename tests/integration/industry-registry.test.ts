@@ -14,10 +14,10 @@ import type { IndustryCode, ModuleCode } from '@/shared/types/domain'
 const clone = (d: IndustryDefinition, patch: Partial<IndustryDefinition>): IndustryDefinition => ({ ...d, ...patch })
 
 describe('the industry registry', () => {
-  it('exposes retail, farm, bakery and pharmacy as available', () => {
-    expect(listAvailableIndustries().map((d) => d.id).sort()).toEqual(['bakery', 'farm', 'pharmacy', 'retail'])
+  it('exposes retail, farm, bakery, pharmacy and school as available', () => {
+    expect(listAvailableIndustries().map((d) => d.id).sort()).toEqual(['bakery', 'farm', 'pharmacy', 'retail', 'school'])
     expect(getIndustry('pharmacy').status).toBe('active')
-    expect(Object.keys(INDUSTRIES).sort()).toEqual(['bakery', 'farm', 'pharmacy', 'retail'])
+    expect(Object.keys(INDUSTRIES).sort()).toEqual(['bakery', 'farm', 'pharmacy', 'retail', 'school'])
   })
 
   it('gives every industry its own module set and permissions without duplication', () => {

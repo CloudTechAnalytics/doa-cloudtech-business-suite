@@ -2,6 +2,7 @@ import { bakery } from '@/industries/bakery'
 import { farm } from '@/industries/farm'
 import { pharmacy } from '@/industries/pharmacy'
 import { retail } from '@/industries/retail'
+import { school } from '@/industries/school'
 import { SHARED_MODULE_CODES } from '@/shared/types/domain'
 import type { IndustryCode } from '@/shared/types/domain'
 import { IndustryDefinitionError } from './types'
@@ -11,7 +12,7 @@ import type { IndustryDefinition } from './types'
  * The central industry registry: trusted, build-time definitions only. Registering an industry means
  * adding it here (and to the IndustryCode union); see docs/adding-an-industry.md.
  */
-export const INDUSTRIES: Record<IndustryCode, IndustryDefinition> = { retail, farm, bakery, pharmacy }
+export const INDUSTRIES: Record<IndustryCode, IndustryDefinition> = { retail, farm, bakery, pharmacy, school }
 
 /** Cross-industry rules that a single definition cannot check on its own. */
 export function findRegistryProblems(registry: Record<string, IndustryDefinition>): string[] {

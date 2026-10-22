@@ -12,7 +12,7 @@ src/
   shared/       industry-neutral building blocks: components, forms, tables, hooks, utilities, types
   modules/      shared business modules: crm, inventory, sales, purchasing, expenses, staff,
                 reporting, notifications (each owns its pages, API layer and manifest)
-  industries/   one folder per industry: retail, farm, bakery, pharmacy
+  industries/   one folder per industry: retail, farm, bakery, pharmacy, school
   integrations/ boundaries to external services (payments interface only)
   demo/         browser-only demo backend, used only when Supabase is not configured
 supabase/migrations/   the whole backend: schema, RLS, business rules (SQL functions)

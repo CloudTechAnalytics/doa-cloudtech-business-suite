@@ -50,7 +50,7 @@ describe('TypeScript registry matches the SQL seed', () => {
   })
 
   it('grants the same permissions to each system role (within the permissions the UI knows)', async () => {
-    const roles = ['owner', 'business_admin', 'manager', 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'pharmacist', 'pharmacy_technician', 'viewer'] as const
+    const roles = ['owner', 'business_admin', 'manager', 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'pharmacist', 'pharmacy_technician', 'principal', 'teacher', 'bursar', 'admissions_officer', 'parent', 'viewer'] as const
     const known = new Set(ROLE_MODELLED_PERMISSIONS)
     for (const role of roles) {
       const r = await rows<{ code: string }>(db, `select p.code from public.role_permissions rp join public.permissions p on p.id = rp.permission_id

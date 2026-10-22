@@ -30,7 +30,7 @@ const AFTER: SharedAppSpec[] = [
   { id: 'staff', label: 'Staff', color: '#7048e8', modules: ['staff'] },
   { id: 'settings', label: 'Settings', color: '#5f6b7a', modules: ['settings'] },
 ]
-const INDUSTRY_COLORS: Record<string, string> = { farm: '#5c940d', bakery: '#d9480f', retail: '#1971c2', pharmacy: '#0ca678' }
+const INDUSTRY_COLORS: Record<string, string> = { farm: '#5c940d', bakery: '#d9480f', retail: '#1971c2', pharmacy: '#0ca678', school: '#7048e8' }
 
 /** Colour used for an industry's tile on the home screen and in the business-type picker. */
 export const industryColor = (id: string) => INDUSTRY_COLORS[id] ?? '#1971c2'

@@ -27,7 +27,7 @@ src/core/         auth, businesses, business-context, permissions, subscriptions
 src/shared/       components, forms, tables, hooks, utilities, types
 src/modules/      shared business modules: crm, inventory, sales, purchasing, expenses,
                   staff, reporting, notifications
-src/industries/   retail, farm, bakery, pharmacy
+src/industries/   retail, farm, bakery, pharmacy, school
 src/integrations/ payments interface (no provider yet)
 src/demo/         browser-only demo backend
 supabase/migrations/   schema, RLS, business rules
