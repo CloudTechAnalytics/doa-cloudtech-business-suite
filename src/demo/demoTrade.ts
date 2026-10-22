@@ -11,7 +11,7 @@ import { demoModuleStatuses, demoRoleIn, getDemoState } from '@/demo/demoStore'
  * payment caps, credit limits, eligible-return checks, goods-receipt-only stock increases, idempotency).
  */
 export interface DCustomer { id: string; businessId: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; createdAt: string; company?: string | null; contactPerson?: string | null; city?: string | null; address?: string | null; notes?: string | null }
-export interface DSupplier { id: string; businessId: string; name: string; phone: string | null }
+export interface DSupplier { id: string; businessId: string; name: string; phone: string | null; contactName?: string | null; email?: string | null; address?: string | null }
 export interface DPayment { by?: string | null; id: string; businessId: string; saleId: string | null; purchaseId: string | null; returnId: string | null; type: 'sale_receipt' | 'refund' | 'purchase_payment'; method: string; amount: number; status: 'pending' | 'successful' | 'reversed'; reference: string | null; at: string }
 export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null }
 export interface DSaleItem { id: string; saleId: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; unitCost: number | null; movementId: string | null }
@@ -188,6 +188,14 @@ export function demoSetCreditLimit(biz: string, customerId: string, limit: numbe
   commit({ ...state, customers: state.customers.map((c) => (c.id === customerId ? { ...c, creditLimit: limit } : c)) })
   return null
 }
+export function demoUpdateSupplier(biz: string, id: string, v: { name: string; phone: string; contactName: string; email: string; address: string }): string | null {
+  if (!allowed(biz, 'suppliers', 'suppliers.manage')) return 'permission denied'
+  if (!v.name.trim()) return 'Enter the supplier name.'
+  if (!state.suppliers.some((s) => s.id === id && s.businessId === biz)) return 'Supplier not found.'
+  commit({ ...state, suppliers: state.suppliers.map((s) => (s.id === id ? { ...s, name: v.name.trim(), phone: v.phone.trim() || null, contactName: v.contactName.trim() || null, email: v.email.trim() || null, address: v.address.trim() || null } : s)) })
+  return null
+}
+
 export function demoCreateSupplier(biz: string, name: string, phone: string): string | null {
   if (!allowed(biz, 'suppliers', 'suppliers.manage')) return 'permission denied'
   if (!name.trim()) return 'Enter the supplier name.'

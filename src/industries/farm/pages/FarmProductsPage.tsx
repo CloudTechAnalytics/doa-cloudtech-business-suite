@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira } from '@/shared/utilities/format'
@@ -11,6 +11,7 @@ import { useFarm } from '../hooks/useFarm'
 import { createFarmProduct, loadFarmProducts, updateFarmProduct } from '../services/farmApi'
 import { PRODUCT_AREA_LABEL, PRODUCT_SOURCE_LABEL } from '../types'
 import type { FarmProduct, ProductArea, ProductSource } from '../types'
+import { openRow } from '@/shared/utilities/rows'
 
 const UNITS = [['each', 'Each'], ['dozen', 'Dozen'], ['kg', 'Kilogram'], ['g', 'Gram'], ['l', 'Litre'], ['ml', 'Millilitre']] as const
 const qty = (n: number) => Math.round(n * 100) / 100
@@ -71,7 +72,7 @@ export function FarmProductsPage() {
                 </thead>
                 <tbody className="divide-y divide-ink/10">
                   {list.map((p) => (
-                    <tr key={p.id} className={p.active ? '' : 'text-ink/50'}>
+                    <tr data-row-link onClick={openRow} key={p.id} className={p.active ? '' : 'text-ink/50'}>
                       <td className="p-3">
                         <span className="font-medium">{p.name}</span>{!p.active && <span className="ml-2"><Badge>Inactive</Badge></span>}
                         <div className="text-xs text-ink/60">{PRODUCT_AREA_LABEL[p.area]}{p.sku ? ` · ${p.sku}` : ''}</div>
@@ -122,7 +123,7 @@ function ProductDialog({ product, businessId, species, onClose, onSaved }: { pro
   }
 
   return (
-    <Dialog title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose}>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} placeholder="e.g. Eggs (crate)" maxLength={120} autoFocus />
         {product ? (
@@ -165,7 +166,7 @@ function ProductDialog({ product, businessId, species, onClose, onSaved }: { pro
           <Button type="submit" loading={runner.busy}>{product ? 'Save' : 'Add product'}</Button>
         </div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 

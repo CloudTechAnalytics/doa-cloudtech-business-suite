@@ -5,7 +5,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { listSuppliers, loadCatalog } from '@/modules/sales/tradeApi'
 import { Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira, qty } from '@/shared/utilities/format'
@@ -68,7 +68,7 @@ function ReturnDialog({ businessId, suppliers, products, locations, onClose, onS
     await runner.run((k) => supplierReturn(businessId, { supplierId: s('supplier'), purchaseId: null, locationId: s('location'), reason: s('reason'), items: lines.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), unitCost: Number(l.cost) })) }, k), 'Return recorded.')
   }
   return (
-    <Dialog title="Return goods to a supplier" onClose={onClose} wide>
+    <DetailPage title="Return goods to a supplier" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField label="Supplier" name="supplier" defaultValue=""><option value="">Select…</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</SelectField>
@@ -88,6 +88,6 @@ function ReturnDialog({ businessId, suppliers, products, locations, onClose, onS
         {(problem || runner.error) && <ErrorState title="Not recorded" message={(problem ?? runner.error)!} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Record return</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

@@ -6,6 +6,7 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { qty } from '@/shared/utilities/format'
@@ -114,7 +115,7 @@ function CountDialog({ businessId, count, names, units, approve, onClose, onChan
 
   const varianceItems = count.items.filter((i) => { const d = diff(i); return d !== null && d !== 0 })
   return (
-    <Dialog title={locked ? 'Stock count (posted)' : 'Stock count'} onClose={onClose} wide>
+    <DetailPage title={locked ? 'Stock count (posted)' : 'Stock count'} onClose={onClose} wide>
       <div className="space-y-3">
         {!locked && <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={exportCsv}><Download className="size-4" aria-hidden /> Export CSV</Button><input ref={file} type="file" accept=".csv,text/csv" className="hidden" onChange={importCsv} aria-label="Choose a count CSV file" /><Button variant="secondary" onClick={() => file.current?.click()}><Upload className="size-4" aria-hidden /> Import CSV</Button></div>}
         {note && <Notice>{note}</Notice>}
@@ -142,6 +143,6 @@ function CountDialog({ businessId, count, names, units, approve, onClose, onChan
         {!locked && !approve && <p className="text-right text-xs text-ink/60">A manager must approve this count before stock changes.</p>}
         {!locked && approve && pending.length > 0 && <p className="text-right text-xs text-ink/60">Save your counts first.</p>}
       </div>
-    </Dialog>
+    </DetailPage>
   )
 }

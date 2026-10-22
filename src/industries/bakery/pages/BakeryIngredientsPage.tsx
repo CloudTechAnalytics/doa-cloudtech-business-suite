@@ -5,12 +5,13 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira, qty } from '@/shared/utilities/format'
 import { loadIngredients, saveIngredient } from '../services/bakeryApi'
 import type { IngredientRow } from '../services/bakeryApi'
+import { openRow } from '@/shared/utilities/rows'
 
 const UNIT_CHOICES = [['kg', 'Kilogram (kg)'], ['g', 'Gram (g)'], ['l', 'Litre (l)'], ['ml', 'Millilitre (ml)'], ['each', 'Each'], ['dozen', 'Dozen']] as const
 
@@ -41,7 +42,7 @@ export function BakeryIngredientsPage() {
             <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Ingredient</th><th className="p-3 text-right">On hand</th><th className="p-3 text-right">Average cost</th><th className="p-3 text-right">Reorder at</th><th className="p-3">Status</th>{allowed && <th className="w-12 p-3" />}</tr></thead>
             <tbody className="divide-y divide-ink/10">
               {list.map((i) => (
-                <tr key={i.id} className={i.active ? '' : 'text-ink/50'}>
+                <tr data-row-link onClick={openRow} key={i.id} className={i.active ? '' : 'text-ink/50'}>
                   <td className="p-3 font-medium">{i.name}{i.sku && <div className="text-xs font-normal text-ink/60">{i.sku}</div>}</td>
                   <td className="tabular p-3 text-right">{qty(i.onHand)} {i.unit}</td>
                   <td className="tabular p-3 text-right">{i.avgCost === null ? '–' : `${naira(i.avgCost)} / ${i.unit}`}</td>
@@ -77,7 +78,7 @@ function IngredientDialog({ businessId, ingredient, locations, onClose, onSaved 
     }, k), 'Saved.')
   }
   return (
-    <Dialog title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose}>
+    <DetailPage title={ingredient ? `Edit ${ingredient.name}` : 'Add an ingredient'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={ingredient?.name} error={errors.name} autoFocus maxLength={200} />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -94,6 +95,6 @@ function IngredientDialog({ businessId, ingredient, locations, onClose, onSaved 
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{ingredient ? 'Save' : 'Add ingredient'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Building2, Check, ChevronDown, LayoutGrid, LogOut, Menu as MenuIcon, Plus, X } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
@@ -15,6 +15,7 @@ import { demoReset } from '@/demo/demoStore'
 import { resetDemoTrade } from '@/demo/demoTrade'
 import { Spinner } from '@/shared/components'
 import { CrumbContext } from '@/shared/components/breadcrumb'
+import { DetailSlotContext } from '@/shared/components/detail-page'
 import { Menu } from '@/shared/components/menu'
 import { isDemoMode } from '@/shared/utilities/env'
 import { Sidebar } from './Sidebar'
@@ -81,6 +82,12 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(readCollapsed)
   // The drawer is open only for the page it was opened on, so navigating closes it without an effect.
   const [drawerPath, setDrawerPath] = useState<string | null>(null)
+  // A record's own page replaces the content area while it is open; the page underneath stays mounted.
+  const [detailNode, setDetailNode] = useState<HTMLElement | null>(null)
+  const [detailOpen, setDetailOpen] = useState(0)
+  const enter = useCallback(() => setDetailOpen((n) => n + 1), [])
+  const leave = useCallback(() => setDetailOpen((n) => Math.max(n - 1, 0)), [])
+  const detailSlot = useMemo(() => ({ node: detailNode, enter, leave }), [detailNode, enter, leave])
   const drawer = drawerPath === location.pathname
   const setDrawer = (open: boolean) => setDrawerPath(open ? location.pathname : null)
   const toggleCollapsed = () => {
@@ -128,10 +135,13 @@ export function AppShell() {
               <Sidebar apps={apps} collapsed={collapsed} onToggle={toggleCollapsed} />
             </aside>
             <main className="min-w-0 flex-1 px-4 py-5 sm:px-6">
-              <div className="mx-auto max-w-6xl">
-                {/* Keyed by business so no view state or data leaks across a business switch. */}
-                <Outlet key={active.id} />
-              </div>
+              <DetailSlotContext.Provider value={detailSlot}>
+                <div className="max-w-[1400px]">
+                  {/* Keyed by business so no view state or data leaks across a business switch. */}
+                  <div hidden={detailOpen > 0}><Outlet key={active.id} /></div>
+                  <div ref={setDetailNode} />
+                </div>
+              </DetailSlotContext.Provider>
             </main>
           </div>
         )}

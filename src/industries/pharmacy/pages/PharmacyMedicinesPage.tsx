@@ -6,6 +6,7 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { listPurchases, listSuppliers, loadCatalog, purchaseDetail } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira, qty } from '@/shared/utilities/format'
@@ -13,6 +14,7 @@ import { parseCsv, toCsv } from '../../retail/csv'
 import { loadCategories } from '../../retail/services/martApi'
 import { CLASSIFICATIONS, CLASS_LABEL, DOSAGE_FORMS, loadBatches, loadMedicines, receiveGoods, saveMedicine } from '../services/pharmacyApi'
 import type { Classification, MedicineInput, MedicineRow, ReceiveItem } from '../services/pharmacyApi'
+import { openRow } from '@/shared/utilities/rows'
 
 const UNITS = [['each', 'Each (tablet, capsule, piece)'], ['dozen', 'Dozen'], ['kg', 'Kilogram'], ['g', 'Gram'], ['l', 'Litre'], ['ml', 'Millilitre']] as const
 const CLASS_TONE: Record<string, 'neutral' | 'info' | 'warning' | 'danger'> = { otc: 'neutral', prescription_only: 'warning', controlled: 'danger', device: 'info', general: 'neutral' }
@@ -72,7 +74,7 @@ export function PharmacyMedicinesPage() {
               {list.map((m) => {
                 const blocked = m.quarantined + m.expired + m.undated
                 return (
-                  <tr key={m.id} className={m.active ? '' : 'text-ink/50'}>
+                  <tr data-row-link onClick={openRow} key={m.id} className={m.active ? '' : 'text-ink/50'}>
                     <td className="p-3 font-medium">{m.name} <Badge tone={CLASS_TONE[m.classification]}>{CLASS_LABEL[m.classification]}</Badge>{m.out && m.active && <> <Badge tone="danger">Out</Badge></>}{m.low && <> <Badge tone="warning">Low</Badge></>}
                       <div className="text-xs font-normal text-ink/60">{[m.genericName, m.strength, m.dosageForm !== 'other' ? m.dosageForm : null, m.manufacturer].filter(Boolean).join(' · ') || 'No details'}{m.packs.length > 0 && ` · ${m.packs.map((k) => `${k.name} = ${qty(k.units)}`).join(', ')}`}</div></td>
                     <td className="p-3">{m.categoryName ?? '–'}</td>
@@ -117,7 +119,7 @@ function MedicineDialog({ businessId, medicine, categories, suppliers, onClose, 
     await runner.run((k) => saveMedicine(businessId, input, k), 'Saved.')
   }
   return (
-    <Dialog title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} wide>
+    <DetailPage title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'} onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={medicine?.name} error={errors.name} autoFocus maxLength={200} /></div>
@@ -159,7 +161,7 @@ function MedicineDialog({ businessId, medicine, categories, suppliers, onClose, 
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{medicine ? 'Save' : 'Add medicine'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -196,7 +198,7 @@ function ReceiveDialog({ businessId, medicines, locations, suppliers, onClose, o
     await runner.run((k) => receiveGoods(businessId, { locationId: s('location'), purchaseId: purchaseId || null, supplierId: s('supplier') || null, invoice: s('invoice'), items }, k), 'Goods received.')
   }
   return (
-    <Dialog title="Receive goods" onClose={onClose} wide>
+    <DetailPage title="Receive goods" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-4">
           <SelectField label="Against purchase order" value={purchaseId} onChange={(e) => void choosePurchase(e.target.value)}><option value="">No purchase order</option>{open.map((p) => <option key={p.id} value={p.id}>{p.number}</option>)}</SelectField>
@@ -232,7 +234,7 @@ function ReceiveDialog({ businessId, medicines, locations, suppliers, onClose, o
         {(problem || runner.error) && <ErrorState title="Not received" message={(problem ?? runner.error)!} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Receive</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -283,7 +285,7 @@ function ImportDialog({ businessId, text, existing, categories, onClose, onDone 
           <div className="max-h-72 overflow-auto rounded-md border border-line">
             <table className="w-full text-sm">
               <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-2">Line</th><th className="p-2">Name</th><th className="p-2">Class</th><th className="p-2 text-right">Price</th><th className="p-2">Result</th></tr></thead>
-              <tbody className="divide-y divide-ink/10">{rows.map((r) => <tr key={r.line}><td className="p-2">{r.line}</td><td className="p-2">{r.name || '–'}</td><td className="p-2">{CLASS_LABEL[r.cls] ?? r.cls}</td><td className="tabular p-2 text-right">{r.g('price')}</td><td className="p-2">{r.problems.length ? <span className="text-danger">{r.problems.join('; ')}</span> : <Badge tone="success">Ready</Badge>}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-ink/10">{rows.map((r) => <tr data-row-link onClick={openRow} key={r.line}><td className="p-2">{r.line}</td><td className="p-2">{r.name || '–'}</td><td className="p-2">{CLASS_LABEL[r.cls] ?? r.cls}</td><td className="tabular p-2 text-right">{r.g('price')}</td><td className="p-2">{r.problems.length ? <span className="text-danger">{r.problems.join('; ')}</span> : <Badge tone="success">Ready</Badge>}</td></tr>)}</tbody>
             </table>
           </div>
         </>

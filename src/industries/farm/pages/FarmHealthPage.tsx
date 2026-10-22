@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, qty } from '@/shared/utilities/format'
@@ -88,7 +89,7 @@ function HealthDialog({ businessId, batches, products, locations, onClose, onSav
     await runner.run((k) => recordHealth(businessId, { batchId: s('batch'), type, title: s('title'), productId: medical && s('product') ? s('product') : null, locationId: s('location'), quantity: medical && s('product') ? Number(s('qty')) : null, on: s('date'), withdrawalDays: medical ? Number(s('days') || 0) : 0, notes: s('notes') }, k), 'Recorded.')
   }
   return (
-    <Dialog title="Record a health event" onClose={onClose}>
+    <DetailPage title="Record a health event" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField label="Batch" name="batch" defaultValue="" error={errors.batch}><option value="" disabled>Select…</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.species}</option>)}</SelectField>
@@ -109,7 +110,7 @@ function HealthDialog({ businessId, batches, products, locations, onClose, onSav
         {runner.error && <ErrorState title="Not recorded" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Record</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 

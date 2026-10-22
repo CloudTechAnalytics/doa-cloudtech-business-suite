@@ -4,11 +4,12 @@ import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { listWorkers, saveWorker } from '../services/opsApi'
 import type { WorkerDto } from '../services/opsApi'
+import { openRow } from '@/shared/utilities/rows'
 
 /** The people who work on the farm. Records for assigning work; they do not need an account. */
 export function FarmWorkersPage() {
@@ -31,7 +32,7 @@ export function FarmWorkersPage() {
             <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Name</th><th className="p-3">Role</th><th className="p-3">Phone</th><th className="p-3">Status</th>{manage && <th className="w-12 p-3" />}</tr></thead>
             <tbody className="divide-y divide-ink/10">
               {workers.data.map((w) => (
-                <tr key={w.id} className={w.active ? '' : 'text-ink/50'}>
+                <tr data-row-link onClick={openRow} key={w.id} className={w.active ? '' : 'text-ink/50'}>
                   <td className="p-3 font-medium">{w.name}</td><td className="p-3">{w.role ?? '–'}</td><td className="p-3">{w.phone ?? '–'}</td>
                   <td className="p-3"><Badge tone={w.active ? 'success' : 'neutral'}>{w.active ? 'Active' : 'Inactive'}</Badge></td>
                   {manage && <td className="p-3 text-right"><button type="button" aria-label={`Edit ${w.name}`} onClick={() => setEditing(w)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button></td>}
@@ -58,7 +59,7 @@ function WorkerDialog({ businessId, worker, onClose, onSaved }: { businessId: st
     await runner.run(async () => saveWorker(businessId, { id: worker?.id ?? null, name: s('name'), phone: s('phone'), role: s('role'), active: f.get('active') === 'on' || !worker }), 'Saved.')
   }
   return (
-    <Dialog title={worker ? `Edit ${worker.name}` : 'Add a worker'} onClose={onClose}>
+    <DetailPage title={worker ? `Edit ${worker.name}` : 'Add a worker'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={worker?.name} error={problem} autoFocus maxLength={120} />
         <div className="grid gap-4 sm:grid-cols-2"><TextField label="Role (optional)" name="role" defaultValue={worker?.role ?? ''} placeholder="e.g. Poultry attendant" /><TextField label="Phone (optional)" name="phone" defaultValue={worker?.phone ?? ''} /></div>
@@ -66,6 +67,6 @@ function WorkerDialog({ businessId, worker, onClose, onSaved }: { businessId: st
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{worker ? 'Save' : 'Add worker'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

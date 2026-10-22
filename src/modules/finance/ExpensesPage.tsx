@@ -5,6 +5,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { listSuppliers } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
@@ -24,6 +25,7 @@ export function ExpensesPage() {
   const perms = useAsync(() => myFinancePermissions(businessId), [businessId])
   const [adding, setAdding] = useState(false)
   const [voiding, setVoiding] = useState<ExpenseDto | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
   const [category, setCategory] = useState('')
   const [search, setSearch] = useState('')
   if (!active) return null
@@ -72,7 +74,7 @@ export function ExpensesPage() {
                 </thead>
                 <tbody className="divide-y divide-ink/10">
                   {list.map((e) => (
-                    <tr key={e.id} className={e.status === 'voided' ? 'text-ink/45' : ''}>
+                    <tr key={e.id} onClick={(ev) => { if (!(ev.target as HTMLElement).closest('button')) setOpen(e.id) }} className={`cursor-pointer hover:bg-surface ${e.status === 'voided' ? 'text-ink/45' : ''}`}>
                       <td className="p-3">
                         <span className={e.status === 'voided' ? 'line-through' : 'font-medium'}>{e.description}</span>
                         <div className="text-xs text-ink/60">{e.number} · {e.date}{name(e.supplierId, suppliers.data) ? ` · ${name(e.supplierId, suppliers.data)}` : ''}{name(e.batchId, batches.data?.map((b) => ({ id: b.id, name: b.label })) ?? null) ? ` · ${name(e.batchId, batches.data?.map((b) => ({ id: b.id, name: b.label })) ?? null)}` : ''}</div>
@@ -91,8 +93,29 @@ export function ExpensesPage() {
         </>
       )}
       {adding && <ExpenseDialog businessId={businessId} suppliers={suppliers.data ?? []} batches={batches.data ?? []} onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await expenses.refresh() }} />}
+      {open && expenses.data?.find((x) => x.id === open) && <ExpenseDetail e={expenses.data.find((x) => x.id === open)!} supplier={name(expenses.data.find((x) => x.id === open)!.supplierId, suppliers.data)} batch={name(expenses.data.find((x) => x.id === open)!.batchId, batches.data?.map((b) => ({ id: b.id, name: b.label })) ?? null)} onClose={() => setOpen(null)} />}
       {voiding && <VoidDialog businessId={businessId} expense={voiding} onClose={() => setVoiding(null)} onSaved={async () => { setVoiding(null); await expenses.refresh() }} />}
     </>
+  )
+}
+
+/** One expense entry: what was paid, to whom, how, and whether it was voided. */
+function ExpenseDetail({ e, supplier, batch, onClose }: { e: ExpenseDto; supplier?: string; batch?: string; onClose: () => void }) {
+  return (
+    <DetailPage title={`${e.number}: ${e.description}`} onClose={onClose}>
+      <dl className="grid gap-4 text-sm sm:grid-cols-2">
+        <div><dt className="text-xs text-ink/60">Amount</dt><dd className="tabular text-lg font-semibold">{naira(e.amount)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Status</dt><dd><Badge tone={e.status === 'voided' ? 'danger' : 'success'}>{e.status === 'voided' ? 'Voided' : 'Posted'}</Badge></dd></div>
+        <div><dt className="text-xs text-ink/60">Date</dt><dd>{e.date}</dd></div>
+        <div><dt className="text-xs text-ink/60">Category</dt><dd>{label(e.category)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Paid by</dt><dd>{label(e.method)}</dd></div>
+        <div><dt className="text-xs text-ink/60">Recorded from</dt><dd>{e.source === 'manual' ? 'Entered by hand' : label(e.source)}</dd></div>
+        {supplier && <div><dt className="text-xs text-ink/60">Supplier</dt><dd>{supplier}</dd></div>}
+        {batch && <div><dt className="text-xs text-ink/60">Batch</dt><dd>{batch}</dd></div>}
+        {e.status === 'voided' && <div className="sm:col-span-2"><dt className="text-xs text-ink/60">Why it was voided</dt><dd>{e.voidReason}</dd></div>}
+      </dl>
+      <div className="mt-5 flex justify-end"><Button variant="secondary" onClick={onClose}>Back to expenses</Button></div>
+    </DetailPage>
   )
 }
 
@@ -114,7 +137,7 @@ function ExpenseDialog({ businessId, suppliers, batches, onClose, onSaved }: { b
     }, k), 'Expense recorded.')
   }
   return (
-    <Dialog title="Record an expense" onClose={onClose}>
+    <DetailPage title="Record an expense" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="What was it for?" name="description" error={errors.description} placeholder="e.g. 20 bags of layer mash" maxLength={300} autoFocus />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -132,7 +155,7 @@ function ExpenseDialog({ businessId, suppliers, batches, onClose, onSaved }: { b
         {runner.error && <ErrorState title="Not recorded" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Record expense</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 

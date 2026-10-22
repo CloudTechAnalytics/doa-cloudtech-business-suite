@@ -4,6 +4,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { dateTime, label, naira, qty } from '@/shared/utilities/format'
@@ -146,12 +147,12 @@ function DisposeDialog({ businessId, batch, onClose, onSaved }: { businessId: st
 function HistoryDialog({ businessId, batch, onClose }: { businessId: string; batch: BatchRow; onClose: () => void }) {
   const events = useAsync(() => loadBatchEvents(businessId, batch.id), [businessId, batch.id])
   return (
-    <Dialog title={`History: ${batch.productName} ${batch.batchNumber ?? ''}`} onClose={onClose}>
+    <DetailPage title={`History: ${batch.productName} ${batch.batchNumber ?? ''}`} onClose={onClose}>
       {events.loading ? <Spinner /> : !events.data?.length ? <p className="text-sm text-ink/60">Nothing has been recorded against this batch yet.</p> : (
         <ul className="divide-y divide-ink/10 text-sm">{events.data.map((e) => <li key={e.id} className="py-2"><b>{label(e.event)}</b> · {qty(e.quantity)} units<div className="text-xs text-ink/60">{dateTime(e.at)} · {e.reason}</div></li>)}</ul>
       )}
       <div className="mt-4 flex justify-end"><Button variant="secondary" onClick={onClose}>Close</Button></div>
-    </Dialog>
+    </DetailPage>
   )
 }
 

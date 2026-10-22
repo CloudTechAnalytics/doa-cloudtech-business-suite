@@ -6,12 +6,14 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { listSuppliers, loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira, qty } from '@/shared/utilities/format'
 import { loadCategories, loadLots, loadProducts, receiveStock, saveProduct, setLot } from '../services/martApi'
 import type { MartLotRow, MartProductInput, MartProductRow } from '../services/martApi'
 import { parseCsv, toCsv } from '../csv'
+import { openRow } from '@/shared/utilities/rows'
 
 const UNITS = [['each', 'Each (piece)'], ['dozen', 'Dozen'], ['kg', 'Kilogram'], ['g', 'Gram'], ['l', 'Litre'], ['ml', 'Millilitre']] as const
 
@@ -72,7 +74,7 @@ export function RetailProductsPage() {
             <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Product</th><th className="p-3">Category</th><th className="p-3 text-right">Price</th><th className="p-3 text-right">Cost</th><th className="p-3 text-right">In stock</th><th className="p-3 text-right">Value</th>{manage && <th className="w-12 p-3" />}</tr></thead>
             <tbody className="divide-y divide-ink/10">
               {list.map((p) => (
-                <tr key={p.id} className={p.active ? '' : 'text-ink/50'}>
+                <tr data-row-link onClick={openRow} key={p.id} className={p.active ? '' : 'text-ink/50'}>
                   <td className="p-3 font-medium">{p.name}{p.out && p.active && <> <Badge tone="danger">Out</Badge></>}{p.low && <> <Badge tone="warning">Low</Badge></>}{p.trackExpiry && <> <Badge tone="info">Expiry</Badge></>}
                     <div className="text-xs font-normal text-ink/60">{[p.sku, p.barcode, p.brand].filter(Boolean).join(' · ') || 'No code'}{p.packs.length > 0 && ` · ${p.packs.map((k) => `${k.name} = ${qty(k.units)}`).join(', ')}`}</div></td>
                   <td className="p-3">{p.categoryName ?? '–'}</td>
@@ -106,7 +108,7 @@ function PendingLots({ lots, onChanged }: { lots: MartLotRow[]; onChanged: () =>
         {lots.map((l) => {
           const v = state[l.id] ?? { batch: l.batchNumber ?? '', expiry: '' }
           return (
-            <li key={l.id} className="grid items-end gap-2 py-2 sm:grid-cols-[1fr_140px_160px_auto]">
+            <li data-row-link onClick={openRow} key={l.id} className="grid items-end gap-2 py-2 sm:grid-cols-[1fr_140px_160px_auto]">
               <span>{l.productName}<span className="block text-xs text-ink/60">{qty(l.remaining)} left, received {l.receivedOn}</span></span>
               <TextField label="Batch" value={v.batch} onChange={(e) => setState({ ...state, [l.id]: { ...v, batch: e.target.value } })} />
               <TextField label="Expiry date" type="date" value={v.expiry} onChange={(e) => setState({ ...state, [l.id]: { ...v, expiry: e.target.value } })} />
@@ -142,7 +144,7 @@ function ProductDialog({ businessId, product, categories, suppliers, onClose, on
     await runner.run((k) => saveProduct(businessId, input, k), 'Saved.')
   }
   return (
-    <Dialog title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} wide>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} autoFocus maxLength={200} /></div>
@@ -177,7 +179,7 @@ function ProductDialog({ businessId, product, categories, suppliers, onClose, on
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{product ? 'Save' : 'Add product'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -262,7 +264,7 @@ function ImportDialog({ businessId, text, existing, categories, onClose, onDone 
           <div className="max-h-72 overflow-auto rounded-md border border-line">
             <table className="w-full text-sm">
               <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-2">Line</th><th className="p-2">Name</th><th className="p-2 text-right">Price</th><th className="p-2">Result</th></tr></thead>
-              <tbody className="divide-y divide-ink/10">{rows.map((r) => <tr key={r.line}><td className="p-2">{r.line}</td><td className="p-2">{r.name || '–'}</td><td className="tabular p-2 text-right">{r.g('price')}</td><td className="p-2">{r.problems.length ? <span className="text-danger">{r.problems.join('; ')}</span> : <Badge tone="success">Ready</Badge>}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-ink/10">{rows.map((r) => <tr data-row-link onClick={openRow} key={r.line}><td className="p-2">{r.line}</td><td className="p-2">{r.name || '–'}</td><td className="tabular p-2 text-right">{r.g('price')}</td><td className="p-2">{r.problems.length ? <span className="text-danger">{r.problems.join('; ')}</span> : <Badge tone="success">Ready</Badge>}</td></tr>)}</tbody>
             </table>
           </div>
         </>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { DataTable } from '@/shared/tables/DataTable'
 import { dateTime, label } from '@/shared/utilities/format'
@@ -116,7 +116,7 @@ function BatchDialog({ farm, data, id, onClose }: { farm: ReturnType<typeof useF
   }
 
   return (
-    <Dialog title={`${batch.code} · ${batch.species}`} onClose={onClose} wide>
+    <DetailPage title={`${batch.code} · ${batch.species}`} onClose={onClose} wide>
       {runner.error && <ErrorState message={runner.error} />}
       {runner.ok && <Notice>{runner.ok}</Notice>}
       <dl className="mb-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
@@ -170,6 +170,6 @@ function BatchDialog({ farm, data, id, onClose }: { farm: ReturnType<typeof useF
           <Button type="submit" loading={runner.busy}>Close batch</Button>
         </form>
       )}
-    </Dialog>
+    </DetailPage>
   )
 }

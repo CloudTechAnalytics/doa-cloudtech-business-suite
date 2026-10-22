@@ -6,6 +6,7 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira, qty } from '@/shared/utilities/format'
@@ -81,7 +82,7 @@ function LossDialog({ businessId, products, locations, onClose, onSaved }: { bus
     await runner.run((k) => recordLoss(businessId, { productId, locationId: s('location'), quantity: Number(s('qty')), reason: s('reason') as LossReason, notes: s('notes') }, k), 'Loss recorded.')
   }
   return (
-    <Dialog title="Record damaged or expired stock" onClose={onClose}>
+    <DetailPage title="Record damaged or expired stock" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <SelectField label="Product" value={productId} onChange={(e) => setProductId(e.target.value)} error={errors.item}><option value="">Select…</option>{products.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</SelectField>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -94,7 +95,7 @@ function LossDialog({ businessId, products, locations, onClose, onSaved }: { bus
         {runner.error && <ErrorState title="Not recorded" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Record loss</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 

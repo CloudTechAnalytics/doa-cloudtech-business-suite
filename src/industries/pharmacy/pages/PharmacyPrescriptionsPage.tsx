@@ -4,7 +4,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { listCustomers, loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira, qty } from '@/shared/utilities/format'
@@ -80,7 +80,7 @@ function NewDialog({ businessId, medicines, customers, onClose, onSaved }: { bus
     await runner.run((k) => savePrescription(businessId, { id: null, customerId: s('customer') || null, patient: s('patient'), prescriber: s('prescriber'), licence: s('licence'), prescribedOn: s('date'), validUntil: s('valid'), refills: Number(s('refills') || 0), notes: s('notes'), submit, items: items.map((x) => ({ productId: x.productId, quantity: Number(x.quantity), directions: x.directions })) }, k), submit ? 'Submitted for review.' : 'Draft saved.')
   }
   return (
-    <Dialog title="New prescription" onClose={onClose} wide>
+    <DetailPage title="New prescription" onClose={onClose} wide>
       <form onSubmit={(e) => { e.preventDefault(); void save(true, new FormData(e.currentTarget)) }} noValidate className="space-y-4" id="rx-form">
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField label="Patient name" name="patient" autoFocus />
@@ -110,7 +110,7 @@ function NewDialog({ businessId, medicines, customers, onClose, onSaved }: { bus
           <Button type="submit" loading={runner.busy}>Submit for review</Button>
         </div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -136,7 +136,7 @@ function DetailDialog({ businessId, rx, medicines, locations, review, enter, onC
     void runner.run((k) => dispense(businessId, rx.id, location, chosen.map((l) => ({ itemId: l.i.id, quantity: l.q })), amount > 0 ? [{ method, amount }] : [], k), 'Dispensed.')
   }
   return (
-    <Dialog title={`${rx.number}: ${rx.patient}`} onClose={onClose} wide>
+    <DetailPage title={`${rx.number}: ${rx.patient}`} onClose={onClose} wide>
       <div className="space-y-4 text-sm">
         <p><Badge tone={TONE[st]}>{label(st)}</Badge> <span className="text-ink/70">Prescribed by {rx.prescriber}{rx.licence ? ` (${rx.licence})` : ''} on {rx.prescribedOn}, valid until {rx.validUntil}.{rx.refills > 0 ? ` ${rx.refills} refill${rx.refills === 1 ? '' : 's'} permitted.` : ''}</span></p>
         {rx.reviewNote && <Notice>Review note: {rx.reviewNote}</Notice>}
@@ -183,6 +183,6 @@ function DetailDialog({ businessId, rx, medicines, locations, review, enter, onC
           <Button variant="secondary" onClick={onClose}>Close</Button>
         </div>
       </div>
-    </Dialog>
+    </DetailPage>
   )
 }

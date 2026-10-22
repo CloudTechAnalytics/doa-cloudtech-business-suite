@@ -4,12 +4,13 @@ import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira, qty } from '@/shared/utilities/format'
 import { UNITS, loadFinished, loadIngredients, loadRecipes, saveRecipe, setRecipeStatus } from '../services/bakeryApi'
 import type { IngredientRow, RecipeRow } from '../services/bakeryApi'
+import { openRow } from '@/shared/utilities/rows'
 
 interface Line { ingredientId: string; quantity: string; unit: string }
 const blank = (): Line => ({ ingredientId: '', quantity: '', unit: '' })
@@ -50,7 +51,7 @@ export function BakeryRecipesPage() {
                 </div>
               </div>
               <ul className="mt-3 divide-y divide-ink/10 text-sm">
-                {r.lines.map((l) => <li key={l.ingredientId} className="flex justify-between gap-3 py-1.5"><span>{l.name}</span><span className="tabular text-ink/70">{qty(l.quantity)} {l.unit} · {naira(l.cost)}</span></li>)}
+                {r.lines.map((l) => <li data-row-link onClick={openRow} key={l.ingredientId} className="flex justify-between gap-3 py-1.5"><span>{l.name}</span><span className="tabular text-ink/70">{qty(l.quantity)} {l.unit} · {naira(l.cost)}</span></li>)}
               </ul>
               {r.instructions && <p className="mt-3 rounded-md bg-surface p-3 text-sm text-ink/80">{r.instructions}</p>}
               {manage && <div className="mt-3"><Button variant="ghost" onClick={async () => { setError(await setRecipeStatus(businessId, r.id, r.status === 'archived')); await recipes.refresh() }}>{r.status === 'archived' ? 'Restore' : 'Archive'}</Button></div>}
@@ -87,7 +88,7 @@ function RecipeDialog({ businessId, recipe, ingredients, products, onClose, onSa
   }
 
   return (
-    <Dialog title={recipe ? `Edit ${recipe.name}` : 'New recipe'} onClose={onClose} wide>
+    <DetailPage title={recipe ? `Edit ${recipe.name}` : 'New recipe'} onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         {recipe && <Notice>Saving creates version {recipe.version + 1}. Batches already made keep the version they used.</Notice>}
         <div className="grid gap-4 sm:grid-cols-3">
@@ -117,6 +118,6 @@ function RecipeDialog({ businessId, recipe, ingredients, products, onClose, onSa
         {(problem || runner.error) && <ErrorState title="Not saved" message={(problem ?? runner.error)!} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{recipe ? 'Save new version' : 'Save recipe'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

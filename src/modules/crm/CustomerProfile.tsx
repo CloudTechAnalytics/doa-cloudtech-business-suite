@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { getIndustry } from '@/core/industry-registry'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, Card, ErrorState, Notice, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { dateTime, label, naira } from '@/shared/utilities/format'
 import { setCreditLimit } from '@/modules/sales/tradeApi'
@@ -94,7 +94,7 @@ export function CustomerProfile({ businessId, id, can, onClose, onChanged }: { b
   const sections = active ? getIndustry(active.industry).customerSections ?? [] : []
   const [tab, setTab] = useState('overview')
   const [error, setError] = useState<string | null>(null)
-  if (!d.data) return <Dialog title="Customer" onClose={onClose}>{d.error ? <ErrorState message={d.error} /> : <Spinner />}</Dialog>
+  if (!d.data) return <DetailPage title="Customer" onClose={onClose}>{d.error ? <ErrorState message={d.error} /> : <Spinner />}</DetailPage>
   const { customer: c, history, tasks, tags } = d.data
   const parent: Parent = { customerId: id }
   const reload = async () => { await Promise.all([d.refresh(), onChanged()]) }
@@ -102,8 +102,8 @@ export function CustomerProfile({ businessId, id, can, onClose, onChanged }: { b
   const section = sections.find((s) => s.id === tab)
 
   return (
-    <Dialog title={c.name} onClose={onClose} wide>
-      <div role="tablist" aria-label="Customer sections" className="mb-4 flex gap-1 overflow-x-auto border-b border-ink/10">
+    <DetailPage title={c.name} onClose={onClose} wide>
+      <div role="tablist" aria-label="Customer sections" className="mb-4 flex flex-wrap gap-1 border-b border-ink/10">
         {tabs.map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
             className={clsx('-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium', tab === t.id ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t.title}</button>
@@ -171,7 +171,7 @@ export function CustomerProfile({ businessId, id, can, onClose, onChanged }: { b
       )}
 
       {section && <Suspense fallback={<Spinner />}><section.component businessId={businessId} customerId={id} customerName={c.name} /></Suspense>}
-    </Dialog>
+    </DetailPage>
   )
 
 }

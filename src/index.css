@@ -122,3 +122,7 @@ input[type="number"] {
 .mark-scroll { transform-origin: left center; transform: scaleX(0); transition: transform 0.7s cubic-bezier(0.3, 0.7, 0.2, 1) 0.25s; }
 .reveal.in .mark-scroll { transform: scaleX(1); }
 @media (prefers-reduced-motion: reduce) { .mark-scroll { transform: scaleX(1); transition: none; } }
+
+/* A table row (or list item) that opens its record when clicked: it holds an Edit or Rename button. */
+[data-row-link]:has(button[aria-label^="Edit"], button[aria-label^="Rename"]) { cursor: pointer; }
+[data-row-link]:has(button[aria-label^="Edit"], button[aria-label^="Rename"]):hover { background-color: color-mix(in srgb, var(--color-amber, #fbb130) 8%, white); }

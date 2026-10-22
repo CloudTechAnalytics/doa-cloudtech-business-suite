@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira } from '@/shared/utilities/format'
@@ -92,7 +92,7 @@ function StartCycle({ businessId, fields, onClose, onSaved }: { businessId: stri
     await runner.run((k) => startBatch(businessId, { unitId: s('field'), code: s('code'), species: s('crop'), variety: s('variety'), productionType: 'crop', opening: Number(s('area')), startDate: s('start'), plannedEnd: s('end') || null, basis: 'exact' }, k), 'Crop cycle started.')
   }
   return (
-    <Dialog title="Start a crop cycle" onClose={onClose}>
+    <DetailPage title="Start a crop cycle" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         {fields.length === 0 && <Notice>Add a field first: Production Units, production &quot;Crops&quot;.</Notice>}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -107,6 +107,6 @@ function StartCycle({ businessId, fields, onClose, onSaved }: { businessId: stri
         {runner.error && <ErrorState title="Not started" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={fields.length === 0}>Start cycle</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

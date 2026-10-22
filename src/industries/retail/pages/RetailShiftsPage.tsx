@@ -5,6 +5,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira } from '@/shared/utilities/format'
@@ -99,7 +100,7 @@ function ShiftDialog({ businessId, shift, manage, onClose, onChanged }: { busine
     void runner.run((k) => cashMovement(businessId, shift.id, dir, Number(amount), why, k), 'Recorded.').then(() => { setAmount(''); setWhy('') })
   }
   return (
-    <Dialog title={`Shift ${shift.number}`} onClose={onClose} wide>
+    <DetailPage title={`Shift ${shift.number}`} onClose={onClose} wide>
       <div className="space-y-4 text-sm">
         <dl className="grid gap-2 sm:grid-cols-3">
           {[['Opening cash', shift.openingCash], ['Cash sales', shift.cashSales], ['Cash refunds', -shift.cashRefunds], ['Cash in', shift.movedIn], ['Cash out', -shift.movedOut]].map(([l, v]) => <div key={String(l)} className="rounded-md bg-surface p-2"><dt className="text-xs text-ink/60">{l}</dt><dd className="tabular font-semibold">{naira(Number(v))}</dd></div>)}
@@ -141,6 +142,6 @@ function ShiftDialog({ businessId, shift, manage, onClose, onChanged }: { busine
         {(problem || runner.error) && <ErrorState title="Not saved" message={(problem ?? runner.error)!} />}
         <div className="flex justify-end"><Button variant="secondary" onClick={onClose}>Close</Button></div>
       </div>
-    </Dialog>
+    </DetailPage>
   )
 }

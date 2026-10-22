@@ -7,7 +7,7 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey'
 import { dateTime, label, naira, qty } from '@/shared/utilities/format'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { priceCart } from '@/modules/sales/pricing'
 import { ReceiptDialog } from '@/modules/sales/Receipt'
 import * as api from '@/modules/sales/tradeApi'
@@ -267,12 +267,12 @@ function SaleDialog({ businessId, saleId, can, onClose, onChanged, onReceipt }: 
     if (!err) { key.renew(); setMode(null); await Promise.all([refresh(), onChanged()]) }
   }
 
-  if (!data) return <Dialog title="Sale" onClose={onClose}>{loadError ? <ErrorState message={loadError} /> : <Spinner />}</Dialog>
+  if (!data) return <DetailPage title="Sale" onClose={onClose}>{loadError ? <ErrorState message={loadError} /> : <Spinner />}</DetailPage>
   const { sale, items, payments } = data
   const live = sale.status !== 'voided'
 
   return (
-    <Dialog title={sale.number} onClose={onClose} wide>
+    <DetailPage title={sale.number} onClose={onClose} wide>
       {error && <ErrorState message={error} />}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <Badge tone={SALE_TONE[sale.status]}>{label(sale.status)}</Badge><Badge tone={SALE_TONE[sale.paymentStatus]}>{label(sale.paymentStatus)}</Badge>
@@ -322,7 +322,7 @@ function SaleDialog({ businessId, saleId, can, onClose, onChanged, onReceipt }: 
       {mode === 'pay' && <PayForm max={sale.balanceDue} onSubmit={(m, a, ref) => act((k) => api.addPayment(businessId, saleId, { method: m, amount: a, reference: ref }, k))} />}
       {mode === 'return' && <ReturnForm detail={data} onSubmit={(lines, reason, refund) => act((k) => api.returnSale(businessId, saleId, lines, reason, refund, k))} />}
       {mode === 'void' && <ReasonForm label="Reason for voiding" cta="Void sale" onSubmit={(r) => act((k) => api.voidSale(businessId, saleId, r, k))} />}
-    </Dialog>
+    </DetailPage>
   )
 }
 

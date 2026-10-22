@@ -5,7 +5,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira, qty } from '@/shared/utilities/format'
@@ -80,7 +80,7 @@ function PlanDialog({ businessId, recipes, locations, people, onClose, onSaved }
     await runner.run((k) => planProduction(businessId, { recipeId, planned: Number(planned), date: s('date'), locationId: s('location'), assignedTo: s('assignee') || null, notes: s('notes') }, k), 'Batch planned.')
   }
   return (
-    <Dialog title="Plan production" onClose={onClose} wide>
+    <DetailPage title="Plan production" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField label="Recipe" value={recipeId} onChange={(e) => setRecipeId(e.target.value)}><option value="">Select…</option>{recipes.map((r) => <option key={r.id} value={r.id}>{r.name} (makes {qty(r.output)})</option>)}</SelectField>
@@ -100,7 +100,7 @@ function PlanDialog({ businessId, recipes, locations, people, onClose, onSaved }
         {(problem || runner.error) && <ErrorState title="Not planned" message={(problem ?? runner.error)!} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Plan batch</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -129,7 +129,7 @@ function BatchDialog({ businessId, batch, recipe, usage, ingredientName, unit, r
   }
 
   return (
-    <Dialog title={`${batch.number} · ${recipe?.name ?? 'Recipe'}`} onClose={onClose} wide>
+    <DetailPage title={`${batch.number} · ${recipe?.name ?? 'Recipe'}`} onClose={onClose} wide>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm"><Badge tone={TONE[batch.status]}>{label(batch.status)}</Badge><span className="text-ink/60">{batch.date} · plan {qty(batch.planned)}{batch.actual !== null ? ` · made ${qty(batch.actual)}, failed ${qty(batch.failed)}` : ''}</span></div>
       {batch.voidReason && <Notice>{label(batch.status)}: {batch.voidReason}</Notice>}
       {open && short.length > 0 && (
@@ -180,6 +180,6 @@ function BatchDialog({ businessId, batch, recipe, usage, ingredientName, unit, r
           {runner.error && !mode && <p className="w-full text-right text-sm text-danger">{runner.error}</p>}
         </div>
       )}
-    </Dialog>
+    </DetailPage>
   )
 }

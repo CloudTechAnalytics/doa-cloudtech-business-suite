@@ -6,12 +6,14 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { PAY_METHODS } from '@/modules/finance/financeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
 import { today } from '../components/farmUi'
 import { ASSET_TYPES, listAssets, listMaintenance, recordMaintenance, saveAsset, voidMaintenance } from '../services/opsApi'
 import type { AssetRow, MaintenanceDto } from '../services/opsApi'
+import { openRow } from '@/shared/utilities/rows'
 
 const TONE = { active: 'success', under_repair: 'warning', retired: 'neutral' } as const
 
@@ -40,7 +42,7 @@ export function FarmEquipmentPage() {
             <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Equipment</th><th className="p-3">Status</th><th className="p-3">Last service</th><th className="p-3">Next service</th><th className="p-3 text-right">Maintenance cost</th><th className="p-3" /></tr></thead>
             <tbody className="divide-y divide-ink/10">
               {assets.data.map((a) => (
-                <tr key={a.id} className={a.status === 'retired' ? 'text-ink/50' : ''}>
+                <tr data-row-link onClick={openRow} key={a.id} className={a.status === 'retired' ? 'text-ink/50' : ''}>
                   <td className="p-3 font-medium">{a.name}<div className="text-xs font-normal text-ink/60">{label(a.type)}{a.serial ? ` · ${a.serial}` : ''}</div></td>
                   <td className="p-3"><Badge tone={TONE[a.status]}>{label(a.status)}</Badge></td>
                   <td className="p-3">{a.lastServiceOn ?? 'Never'}</td>
@@ -75,7 +77,7 @@ function AssetDialog({ businessId, asset, onClose, onSaved }: { businessId: stri
     await runner.run((k) => saveAsset(businessId, { id: asset?.id ?? null, name: s('name'), type: s('type'), serial: s('serial'), purchaseDate: s('date') || null, purchaseCost: s('cost') === '' ? null : Number(s('cost')), status: (s('status') || 'active') as AssetRow['status'], intervalDays: s('interval') === '' ? null : Number(s('interval')), notes: s('notes') }, k), 'Saved.')
   }
   return (
-    <Dialog title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose}>
+    <DetailPage title={asset ? `Edit ${asset.name}` : 'Add equipment'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={asset?.name} error={problem} autoFocus maxLength={120} />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -90,7 +92,7 @@ function AssetDialog({ businessId, asset, onClose, onSaved }: { businessId: stri
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{asset ? 'Save' : 'Add equipment'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -134,7 +136,7 @@ function HistoryDialog({ businessId, asset, records, manage, onClose, onChanged 
       {records.length === 0 ? <p className="text-sm text-ink/60">No maintenance recorded yet.</p> : (
         <ul className="divide-y divide-ink/10 text-sm">
           {records.map((r) => (
-            <li key={r.id} className={`py-2 ${r.status === 'voided' ? 'text-ink/45' : ''}`}>
+            <li data-row-link onClick={openRow} key={r.id} className={`py-2 ${r.status === 'voided' ? 'text-ink/45' : ''}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span><span className={r.status === 'voided' ? 'line-through' : 'font-medium'}>{r.description}</span> <Badge>{label(r.kind)}</Badge><span className="ml-2 text-xs text-ink/60">{r.on}</span></span>
                 <span className="flex items-center gap-2"><b className="tabular">{naira(r.cost)}</b>{manage && r.status === 'posted' && <Button variant="ghost" onClick={() => setVoiding(r.id)}>Void</Button>}</span>

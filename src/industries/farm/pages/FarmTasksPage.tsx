@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label } from '@/shared/utilities/format'
@@ -89,7 +89,7 @@ function TaskDialog({ businessId, task, workers, batches, onClose, onSaved }: { 
     await runner.run((k) => saveTask(businessId, { id: task?.id ?? null, title: s('title'), description: s('description'), due: s('due') || null, priority: s('priority') as TaskDto['priority'], assigneeId: s('assignee') || null, batchId: s('batch') || null, requiresReview: f.get('review') === 'on' }, k), 'Task saved.')
   }
   return (
-    <Dialog title={task ? 'Edit task' : 'New task'} onClose={onClose}>
+    <DetailPage title={task ? 'Edit task' : 'New task'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Task" name="title" defaultValue={task?.title} error={problem} autoFocus maxLength={200} />
         <TextField label="Details (optional)" name="description" defaultValue={task?.description ?? ''} />
@@ -103,6 +103,6 @@ function TaskDialog({ businessId, task, workers, batches, onClose, onSaved }: { 
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{task ? 'Save' : 'Create task'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

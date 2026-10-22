@@ -4,11 +4,12 @@ import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Button, Card, EmptyState, ErrorState, PageHeader, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { loadCategories, loadProducts, saveCategory } from '../services/martApi'
 import type { MartCategory } from '../services/martApi'
+import { openRow } from '@/shared/utilities/rows'
 
 /** Product categories, used to group the shelf, the stock count and the sales reports. */
 export function RetailCategoriesPage() {
@@ -30,7 +31,7 @@ export function RetailCategoriesPage() {
         <Card className="p-0">
           <ul className="divide-y divide-ink/10">
             {categories.data.map((c) => (
-              <li key={c.id} className="flex items-center justify-between p-3 text-sm">
+              <li data-row-link onClick={openRow} key={c.id} className="flex items-center justify-between p-3 text-sm">
                 <span className="font-medium">{c.name} <span className="font-normal text-ink/60">{count(c.id)} product{count(c.id) === 1 ? '' : 's'}</span></span>
                 {manage && <button type="button" aria-label={`Rename ${c.name}`} onClick={() => setEditing(c)} className="rounded-md p-1.5 text-ink/50 hover:bg-surface hover:text-ink"><Pencil className="size-4" aria-hidden /></button>}
               </li>
@@ -54,12 +55,12 @@ function CategoryDialog({ businessId, category, onClose, onSaved }: { businessId
     await runner.run(async () => saveCategory(businessId, { id: category?.id ?? null, name }), 'Saved.')
   }
   return (
-    <Dialog title={category ? 'Rename category' : 'Add a category'} onClose={onClose}>
+    <DetailPage title={category ? 'Rename category' : 'Add a category'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={category?.name} error={error ?? undefined} autoFocus maxLength={80} />
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Save</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

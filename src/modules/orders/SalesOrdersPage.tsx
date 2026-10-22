@@ -5,7 +5,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { PAY_METHODS, myFinancePermissions } from '@/modules/finance/financeApi'
 import { listCustomers, loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira, qty } from '@/shared/utilities/format'
@@ -76,7 +76,7 @@ function NewOrder({ businessId, customers, products, onClose, onSaved }: { busin
     await runner.run((k) => createOrder(businessId, String(f.get('customer')), clean.map((l) => ({ productId: l.productId, quantity: Number(l.quantity) })), String(f.get('expected') ?? '') || null, String(f.get('note') ?? ''), k), 'Order created.')
   }
   return (
-    <Dialog title="New sales order" onClose={onClose} wide>
+    <DetailPage title="New sales order" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectField label="Customer" name="customer" defaultValue=""><option value="" disabled>Select…</option>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField>
@@ -87,7 +87,7 @@ function NewOrder({ businessId, customers, products, onClose, onSaved }: { busin
         {(problem || runner.error) && <ErrorState title="Order not created" message={(problem ?? runner.error)!} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Create order</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -117,7 +117,7 @@ function OrderDialog({ businessId, order, customerName, catalog, canSell, onClos
   }
 
   return (
-    <Dialog title={`${order.number} · ${customerName}`} onClose={onClose} wide>
+    <DetailPage title={`${order.number} · ${customerName}`} onClose={onClose} wide>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm"><Badge tone={TONE[order.status]}>{label(order.status)}</Badge>{order.expected && <span className="text-ink/60">Expected {order.expected}</span>}{order.note && <span className="text-ink/60">· {order.note}</span>}</div>
       {order.status === 'cancelled' && <Notice>Cancelled: {order.cancelReason}</Notice>}
       <table className="w-full text-sm">
@@ -152,6 +152,6 @@ function OrderDialog({ businessId, order, customerName, catalog, canSell, onClos
         </form>
       )}
       {!mode && active && canSell && <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setMode('cancel')}>Cancel order</Button><Button onClick={() => setMode('deliver')} disabled={!order.lines.some((l) => l.remaining > 0)}>Deliver</Button></div>}
-    </Dialog>
+    </DetailPage>
   )
 }

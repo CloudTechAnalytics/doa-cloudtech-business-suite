@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { isDemoMode } from '@/shared/utilities/env'
 import { Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
+import { DetailPage } from '@/shared/components/detail-page'
 import * as api from '@/modules/inventory/inventoryApi'
 import type { InventoryData, MovementRow, Product } from '@/modules/inventory/inventoryApi'
 import { stockStatus } from '@/modules/inventory/ledger'
@@ -100,6 +101,7 @@ function StockTab({ data }: { data: InventoryData }) {
   const [search, setSearch] = useState('')
   const [location, setLocation] = useState('')
   const [status, setStatus] = useState<'' | StockStatus>('')
+  const [open, setOpen] = useState<string | null>(null)
 
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -139,7 +141,7 @@ function StockTab({ data }: { data: InventoryData }) {
             </thead>
             <tbody className="divide-y divide-ink/10">
               {rows.map(({ p, qty, avg, value, st }) => (
-                <tr key={p.id}>
+                <tr key={p.id} onClick={() => setOpen(p.id)} className="cursor-pointer hover:bg-surface">
                   <td className="p-3"><b>{p.name}</b><div className="text-xs text-ink/60">{p.sku ?? 'No SKU'}</div></td>
                   <td className="p-3 text-right tabular-nums">{fmt(qty)} {p.unit}</td>
                   <td className="p-3 text-right tabular-nums">{naira(avg)}</td>
@@ -152,12 +154,14 @@ function StockTab({ data }: { data: InventoryData }) {
           <p className="border-t border-ink/10 p-3 text-right text-xs text-ink/60">Inventory value (weighted-average cost): <b>{naira(total)}</b></p>
         </Card>
       )}
+      {open && <ProductDetail data={data} id={open} onClose={() => setOpen(null)} />}
     </>
   )
 }
 
 // -------------------------------------------------------------- products
 function ProductsTab({ data, businessId, canWrite, onChanged }: { data: InventoryData; businessId: string; canWrite: boolean; onChanged: () => Promise<void> }) {
+  const [open, setOpen] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
@@ -209,7 +213,7 @@ function ProductsTab({ data, businessId, canWrite, onChanged }: { data: Inventor
             <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Product</th><th className="p-3">Barcode</th><th className="p-3 text-right">Price</th><th className="p-3 text-right">Reorder at</th><th className="p-3" /></tr></thead>
             <tbody className="divide-y divide-ink/10">
               {data.products.map((p) => (
-                <tr key={p.id} className={p.status === 'archived' ? 'opacity-50' : ''}>
+                <tr key={p.id} onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) setOpen(p.id) }} className={clsx('cursor-pointer hover:bg-surface', p.status === 'archived' && 'opacity-50')}>
                   <td className="p-3"><b>{p.name}</b><div className="text-xs text-ink/60">{p.sku ?? 'No SKU'} · {p.unit}</div></td>
                   <td className="p-3">{p.barcode ?? '–'}</td>
                   <td className="p-3 text-right tabular-nums">{naira(p.sellingPrice)}</td>
@@ -221,7 +225,51 @@ function ProductsTab({ data, businessId, canWrite, onChanged }: { data: Inventor
           </table>
         </Card>
       )}
+      {open && <ProductDetail data={data} id={open} onClose={() => setOpen(null)} />}
     </>
+  )
+}
+
+/** A product's own page: its details, where its stock is, and the ledger entries behind that stock. */
+function ProductDetail({ data, id, onClose }: { data: InventoryData; id: string; onClose: () => void }) {
+  const p = data.products.find((x) => x.id === id)
+  if (!p) return null
+  const bals = data.balances.filter((b) => b.productId === id)
+  const qty = bals.reduce((a, b) => a + b.qty, 0)
+  const value = bals.reduce((a, b) => a + b.qty * (b.avgCost ?? 0), 0)
+  const moves = data.movements.filter((m) => m.productId === id).slice(0, 25)
+  const where = (lid: string) => data.locations.find((l) => l.id === lid)?.name ?? 'Location'
+  const st = stockStatus(qty, p.reorderLevel)
+  return (
+    <DetailPage title={p.name} onClose={onClose} wide>
+      <div className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-4">
+          {([['On hand', `${fmt(qty)} ${p.unit}`], ['Stock value', naira(value)], ['Selling price', naira(p.sellingPrice)], ['Default cost', naira(p.defaultCost)]] as const).map(([t, v]) => (
+            <div key={t} className="rounded-lg border border-line bg-white p-3"><p className="text-[11px] font-medium uppercase tracking-wide text-ink/60">{t}</p><p className="tabular mt-1 text-lg font-semibold">{v}</p></div>
+          ))}
+        </div>
+        <dl className="grid gap-3 text-sm sm:grid-cols-3">
+          <div><dt className="text-xs text-ink/60">SKU</dt><dd>{p.sku ?? '–'}</dd></div>
+          <div><dt className="text-xs text-ink/60">Barcode</dt><dd>{p.barcode ?? '–'}</dd></div>
+          <div><dt className="text-xs text-ink/60">Reorder level</dt><dd>{p.reorderLevel ?? '–'}</dd></div>
+          <div><dt className="text-xs text-ink/60">Stock status</dt><dd><span className={clsx('rounded-md px-2 py-0.5 text-xs font-medium', STATUS_STYLE[st])}>{STATUS_LABEL[st]}</span></dd></div>
+          <div><dt className="text-xs text-ink/60">Record</dt><dd>{p.status === 'active' ? 'Active' : 'Archived'}</dd></div>
+        </dl>
+        <div>
+          <h3 className="mb-1 text-sm font-semibold">Stock by location</h3>
+          {bals.length === 0 ? <p className="text-sm text-ink/60">No stock recorded yet.</p> : (
+            <table className="w-full text-sm"><thead className="text-left text-xs font-semibold text-ink/70"><tr><th className="py-1">Location</th><th className="py-1 text-right">On hand</th><th className="py-1 text-right">Average cost</th><th className="py-1 text-right">Value</th></tr></thead>
+              <tbody className="divide-y divide-ink/10">{bals.map((b) => <tr key={b.locationId}><td className="py-1.5">{where(b.locationId)}</td><td className="tabular py-1.5 text-right">{fmt(b.qty)} {p.unit}</td><td className="tabular py-1.5 text-right">{naira(b.avgCost)}</td><td className="tabular py-1.5 text-right">{naira(b.qty * (b.avgCost ?? 0))}</td></tr>)}</tbody></table>
+          )}
+        </div>
+        <div>
+          <h3 className="mb-1 text-sm font-semibold">Recent stock movements</h3>
+          {moves.length === 0 ? <p className="text-sm text-ink/60">Nothing recorded yet.</p> : (
+            <ul className="divide-y divide-ink/10 text-sm">{moves.map((m) => <li key={m.id} className="flex flex-wrap items-baseline gap-2 py-1.5"><span className="font-medium">{TYPE_LABEL[m.type] ?? m.type}</span><span className="tabular">{m.delta > 0 ? '+' : ''}{fmt(m.delta)} {p.unit}</span><span className="text-ink/60">{where(m.locationId)}{m.reason ? ` · ${m.reason}` : ''}{m.reversed ? ' · reversed' : ''}</span><span className="ml-auto text-xs text-ink/50">{new Date(m.at).toLocaleString('en-NG')}</span></li>)}</ul>
+          )}
+        </div>
+      </div>
+    </DetailPage>
   )
 }
 

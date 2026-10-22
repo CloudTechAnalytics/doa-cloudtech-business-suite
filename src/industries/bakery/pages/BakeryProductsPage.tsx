@@ -5,12 +5,13 @@ import { Link } from 'react-router-dom'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira, qty } from '@/shared/utilities/format'
 import { loadFinished, loadLots, saveProduct } from '../services/bakeryApi'
 import type { FinishedRow } from '../services/bakeryApi'
+import { openRow } from '@/shared/utilities/rows'
 
 const TONE = { ok: 'success', expiring: 'warning', expired: 'danger' } as const
 
@@ -43,7 +44,7 @@ export function BakeryProductsPage() {
             <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Product</th><th className="p-3 text-right">Price</th><th className="p-3 text-right">In stock</th><th className="p-3 text-right">Cost each</th><th className="p-3">Shelf life</th><th className="p-3">Next expiry</th>{manage && <th className="w-12 p-3" />}</tr></thead>
             <tbody className="divide-y divide-ink/10">
               {products.data.map((p) => (
-                <tr key={p.id} className={p.active ? '' : 'text-ink/50'}>
+                <tr data-row-link onClick={openRow} key={p.id} className={p.active ? '' : 'text-ink/50'}>
                   <td className="p-3 font-medium">{p.name}{!p.active && <> <Badge>Archived</Badge></>}{p.low && p.active && <> <Badge tone="warning">Low stock</Badge></>}{p.sku && <div className="text-xs font-normal text-ink/60">{p.sku}</div>}</td>
                   <td className="tabular p-3 text-right">{naira(p.price)} <span className="text-ink/50">/ {p.unit}</span></td>
                   <td className="tabular p-3 text-right">{qty(p.onHand)}</td>
@@ -64,7 +65,7 @@ export function BakeryProductsPage() {
             <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Batch</th><th className="p-3">Product</th><th className="p-3 text-right">Left / made</th><th className="p-3">Made on</th><th className="p-3">Expires</th></tr></thead>
             <tbody className="divide-y divide-ink/10">
               {(lots.data ?? []).map((l) => (
-                <tr key={l.id}>
+                <tr data-row-link onClick={openRow} key={l.id}>
                   <td className="p-3 font-medium">{l.batchNumber}</td><td className="p-3">{l.productName}</td>
                   <td className="tabular p-3 text-right">{qty(l.remaining)} / {qty(l.quantity)}</td><td className="p-3">{l.producedOn}</td>
                   <td className="p-3">{l.expiresOn ?? 'No expiry'} {l.expiresOn && <Badge tone={TONE[l.status]}>{l.status === 'expired' ? 'Expired' : l.status === 'expiring' ? `${l.daysLeft} d left` : `${l.daysLeft} d`}</Badge>}</td>
@@ -97,7 +98,7 @@ function ProductDialog({ businessId, product, onClose, onSaved }: { businessId: 
     }, k), 'Saved.')
   }
   return (
-    <Dialog title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose}>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <TextField label="Name" name="name" defaultValue={product?.name} error={errors.name} autoFocus maxLength={200} />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -113,6 +114,6 @@ function ProductDialog({ businessId, product, onClose, onSaved }: { businessId: 
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{product ? 'Save' : 'Add product'}</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }

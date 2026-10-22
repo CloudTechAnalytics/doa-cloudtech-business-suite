@@ -7,6 +7,7 @@ import { myFinancePermissions } from '@/modules/finance/financeApi'
 import { listPurchases, payPurchase } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
@@ -94,7 +95,7 @@ function BillDialog({ businessId, purchases, bills, onClose, onSaved }: { busine
     await runner.run((k) => recordBill(businessId, { purchaseId, number: s('number'), billDate: s('billDate'), dueDate: s('dueDate'), amount: round(Number(s('amount'))) }, k), 'Bill recorded.')
   }
   return (
-    <Dialog title="Record a supplier bill" onClose={onClose}>
+    <DetailPage title="Record a supplier bill" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <SelectField label="Purchase order" value={purchaseId} onChange={(e) => setPurchaseId(e.target.value)} error={errors.purchase} hint={chosen ? `Not yet billed: ${naira(room)}` : 'Only orders with an unbilled amount are listed.'}>
           <option value="">Select…</option>{choices.map((p) => <option key={p.id} value={p.id}>{p.number} · {naira(p.total)}</option>)}
@@ -108,7 +109,7 @@ function BillDialog({ businessId, purchases, bills, onClose, onSaved }: { busine
         {runner.error && <ErrorState title="Not recorded" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Record bill</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 

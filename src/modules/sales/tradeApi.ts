@@ -12,7 +12,7 @@ import { supabase } from '@/shared/utilities/supabase'
  *  demo mode runs the browser mirror. Mutations return an error message or null. */
 
 export interface CustomerDto { id: string; name: string; phone: string | null; creditLimit: number; outstanding: number }
-export interface SupplierDto { id: string; name: string; phone: string | null }
+export interface SupplierDto { id: string; name: string; phone: string | null; contactName: string | null; email: string | null; address: string | null }
 export interface SaleDto { id: string; number: string; soldAt: string; customerId: string | null; status: string; paymentStatus: string; grandTotal: number; amountPaid: number; balanceDue: number; returnedTotal: number; refundDue: number }
 export interface SaleItemDto { id: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; returnedQty: number }
 export interface PaymentDto { id: string; type: string; method: string; amount: number; status: string; reference: string | null; at: string }
@@ -73,14 +73,20 @@ export async function setCreditLimit(businessId: string, customerId: string, lim
 }
 
 export async function listSuppliers(businessId: string): Promise<SupplierDto[]> {
-  if (isDemoMode) { demo.ensureDemoTrade(businessId); return demo.getTrade().suppliers.filter((s) => s.businessId === businessId).map((s) => ({ id: s.id, name: s.name, phone: s.phone })) }
-  const r = await db().from('suppliers').select('id, name, phone').eq('business_id', businessId).eq('status', 'active').order('name')
+  if (isDemoMode) { demo.ensureDemoTrade(businessId); return demo.getTrade().suppliers.filter((s) => s.businessId === businessId).map((s) => ({ id: s.id, name: s.name, phone: s.phone, contactName: s.contactName ?? null, email: s.email ?? null, address: s.address ?? null })) }
+  const r = await db().from('suppliers').select('id, name, phone, contact_name, email, address').eq('business_id', businessId).eq('status', 'active').order('name')
   if (r.error) throw new Error(r.error.message)
-  return (r.data ?? []) as SupplierDto[]
+  return (r.data ?? []).map((s) => ({ id: s.id, name: s.name, phone: s.phone, contactName: s.contact_name, email: s.email, address: s.address }))
 }
 export async function createSupplier(businessId: string, name: string, phone: string) {
   if (isDemoMode) return demo.demoCreateSupplier(businessId, name, phone)
   return msg((await db().from('suppliers').insert({ business_id: businessId, name: name.trim(), phone: phone.trim() || null })).error)
+}
+
+export async function updateSupplier(businessId: string, id: string, v: { name: string; phone: string; contactName: string; email: string; address: string }) {
+  if (isDemoMode) return demo.demoUpdateSupplier(businessId, id, v)
+  if (!v.name.trim()) return 'Enter the supplier name.'
+  return msg((await db().from('suppliers').update({ name: v.name.trim(), phone: v.phone.trim() || null, contact_name: v.contactName.trim() || null, email: v.email.trim() || null, address: v.address.trim() || null }).eq('id', id).eq('business_id', businessId)).error)
 }
 
 // ------------------------------------------------------------------------------------ sales

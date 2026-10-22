@@ -6,6 +6,7 @@ import { myFinancePermissions } from '@/modules/finance/financeApi'
 import { listSuppliers, loadCatalog } from '@/modules/sales/tradeApi'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { dateTime, label, qty } from '@/shared/utilities/format'
@@ -82,14 +83,14 @@ function NewRequest({ businessId, products, onClose, onSaved }: { businessId: st
     await runner.run((k) => createRequest(businessId, clean.map((l) => ({ productId: l.productId, quantity: Number(l.quantity), estimatedCost: l.cost === '' ? null : Number(l.cost) })), note, k), 'Request sent.')
   }
   return (
-    <Dialog title="New purchase request" onClose={onClose} wide>
+    <DetailPage title="New purchase request" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-3">
         <LinesEditor lines={lines} setLines={setLines} products={products} costLabel="Estimated cost (₦)" />
         <TextField label="Note (optional)" name="note" placeholder="Why it is needed" />
         {(problem || runner.error) && <ErrorState title="Not sent" message={(problem ?? runner.error)!} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Send request</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 

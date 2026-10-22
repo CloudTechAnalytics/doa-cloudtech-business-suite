@@ -6,7 +6,7 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey'
 import { dateTime, label, naira, qty } from '@/shared/utilities/format'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import * as api from '@/modules/sales/tradeApi'
 import type { PurchaseDetail } from '@/modules/sales/tradeApi'
 
@@ -91,7 +91,7 @@ function NewPurchase({ businessId, suppliers, catalog, onClose, onDone }: { busi
   }
 
   return (
-    <Dialog title="New purchase order" onClose={onClose} wide>
+    <DetailPage title="New purchase order" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectField label="Supplier" name="supplier" defaultValue=""><option value="" disabled>Select…</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</SelectField>
@@ -112,7 +112,7 @@ function NewPurchase({ businessId, suppliers, catalog, onClose, onDone }: { busi
         {error && <ErrorState title="Order not created" message={error} />}
         <div className="flex justify-end"><Button type="submit" loading={busy}>Create order</Button></div>
       </form>
-    </Dialog>
+    </DetailPage>
   )
 }
 
@@ -129,7 +129,7 @@ function PurchaseDialog({ businessId, id, supplierName, catalog, can, onClose, o
     setError(err)
     if (!err) { key.renew(); setMode(null); await Promise.all([refresh(), onChanged()]) }
   }
-  if (!data) return <Dialog title="Purchase order" onClose={onClose}>{loadError ? <ErrorState message={loadError} /> : <Spinner />}</Dialog>
+  if (!data) return <DetailPage title="Purchase order" onClose={onClose}>{loadError ? <ErrorState message={loadError} /> : <Spinner />}</DetailPage>
   const { purchase: p, items, payments } = data
   const name = (pid: string) => catalog.products.find((x) => x.id === pid)?.name ?? 'Product'
   const open = items.filter((i) => i.ordered - i.received > 0)
@@ -137,7 +137,7 @@ function PurchaseDialog({ businessId, id, supplierName, catalog, can, onClose, o
   const due = Math.round((p.total - p.amountPaid) * 100) / 100
 
   return (
-    <Dialog title={p.number} onClose={onClose} wide>
+    <DetailPage title={p.number} onClose={onClose} wide>
       {error && <ErrorState message={error} />}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <Badge tone={STATUS_TONE[p.status]}>{label(p.status)}</Badge><Badge tone={STATUS_TONE[p.paymentStatus]}>{label(p.paymentStatus)}</Badge>
@@ -207,6 +207,6 @@ function PurchaseDialog({ businessId, id, supplierName, catalog, can, onClose, o
           <div><Button type="submit">Cancel order</Button></div>
         </form>
       )}
-    </Dialog>
+    </DetailPage>
   )
 }

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
-import { Dialog } from '@/shared/components/dialog'
+import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useDebounced } from '@/shared/hooks/useDebounced'
 import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey'
@@ -174,13 +174,13 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
   const key = useIdempotencyKey()
-  if (!d.data) return <Dialog title="Lead" onClose={onClose}>{d.error ? <ErrorState message={d.error} /> : <Spinner />}</Dialog>
+  if (!d.data) return <DetailPage title="Lead" onClose={onClose}>{d.error ? <ErrorState message={d.error} /> : <Spinner />}</DetailPage>
   const { lead, interactions, tasks, tags } = d.data
   const parent: Parent = { leadId: id }
   const reload = async () => { await Promise.all([d.refresh(), onChanged()]) }
   const converted = lead.status === 'converted'
   return (
-    <Dialog title={lead.name} onClose={onClose} wide>
+    <DetailPage title={lead.name} onClose={onClose} wide>
       {error && <ErrorState message={error} />}
       {result && <Notice>{result}</Notice>}
       <p className="mb-3 text-sm text-ink/70">{[lead.phone, lead.email, lead.source && `via ${lead.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>
@@ -207,7 +207,7 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
       {interactions.length === 0 ? <p className="text-sm text-ink/60">Nothing recorded yet.</p> : (
         <ul className="divide-y divide-ink/10 text-sm">{interactions.map((h, i) => <li key={i} className="flex gap-2 py-1.5"><Badge>{label(h.label)}</Badge>{h.detail}<span className="ml-auto text-xs text-ink/50">{dateTime(h.at)}</span></li>)}</ul>
       )}
-    </Dialog>
+    </DetailPage>
   )
 }
 
