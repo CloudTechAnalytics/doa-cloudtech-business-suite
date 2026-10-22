@@ -44,7 +44,7 @@ export function LandingPage() {
           <span className="relative whitespace-nowrap"><span aria-hidden className="anim-marker absolute -inset-x-2 inset-y-1 -z-0 -rotate-1 rounded-xl bg-[#fbb130]" style={d(700)} /><span className="relative">one platform</span></span>.
         </h1>
         <p className="anim-fade-up relative mx-auto mt-8 max-w-2xl text-xl font-medium text-ink/80 sm:text-2xl" style={d(220)}>
-          Shops, farms and bakeries, each with{' '}
+          Shops, farms, bakeries, pharmacies and schools, each with{' '}
           <span className="relative whitespace-nowrap"><span className="relative z-10 font-bold text-ink">its own books</span><span aria-hidden className="anim-marker absolute inset-x-0 bottom-0 h-3 rounded-sm bg-amber/70" style={d(1100)} /></span>
           , under one login.
         </p>
@@ -94,7 +94,7 @@ export function LandingPage() {
           <section id="why" className="mt-24 scroll-mt-24">
             <Reveal><h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">Why <Mark>DOA B-Suite</Mark></h2></Reveal>
             <dl className="mt-10 grid gap-10 sm:grid-cols-3">
-              <Reveal><dt className="text-lg font-bold">One login, <Mark>separate books</Mark></dt><dd className="mt-2 text-ink/70">Create a farm, a bakery and a shop under one account. Each has its own records, staff, modules and subscription, and none can see another.</dd></Reveal>
+              <Reveal><dt className="text-lg font-bold">One login, <Mark>separate books</Mark></dt><dd className="mt-2 text-ink/70">Create a farm, a bakery, a shop, a pharmacy or a school under one account. Each has its own records, staff, modules and subscription, and none can see another.</dd></Reveal>
               <Reveal delay={100}><dt className="text-lg font-bold">Numbers you can <Mark>trust</Mark></dt><dd className="mt-2 text-ink/70">Stock, sales and payments are recorded as an unchangeable history. Mistakes are corrected with new entries, never erased, and every important change is logged.</dd></Reveal>
               <Reveal delay={200}><dt className="text-lg font-bold">Only what your business <Mark>needs</Mark></dt><dd className="mt-2 text-ink/70">A farm sees farm tools, a shop sees the till. Staff see only what their role allows, and unused modules stay out of the way.</dd></Reveal>
             </dl>
