@@ -3,7 +3,7 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { Card } from '@/shared/components'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { toCsv } from '@/industries/retail/csv'
-import { loadStructure } from '../services/schoolApi'
+import { loadStructure, stageOk } from '../services/schoolApi'
 import type { SClass, SStudent, STerm } from '../services/schoolApi'
 
 /** The school's structure (sessions, terms, classes, subjects, grades) plus what the signed-in person may do. */
@@ -13,9 +13,14 @@ export function useSchool() {
   const structure = useAsync(() => loadStructure(businessId), [businessId])
   const { can } = usePermissions(businessId)
   const s = structure.data
+  const kind = s?.settings?.schoolType ?? null
+  // A secondary school never shows nursery or primary classes or their subjects, and so on for the other kinds.
+  const visibleClasses = (s?.classes ?? []).filter((c) => stageOk(kind, c.stage))
+  const visibleIds = new Set(visibleClasses.map((c) => c.id))
+  const visibleSubjects = (s?.subjects ?? []).filter((sub) => { const used = (s?.classSubjects ?? []).filter((cs) => cs.subjectId === sub.id); return !used.length || used.some((cs) => visibleIds.has(cs.classId)) })
   const currentTerm: STerm | null = s?.terms.find((t) => t.current) ?? s?.terms[0] ?? null
   return {
-    active, businessId, structure, s, can, currentTerm,
+    active, businessId, structure, s, can, currentTerm, kind, visibleClasses, visibleSubjects,
     classes: (s?.classes ?? []).filter((c) => c.active),
     className: (id: string | null) => s?.classes.find((c) => c.id === id)?.name ?? '–',
     subjectName: (id: string) => s?.subjects.find((x) => x.id === id)?.name ?? 'Subject',

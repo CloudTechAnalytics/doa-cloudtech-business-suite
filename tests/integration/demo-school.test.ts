@@ -141,4 +141,18 @@ describe('demo school follows the database rules', () => {
     as('teacher@demo.test')
     expect(() => sc.demoSchoolOverview(B, null)).toThrow(/permission/i) // no school-wide figures
   })
+
+  it('shows only the classes and subjects of the chosen kind of school', () => {
+    as('owner@demo.test')
+    const settings = (type: sc.SSettings['schoolType']) => sc.demoSaveSettings(B, { schoolType: type, address: '', phone: '', email: '', caMax: 40, examMax: 60, showPosition: false, workingDays: [1, 2, 3, 4, 5] })
+    expect(settings('secondary')).toMatch(/still have active students/) // pupils are in nursery and primary classes
+    expect(sc.demoSaveClass(B, { id: null, name: 'No stage', levelOrder: 1, arm: '', active: true, stage: undefined as unknown as sc.Stage })).toMatch(/choose the stage/)
+    for (const st of sc.demoStudents(B).filter((x) => x.status === 'active')) expect(sc.demoSetStudentStatus(B, st.id, 'withdrawn', 'Test clean-up')).toBeNull()
+    expect(settings('secondary')).toBeNull()
+    const active = sc.demoStructure(B).classes.filter((c) => c.active)
+    expect(active.map((c) => c.stage)).toEqual(Array(active.length).fill('secondary'))
+    expect(sc.demoSaveClass(B, { id: null, name: 'Nursery 3', levelOrder: 1, arm: '', active: true, stage: 'nursery' })).toMatch(/cannot have nursery classes/)
+    expect(sc.demoSaveClass(B, { id: null, name: 'SS 4', levelOrder: 15, arm: '', active: true, stage: 'secondary' })).toBeNull()
+    expect(settings('combined')).toBeNull()
+  })
 })

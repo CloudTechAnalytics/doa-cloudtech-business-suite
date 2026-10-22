@@ -7,6 +7,7 @@ expenses module. Migration: `supabase/migrations/20261021000019_school.sql`. Dem
 
 | Area | Notes |
 |---|---|
+| Kind of school | Nursery only, primary only, secondary only, or all. Only that kind of school's classes and subjects exist and are shown; a class of another stage is refused, and narrowing the school is refused while pupils are still in the stages it would hide |
 | Setup | "Start from the standard structure" creates classes for the school type, three terms, subjects, grading scale and 40/60 marks; everything is editable |
 | Students | Admission numbers are generated and never reused; class history is kept as enrolments; leaving is a status (transferred, withdrawn, graduated), never a delete |
 | Admissions | Shown as the Applications tab on the Students page. Applications are accepted or declined; accepting creates the student, links the parent and raises the admission bill in one step |

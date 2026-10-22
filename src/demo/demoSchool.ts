@@ -17,7 +17,11 @@ export interface SSettings { schoolType: 'nursery' | 'primary' | 'secondary' | '
 export interface SBand { min: number; grade: string; remark: string | null }
 export interface SSession { id: string; businessId: string; name: string; startsOn: string; endsOn: string; current: boolean }
 export interface STerm { id: string; businessId: string; sessionId: string; name: string; startsOn: string; endsOn: string; current: boolean }
-export interface SClass { id: string; businessId: string; name: string; levelOrder: number; arm: string | null; active: boolean }
+export type Stage = 'nursery' | 'primary' | 'secondary'
+export const STAGES: Stage[] = ['nursery', 'primary', 'secondary']
+/** A nursery school has nursery classes only, and so on; a combined school has all three. */
+export const stageOk = (type: string | null | undefined, stage: Stage) => !type || type === 'combined' || type === stage
+export interface SClass { id: string; businessId: string; name: string; levelOrder: number; arm: string | null; active: boolean; stage: Stage }
 export interface SSubject { id: string; businessId: string; name: string; code: string | null }
 export interface SStudent { id: string; businessId: string; admissionNo: string; first: string; middle: string | null; last: string; dob: string | null; gender: string | null; admittedOn: string; sessionId: string | null; classId: string | null; status: StudentStatus; statusReason: string | null; statusOn: string | null; emergencyName: string | null; emergencyPhone: string | null; notes: string | null }
 export interface SEnrollment { id: string; businessId: string; studentId: string; classId: string; sessionId: string | null; startedOn: string; endedOn: string | null; reason: string | null }
@@ -45,7 +49,14 @@ interface School {
 const KEY = 'doa.demo.school.v1'
 const empty = (): School => ({ settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
 function load(): School {
-  try { const raw = localStorage.getItem(KEY); if (raw) return { ...empty(), ...(JSON.parse(raw) as School) } } catch { /* fresh */ }
+  try {
+    const raw = localStorage.getItem(KEY)
+    if (raw) {
+      const saved = { ...empty(), ...(JSON.parse(raw) as School) }
+      for (const c of saved.classes) c.stage ??= c.levelOrder <= 2 ? 'nursery' : c.levelOrder <= 8 ? 'primary' : 'secondary'
+      return saved
+    }
+  } catch { /* fresh */ }
   return empty()
 }
 let state = load()
@@ -156,7 +167,10 @@ export function demoSaveSettings(biz: string, v: { schoolType: SSettings['school
     if (!['nursery', 'primary', 'secondary', 'combined'].includes(v.schoolType)) throw new Error('choose the type of school')
     if (!(v.caMax >= 0) || !(v.examMax >= 0) || v.caMax + v.examMax <= 0 || v.caMax + v.examMax > 1000) throw new Error('the continuous assessment and exam marks must be zero or more and add up to more than zero')
     if (!v.workingDays.length || v.workingDays.some((d) => d < 1 || d > 7)) throw new Error('choose the days the school is open (1 = Monday ... 7 = Sunday)')
+    const full = s.classes.filter((c) => c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage) && s.students.some((x) => x.classId === c.id && x.status === 'active'))
+    if (full.length) throw new Error(`these classes still have active students: ${full.map((c) => c.name).join(', ')}. Move or withdraw them before changing the kind of school`)
     s.settings[biz] = { schoolType: v.schoolType, address: nul(v.address), phone: nul(v.phone), email: nul(v.email), caMax: v.caMax, examMax: v.examMax, showPosition: v.showPosition, workingDays: v.workingDays }
+    for (const c of s.classes) if (c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage)) c.active = false
     return null
   }).error
 }
@@ -194,13 +208,16 @@ export function demoSaveTerm(biz: string, v: { id: string | null; sessionId: str
     return null
   }).error
 }
-export function demoSaveClass(biz: string, v: { id: string | null; name: string; levelOrder: number; arm: string; active: boolean }): string | null {
+export function demoSaveClass(biz: string, v: { id: string | null; name: string; levelOrder: number; arm: string; active: boolean; stage: Stage }): string | null {
   return run(biz, 'school_class', null, (s) => {
     guard(biz, 'school-classes', 'school.manage')
     if (!trim(v.name)) throw new Error('enter the class name')
+    if (!STAGES.includes(v.stage)) throw new Error('choose the stage of the class (nursery, primary or secondary)')
+    const type = s.settings[biz]?.schoolType
+    if (v.active && !stageOk(type, v.stage)) throw new Error(`this is a ${type} school, so it cannot have ${v.stage} classes. Change the kind of school in Settings first`)
     if (s.classes.some((x) => x.businessId === biz && x.id !== v.id && x.name === trim(v.name))) throw new Error('duplicate key: a class with this name already exists')
-    if (v.id === null) s.classes.push({ id: newId('cls'), businessId: biz, name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active })
-    else { const x = s.classes.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('class not found'); Object.assign(x, { name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active }) }
+    if (v.id === null) s.classes.push({ id: newId('cls'), businessId: biz, name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage })
+    else { const x = s.classes.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('class not found'); Object.assign(x, { name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage }) }
     return null
   }).error
 }
@@ -235,12 +252,25 @@ export function demoSaveHoliday(biz: string, on: string, name: string, remove = 
 
 const DEFAULT_BANDS: SBand[] = [{ min: 70, grade: 'A', remark: 'Excellent' }, { min: 60, grade: 'B', remark: 'Very good' }, { min: 50, grade: 'C', remark: 'Good' }, { min: 45, grade: 'D', remark: 'Fair' }, { min: 40, grade: 'E', remark: 'Pass' }, { min: 0, grade: 'F', remark: 'Fail' }]
 const STRUCTURE: [string, number, 'nursery' | 'primary' | 'secondary'][] = [['Nursery 1', 1, 'nursery'], ['Nursery 2', 2, 'nursery'], ['Primary 1', 3, 'primary'], ['Primary 2', 4, 'primary'], ['Primary 3', 5, 'primary'], ['Primary 4', 6, 'primary'], ['Primary 5', 7, 'primary'], ['Primary 6', 8, 'primary'], ['JSS 1', 9, 'secondary'], ['JSS 2', 10, 'secondary'], ['JSS 3', 11, 'secondary'], ['SS 1', 12, 'secondary'], ['SS 2', 13, 'secondary'], ['SS 3', 14, 'secondary']]
-const SUBJECTS: [string, string][] = [['English Language', 'ENG'], ['Mathematics', 'MTH'], ['Basic Science', 'SCI'], ['Social Studies', 'SOS'], ['Civic Education', 'CVE'], ['Computer Studies', 'ICT'], ['Christian/Islamic Studies', 'CRS'], ['Creative Arts', 'ART']]
+type Group = 'nursery' | 'primary' | 'jss' | 'sss'
+const groupOf = (stage: Stage, order: number): Group => (stage === 'nursery' ? 'nursery' : stage === 'primary' ? 'primary' : order <= 11 ? 'jss' : 'sss')
+/** The standard subjects for each group of classes, the same as the database's catalogue. */
+const CATALOGUE: Record<Group, [string, string][]> = {
+  nursery: [['Literacy', 'LIT'], ['Numeracy', 'NUM'], ['Social and Health Habits', 'SHH'], ['Creative Arts', 'ART'], ['Rhymes and Music', 'MUS']],
+  primary: [['English Language', 'ENG'], ['Mathematics', 'MTH'], ['Basic Science', 'SCI'], ['Social Studies', 'SOS'], ['Civic Education', 'CVE'], ['Computer Studies', 'ICT'], ['Christian/Islamic Studies', 'CRS'], ['Creative Arts', 'ART'], ['Physical and Health Education', 'PHE']],
+  jss: [['English Language', 'ENG'], ['Mathematics', 'MTH'], ['Basic Science', 'SCI'], ['Basic Technology', 'BTE'], ['Social Studies', 'SOS'], ['Civic Education', 'CVE'], ['Computer Studies', 'ICT'], ['Christian/Islamic Studies', 'CRS'], ['Business Studies', 'BUS'], ['Agricultural Science', 'AGR'], ['Physical and Health Education', 'PHE']],
+  sss: [['English Language', 'ENG'], ['Mathematics', 'MTH'], ['Civic Education', 'CVE'], ['Computer Studies', 'ICT'], ['Biology', 'BIO'], ['Chemistry', 'CHM'], ['Physics', 'PHY'], ['Economics', 'ECO'], ['Government', 'GOV'], ['Literature in English', 'LIT'], ['Agricultural Science', 'AGR']],
+}
 function buildStructure(s: School, biz: string, type: SSettings['schoolType'], sessionName: string, start: string) {
   s.settings[biz] = { schoolType: type, address: null, phone: null, email: null, caMax: 40, examMax: 60, showPosition: false, workingDays: [1, 2, 3, 4, 5] }
-  for (const [name, order, kind] of STRUCTURE) if (type === 'combined' || (type === 'nursery' && kind === 'nursery') || (type === 'primary' && ['nursery', 'primary'].includes(kind)) || (type === 'secondary' && kind === 'secondary')) s.classes.push({ id: newId('cls'), businessId: biz, name, levelOrder: order, arm: null, active: true })
-  for (const [name, code] of SUBJECTS) s.subjects.push({ id: newId('sub'), businessId: biz, name, code })
-  for (const c of s.classes.filter((x) => x.businessId === biz)) for (const sub of s.subjects.filter((x) => x.businessId === biz)) s.classSubjects.push({ classId: c.id, subjectId: sub.id })
+  for (const [name, order, kind] of STRUCTURE) if (stageOk(type, kind)) s.classes.push({ id: newId('cls'), businessId: biz, name, levelOrder: order, arm: null, active: true, stage: kind })
+  for (const c of s.classes.filter((x) => x.businessId === biz)) {
+    for (const [name, code] of CATALOGUE[groupOf(c.stage, c.levelOrder)]) {
+      let sub = s.subjects.find((x) => x.businessId === biz && x.name === name)
+      if (!sub) { sub = { id: newId('sub'), businessId: biz, name, code }; s.subjects.push(sub) }
+      s.classSubjects.push({ classId: c.id, subjectId: sub.id })
+    }
+  }
   s.bands[biz] = DEFAULT_BANDS.map((b) => ({ ...b }))
   const sess: SSession = { id: newId('ses'), businessId: biz, name: trim(sessionName) || 'Session', startsOn: start, endsOn: addDays(start, 330), current: true }
   s.sessions.push(sess)

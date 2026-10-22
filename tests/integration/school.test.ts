@@ -51,15 +51,15 @@ describe('school setup', () => {
     expect(await num('select count(*) as v from public.school_grade_bands where business_id=$1', [biz])).toBe(6)
     expect(await num('select count(*) as v from public.school_terms where business_id=$1 and is_current', [biz])).toBe(1)
     await expect(as(owner, () => q(`select public.school_setup($1,'combined','x',null)`, [biz]))).rejects.toThrow(/already has classes/)
-    await as(owner, () => q(`select public.school_save_class($1,null,'Reception',0,null,true)`, [biz]))
-    await expect(as(owner, () => q(`select public.school_save_class($1,null,'reception',0,null,true)`, [biz]))).resolves.toBeTruthy() // names compare exactly; a different spelling is a different class
-    await expect(as(owner, () => q(`select public.school_save_class($1,null,'Reception',0,null,true)`, [biz]))).rejects.toThrow(/duplicate key/)
+    await as(owner, () => q(`select public.school_save_class($1,null,'Reception',0,null,true,'primary')`, [biz]))
+    await expect(as(owner, () => q(`select public.school_save_class($1,null,'reception',0,null,true,'primary')`, [biz]))).resolves.toBeTruthy() // names compare exactly; a different spelling is a different class
+    await expect(as(owner, () => q(`select public.school_save_class($1,null,'Reception',0,null,true,'primary')`, [biz]))).rejects.toThrow(/duplicate key/)
   })
 
   it('lets only people who manage the school change setup', async () => {
     await expect(as(teacher, () => q(`select public.school_save_subject($1,null,'Art',null)`, [biz]))).rejects.toThrow(/permission denied/)
-    await expect(as(parent, () => q(`select public.school_save_class($1,null,'Hacked',0,null,true)`, [biz]))).rejects.toThrow(/permission denied/)
-    await expect(as(outsider, () => q(`select public.school_save_class($1,null,'Hacked',0,null,true)`, [biz]))).rejects.toThrow(/permission denied/)
+    await expect(as(parent, () => q(`select public.school_save_class($1,null,'Hacked',0,null,true,'primary')`, [biz]))).rejects.toThrow(/permission denied/)
+    await expect(as(outsider, () => q(`select public.school_save_class($1,null,'Hacked',0,null,true,'primary')`, [biz]))).rejects.toThrow(/permission denied/)
     await as(principal, () => q(`select public.school_save_subject($1,null,'Agric',null)`, [biz]))
   })
 
@@ -356,5 +356,61 @@ describe('announcements, dashboard and isolation', () => {
     const own = await register(outsider, 'Local', 'Kid', (await q<{ id: string }>('select id from public.school_classes where business_id=$1 limit 1', [bizB]))[0].id, [], bizB)
     expect(own.admission_no).toMatch(/^ADM-/)
     expect(session).toBeTruthy()
+  })
+})
+
+describe('the kind of school decides what exists', () => {
+  const names = async (b: string, where = 'true') => (await q<{ name: string }>(`select name from public.school_classes where business_id=$1 and ${where} order by level_order`, [b])).map((r) => r.name)
+  const subjectNames = async (b: string) => (await q<{ name: string }>('select name from public.school_subjects where business_id=$1', [b])).map((r) => r.name)
+  const make = async (type: string, name: string) => {
+    const id = (await as(outsider, () => q<{ id: string }>(`select public.create_business($1,'school') as id`, [name])))[0].id
+    await as(outsider, () => q(`select public.school_setup($1,$2,'2026/2027',$3)`, [id, type, iso(-20)]))
+    return id
+  }
+
+  it('a primary school has primary classes and subjects only', async () => {
+    expect(await names(bizB)).toEqual(['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6'])
+    const subjects = await subjectNames(bizB)
+    expect(subjects).toContain('Basic Science')
+    expect(subjects).not.toContain('Physics')
+    expect(subjects).not.toContain('Literacy')
+  })
+
+  it('a secondary school has JSS and SS only, with senior subjects only for SS classes', async () => {
+    const b = await make('secondary', 'Secondary Only')
+    expect(await names(b)).toEqual(['JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3'])
+    expect(await subjectNames(b)).toEqual(expect.arrayContaining(['Physics', 'Business Studies']))
+    const physicsIn = await names(b, `id in (select class_id from public.school_class_subjects cs join public.school_subjects s on s.id = cs.subject_id where s.name = 'Physics')`)
+    expect(physicsIn).toEqual(['SS 1', 'SS 2', 'SS 3'])
+  })
+
+  it('a nursery school has nursery classes only', async () => {
+    const b = await make('nursery', 'Nursery Only')
+    expect(await names(b)).toEqual(['Nursery 1', 'Nursery 2'])
+    expect(await subjectNames(b)).toEqual(expect.arrayContaining(['Literacy', 'Numeracy']))
+    expect(await subjectNames(b)).not.toContain('Mathematics')
+  })
+
+  it('refuses a class from another stage', async () => {
+    const b = await make('secondary', 'Secondary Two')
+    await expect(as(outsider, () => q(`select public.school_save_class($1,null,'Primary 1',3,null,true,'primary')`, [b]))).rejects.toThrow(/cannot have primary classes/)
+    await expect(as(outsider, () => q(`select public.school_save_class($1,null,'Sixth',15,null,true,null)`, [b]))).rejects.toThrow(/choose the stage/)
+    await expect(as(outsider, () => q(`select public.school_save_class($1,null,'SS 4',15,null,true,'secondary')`, [b]))).resolves.toBeTruthy()
+  })
+
+  it('narrowing retires the other stages, but never while students are in them', async () => {
+    const b = await make('combined', 'Everything School')
+    const first = (await q<{ id: string }>(`select id from public.school_classes where business_id=$1 and name='JSS 1'`, [b]))[0].id
+    await register(outsider, 'Tolu', 'Ade', first, [], b)
+    await expect(as(outsider, () => q('select public.school_save_settings($1,$2,null,null,null,40,60,false,$3)', [b, 'primary', '{1,2,3,4,5}']))).rejects.toThrow(/JSS 1/)
+    expect(await names(b, 'active')).toHaveLength(14)
+    const nursery = (await q<{ id: string }>(`select id from public.school_classes where business_id=$1 and name='Nursery 1'`, [b]))[0].id
+    expect(nursery).toBeTruthy()
+    // JSS 1 holds a student, so secondary keeps it and retires the other stages.
+    await as(outsider, () => q('select public.school_save_settings($1,$2,null,null,null,40,60,false,$3)', [b, 'secondary', '{1,2,3,4,5}']))
+    expect(await names(b, 'active')).toEqual(['JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3'])
+    await expect(as(outsider, () => q(`select public.school_save_class($1,$2,'Nursery 1',1,null,true,'nursery')`, [b, nursery]))).rejects.toThrow(/cannot have nursery classes/)
+    await as(outsider, () => q('select public.school_save_settings($1,$2,null,null,null,40,60,false,$3)', [b, 'combined', '{1,2,3,4,5}']))
+    await expect(as(outsider, () => q(`select public.school_save_class($1,$2,'Nursery 1',1,null,true,'nursery')`, [b, nursery]))).resolves.toBeTruthy()
   })
 })
