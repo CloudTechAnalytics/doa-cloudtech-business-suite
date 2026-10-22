@@ -1,8 +1,10 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from '@/app/layouts/AppShell'
 import { AppsHome } from '@/app/layouts/AppsHome'
+import { HelpPage } from '@/app/landing/HelpPage'
 import { LandingPage } from '@/app/landing/LandingPage'
+import { PricingPage } from '@/app/landing/PricingPage'
 import { SignInPage, SignUpPage } from '@/core/auth/AuthPages'
 import { RequireAuth } from '@/core/auth/AuthProvider'
 import { BusinessesPage } from '@/core/businesses/BusinessesPage'
@@ -21,10 +23,21 @@ function StartPage() {
   return <OnboardingPage key={search} />
 }
 
+/** A new page opens at the top, unless the link points at a section. */
+function ScrollToTop() {
+  const { pathname, hash } = useLocation()
+  useEffect(() => { if (!hash) window.scrollTo(0, 0) }, [pathname, hash])
+  return null
+}
+
 export function AppRoutes() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/help" element={<HelpPage />} />
       <Route path="/sign-in" element={<SignInPage />} />
       <Route path="/sign-up" element={<SignUpPage />} />
       <Route path="/start" element={<StartPage />} />
@@ -40,5 +53,6 @@ export function AppRoutes() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }

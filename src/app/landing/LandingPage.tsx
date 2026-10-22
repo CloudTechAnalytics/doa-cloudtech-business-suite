@@ -1,6 +1,5 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { BrandLockup } from '@/app/layouts/Brand'
 import { industryColor, landingApps } from '@/app/navigation/navigation'
 import type { LandingApp } from '@/app/navigation/navigation'
 import { listIndustries } from '@/core/industry-registry'
@@ -9,6 +8,7 @@ import type { CSSProperties } from 'react'
 import { HeroBackdrop } from './HeroBackdrop'
 import { Mark } from './Mark'
 import { Reveal } from './Reveal'
+import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
 
 const d = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties
@@ -121,13 +121,7 @@ export function LandingPage() {
         </div>
       </div>
 
-      <footer className="bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-ink/60 sm:px-6">
-          <BrandLockup />
-          <span>&copy; {new Date().getFullYear()} CloudTech Analytics</span>
-          <span className="flex gap-5"><Link to="/sign-in" className="hover:text-ink">Sign in</Link><Link to="/start" className="hover:text-ink">Try it free</Link></span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

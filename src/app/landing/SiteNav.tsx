@@ -90,7 +90,9 @@ export function SiteNav() {
       <nav aria-label="Site" className="hidden items-center gap-7 md:flex">
         {trigger('apps', 'Apps')}
         {trigger('industries', 'Industries')}
-        <a href="#why" className="text-[15px] font-medium text-ink/80 hover:text-ink">Why DOA</a>
+        <Link to="/pricing" className="text-[15px] font-medium text-ink/80 hover:text-ink">Pricing</Link>
+        <Link to="/help" className="text-[15px] font-medium text-ink/80 hover:text-ink">Help</Link>
+        <a href="/#why" className="text-[15px] font-medium text-ink/80 hover:text-ink">Why DOA</a>
       </nav>
       <button type="button" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} onClick={() => { setMobile((m) => !m); setOpen(null) }} className="grid size-9 place-items-center rounded-md text-ink hover:bg-surface md:hidden">
         {mobile ? <X className="size-5" aria-hidden /> : <MenuIcon className="size-5" aria-hidden />}
@@ -108,7 +110,9 @@ export function SiteNav() {
               <div className="space-y-4 pb-3">{cols.map((c) => <Column key={c.id} col={c} onNavigate={close} />)}</div>
             </details>
           ))}
-          <a href="#why" onClick={close} className="block py-3 text-base font-semibold">Why DOA</a>
+          <Link to="/pricing" onClick={close} className="block border-b border-line py-3 text-base font-semibold">Pricing</Link>
+          <Link to="/help" onClick={close} className="block border-b border-line py-3 text-base font-semibold">Help</Link>
+          <a href="/#why" onClick={close} className="block py-3 text-base font-semibold">Why DOA</a>
         </div>
       )}
     </div>
