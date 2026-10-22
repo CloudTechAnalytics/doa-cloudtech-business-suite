@@ -9,7 +9,7 @@ expenses module. Migration: `supabase/migrations/20261021000019_school.sql`. Dem
 |---|---|
 | Setup | "Start from the standard structure" creates classes for the school type, three terms, subjects, grading scale and 40/60 marks; everything is editable |
 | Students | Admission numbers are generated and never reused; class history is kept as enrolments; leaving is a status (transferred, withdrawn, graduated), never a delete |
-| Admissions | Applications are accepted or declined; accepting creates the student, links the parent and raises the admission bill in one step |
+| Admissions | Shown as the Applications tab on the Students page. Applications are accepted or declined; accepting creates the student, links the parent and raises the admission bill in one step |
 | Parents | Guardians link to students; a parent's login is matched by email the first time they open the school |
 | Attendance | Per class and date; no future days, non-school days or holidays; corrections are audited; teachers only their own classes |
 | Results | Class-work and exam marks validated against the school's maximums; draft, submitted, approved, published; report cards print; remarks and promotion decision |

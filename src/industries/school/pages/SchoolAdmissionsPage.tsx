@@ -14,7 +14,7 @@ import type { SAdmission } from '../services/schoolApi'
 const TONE = { pending: 'warning', accepted: 'success', rejected: 'danger' } as const
 
 /** Applications for a place. Accepting one creates the student, links the parent and makes the admission bill, all together. */
-export function SchoolAdmissionsPage() {
+export function SchoolAdmissionsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const ctx = useSchool()
   const { businessId, s, can, classes, className, active } = ctx
   const list = useAsync(() => loadAdmissions(businessId), [businessId])
@@ -24,8 +24,12 @@ export function SchoolAdmissionsPage() {
   const open = list.data?.find((a) => a.id === openId) ?? null
   return (
     <>
-      <PageHeader title="Admissions" description="Applications for a place at the school. Review each one, then accept or decline it."
-        actions={can('school.students') ? <Button onClick={() => setAdding(true)}><UserPlus className="size-4" aria-hidden /> New application</Button> : undefined} />
+      {embedded ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-ink/70">Applications for a place. Accepting one registers the student, links the parent and raises the admission bill.</p>{can('school.students') && <Button onClick={() => setAdding(true)}><UserPlus className="size-4" aria-hidden /> New application</Button>}</div>
+      ) : (
+        <PageHeader title="Admissions" description="Applications for a place at the school. Review each one, then accept or decline it."
+          actions={can('school.students') ? <Button onClick={() => setAdding(true)}><UserPlus className="size-4" aria-hidden /> New application</Button> : undefined} />
+      )}
       {s && !s.classes.length && <NoSetup />}
       {list.error && <ErrorState message={list.error} />}
       <div className="mb-3 w-44"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All</option>{Object.keys(TONE).map((x) => <option key={x} value={x}>{label(x)}</option>)}</SelectField></div>

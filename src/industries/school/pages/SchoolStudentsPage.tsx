@@ -9,8 +9,9 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
 import { NoSetup, downloadCsv, fullName, useSchool } from '../components/schoolUi'
+import { SchoolAdmissionsPage } from './SchoolAdmissionsPage'
 import type { SchoolCtx } from '../components/schoolUi'
-import { loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, registerStudent, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
+import { loadAdmissions, loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, registerStudent, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
 import type { GuardianInput, SStudent, StudentInput, StudentStatus } from '../services/schoolApi'
 
 const TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = { active: 'success', transferred: 'warning', withdrawn: 'danger', graduated: 'neutral' }
@@ -22,6 +23,8 @@ export function SchoolStudentsPage() {
   const { businessId, s, can, classes, className } = ctx
   const students = useAsync(() => loadStudents(businessId), [businessId])
   const [q, setQ] = useState(''); const [cls, setCls] = useState(''); const [status, setStatus] = useState('active')
+  const apps = useAsync(() => loadAdmissions(businessId).catch(() => []), [businessId])
+  const [tab, setTab] = useState<'students' | 'applications'>('students')
   const [adding, setAdding] = useState(false); const [moving, setMoving] = useState(false); const [openId, setOpenId] = useState<string | null>(null)
   if (!ctx.active) return null
   const edit = can('school.students')
@@ -29,6 +32,21 @@ export function SchoolStudentsPage() {
   const list = (students.data ?? []).filter((x) => (!status || x.status === status) && (!cls || x.classId === cls) && (!term || fullName(x).toLowerCase().includes(term) || x.admissionNo.toLowerCase().includes(term)))
   const open = students.data?.find((x) => x.id === openId) ?? null
   const exportCsv = () => downloadCsv('students', [['Admission no', 'Name', 'Class', 'Gender', 'Date of birth', 'Status', 'Admitted'], ...list.map((x) => [x.admissionNo, fullName(x), className(x.classId), x.gender ?? '', x.dob ?? '', x.status, x.admittedOn])])
+
+  const pending = (apps.data ?? []).filter((a) => a.status === 'pending').length
+  const showApps = can('school.students') || can('school.read')
+  const tabs = showApps && (
+    <div role="tablist" aria-label="Students or applications" className="no-print mb-3 flex gap-1 border-b border-ink/10">
+      {([['students', 'Students'], ['applications', 'Applications']] as const).map(([id, text]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => { setTab(id); if (id === 'students') void Promise.all([students.refresh(), apps.refresh()]) }} className={clsx('-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium', tab === id ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{text}{id === 'applications' && pending > 0 && <Badge tone="warning">{pending} waiting</Badge>}</button>)}
+    </div>
+  )
+  if (tab === 'applications' && showApps) return (
+    <>
+      <PageHeader title="Students" description="Applications for a place, and everyone enrolled. A student who leaves is marked as transferred or withdrawn; their history stays on record." />
+      {tabs}
+      <SchoolAdmissionsPage embedded />
+    </>
+  )
 
   return (
     <>
@@ -38,6 +56,7 @@ export function SchoolStudentsPage() {
           {edit && <Button variant="secondary" onClick={() => setMoving(true)}><ArrowRightLeft className="size-4" aria-hidden /> Promote or move</Button>}
           {edit && <Button onClick={() => setAdding(true)}><UserPlus className="size-4" aria-hidden /> Register student</Button>}
         </div>} />
+      {tabs}
       {students.error && <ErrorState message={students.error} />}
       {s && !s.classes.length && <NoSetup />}
       <div className="my-3 flex flex-wrap items-end gap-3">
