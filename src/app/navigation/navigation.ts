@@ -110,7 +110,7 @@ export function landingApps(): { shared: LandingApp[]; industries: LandingApp[] 
 }
 
 export interface SiteMenuItem { label: string; icon: LucideIcon; to: string; blurb?: string; tag?: 'Preview' | 'Soon' }
-export interface SiteMenuColumn { id: string; title: string; color: string; icon: LucideIcon; description?: string; items: SiteMenuItem[]; cta?: { label: string; to: string } }
+export interface SiteMenuColumn { id: string; title: string; color: string; icon: LucideIcon; description?: string; items: SiteMenuItem[]; /** Modules not listed (the menu shows the first few so the panel fits the screen). */ more?: number; cta?: { label: string; to: string } }
 
 const TAGS = { preview: 'Preview', soon: 'Soon' } as const
 const itemFor = (m: ModuleDefinition, to: string): SiteMenuItem => ({ label: m.name, icon: m.icon, to, blurb: m.description, tag: m.maturity ? TAGS[m.maturity] : undefined })
@@ -124,8 +124,9 @@ export function landingMenus(): { apps: SiteMenuColumn[]; industries: SiteMenuCo
   }
   const owned = Object.values(INDUSTRIES).filter((d) => d.status === 'active' && d.modules.length > 0).map((d): SiteMenuColumn => ({
     id: d.id, title: d.appName ?? d.navigation[0]?.label ?? d.name, color: industryColor(d.id), icon: d.icon,
-    // Wide industries show their first nine modules; the rest are in the product.
-    items: d.modules.slice(0, 9).map((m) => itemFor(m, `/start?type=${d.id}`)),
+    // The panel must fit the screen without scrolling, so each column lists its first six modules; the rest are in the product.
+    items: d.modules.slice(0, 6).map((m) => itemFor(m, `/start?type=${d.id}`)),
+    more: Math.max(d.modules.length - 6, 0),
   }))
   const apps = [
     shared('Sales', 'Sales and customers', '#2f9e44'),

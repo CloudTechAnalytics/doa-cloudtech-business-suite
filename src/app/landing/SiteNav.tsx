@@ -14,26 +14,23 @@ function Tag({ tag }: { tag: SiteMenuItem['tag'] }) {
 
 function Column({ col, onNavigate }: { col: SiteMenuColumn; onNavigate: () => void }) {
   return (
-    <section aria-label={col.title} className="rounded-2xl bg-white/70 p-4 ring-1 ring-line/70 transition duration-200 hover:bg-white hover:shadow-card" style={{ '--c': col.color } as CSSProperties}>
-      <div className="flex items-center gap-2.5 border-b pb-2.5" style={{ borderColor: `${col.color}40` }}>
-        <span className="grid size-7 place-items-center rounded-md text-white" style={{ background: col.color }}><col.icon className="size-4" aria-hidden strokeWidth={2} /></span>
-        <h3 className="text-[15px] font-bold text-ink">{col.title}</h3>
-      </div>
-      {col.description && <p className="mt-2 text-[13px] leading-snug text-ink/60">{col.description}</p>}
-      {col.items.length === 0 && !col.cta && <p className="mt-3"><Badge>Coming soon</Badge></p>}
-      <ul className="mt-2 space-y-0.5">
+    <section aria-label={col.title} style={{ '--c': col.color } as CSSProperties}>
+      <h3 className="border-b pb-1.5 text-[13px] font-bold uppercase tracking-wide" style={{ color: col.color, borderColor: `${col.color}55` }}>{col.title}</h3>
+      {col.description && <p className="mt-1.5 text-xs leading-snug text-ink/60">{col.description}</p>}
+      {col.items.length === 0 && !col.cta && <p className="mt-2"><Badge>Coming soon</Badge></p>}
+      <ul className="mt-1.5">
         {col.items.map((it) => (
           <li key={it.label}>
-            <Link to={it.to} onClick={onNavigate} title={it.blurb} className="group flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition duration-150 hover:translate-x-0.5 hover:bg-[color-mix(in_srgb,var(--c)_12%,white)]">
-              <it.icon className="size-4 shrink-0 text-ink/40 transition-colors group-hover:text-[var(--c)]" aria-hidden />
-              <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-medium text-ink">{it.label}<Tag tag={it.tag} /></span>
+            <Link to={it.to} onClick={onNavigate} title={it.blurb} className="flex items-center gap-1.5 rounded px-1.5 py-[5px] text-[13px] text-ink/80 transition-colors hover:bg-[color-mix(in_srgb,var(--c)_10%,white)] hover:text-[var(--c)]">
+              {it.label}<Tag tag={it.tag} />
             </Link>
           </li>
         ))}
+        {!!col.more && <li className="px-1.5 py-[5px] text-xs text-ink/50">+ {col.more} more in the app</li>}
       </ul>
       {col.cta && (
-        <Link to={col.cta.to} onClick={onNavigate} className="mt-3 inline-flex items-center gap-1 px-2 text-sm font-semibold hover:underline" style={{ color: col.color }}>
-          {col.cta.label} <ArrowRight className="size-4" aria-hidden />
+        <Link to={col.cta.to} onClick={onNavigate} className="mt-1.5 inline-flex items-center gap-1 px-1.5 text-[13px] font-semibold hover:underline" style={{ color: col.color }}>
+          {col.cta.label} <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       )}
     </section>
@@ -74,15 +71,13 @@ export function SiteNav() {
   )
 
   const panel = (k: Key, cols: SiteMenuColumn[], footer: string) => (
-    <div id={`menu-${k}`} role="region" aria-label={k === 'apps' ? 'Apps' : 'Industries'} className="absolute inset-x-0 top-full z-10 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-line bg-gradient-to-b from-[#f4f8fc] via-white to-[#eef4fa] shadow-raised [animation:menu-in_160ms_ease-out]">
+    <div id={`menu-${k}`} role="region" aria-label={k === 'apps' ? 'Apps' : 'Industries'} className="absolute inset-x-0 top-full z-10 max-h-[calc(100dvh-4rem)] overflow-y-auto overflow-x-hidden border-b border-line bg-white shadow-raised [animation:menu-in_160ms_ease-out]">
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-mint via-[#1bb6f9] to-[#fbb130]" />
-      <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-mint/15 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-20 size-72 rounded-full bg-[#fbb130]/15 blur-3xl" />
-      <div className="relative mx-auto grid max-w-6xl gap-4 px-6 pb-6 pt-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="relative mx-auto grid max-w-6xl gap-x-10 gap-y-6 px-6 pb-5 pt-5 md:grid-cols-2 lg:grid-cols-4">
         {cols.map((c) => <Column key={c.id} col={c} onNavigate={close} />)}
       </div>
       <div className="relative bg-gradient-to-r from-brand to-[#0f3a66] text-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-3 text-sm">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-2 text-sm">
           <span className="text-white/80">{footer}</span>
           <Link to="/start" onClick={close} className="inline-flex items-center gap-1.5 rounded-md bg-amber px-3 py-1.5 font-bold text-ink transition hover:bg-amber-dark">Try it free <ArrowRight className="size-4" aria-hidden /></Link>
         </div>
@@ -110,7 +105,7 @@ export function SiteNav() {
           {([['Apps', menus.apps], ['Industries', menus.industries]] as const).map(([label, cols]) => (
             <details key={label} className="border-b border-line py-1">
               <summary className="flex cursor-pointer list-none items-center justify-between py-2.5 text-base font-semibold">{label}<ChevronDown className="size-4" aria-hidden /></summary>
-              <div className="space-y-5 pb-3">{cols.map((c) => <Column key={c.id} col={c} onNavigate={close} />)}</div>
+              <div className="space-y-4 pb-3">{cols.map((c) => <Column key={c.id} col={c} onNavigate={close} />)}</div>
             </details>
           ))}
           <a href="#why" onClick={close} className="block py-3 text-base font-semibold">Why DOA</a>

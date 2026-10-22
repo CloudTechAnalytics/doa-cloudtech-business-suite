@@ -33,7 +33,7 @@ describe('the Apps and Industries menus come from the registries', () => {
     const tag = (col: string, label: string) => apps.find((c) => c.id === col)!.items.find((i) => i.label === label)!.tag
     expect(tag('bakery', 'Recipes')).toBeUndefined() // built
     expect(tag('Finance', 'Expenses')).toBeUndefined() // built
-    expect(tag('farm', 'Farm Expenses')).toBeUndefined() // built
+    expect(tag('farm', 'Mortality')).toBeUndefined() // built
     expect(tag('farm', 'Farm Batches')).toBeUndefined()
     expect(tag('Sales and customers', 'Sales / POS')).toBeUndefined()
   })
