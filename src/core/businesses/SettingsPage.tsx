@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAsync } from '@/shared/hooks/useAsync'
 import type { IndustryCode, ModuleCode, PlanCode } from '@/shared/types/domain'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
-import { useDemoState } from '@/demo/demoStore'
+import { canManageStaff, useDemoState } from '@/demo/demoStore'
 import { PLANS } from '@/core/subscriptions/plans'
 import type { ModuleStatus } from '@/core/module-registry/availability'
 import { changeIndustry, demoSwitchPlan, disableModule, enableModule, previewIndustryChange } from '@/core/module-registry/moduleActions'
@@ -14,6 +14,8 @@ import { myTradePermissions } from '@/modules/sales/tradeApi'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { Button, Card, ErrorState, Notice, PageHeader, SelectField } from '@/shared/components'
+import { setBusinessTheme } from '@/core/businesses/businessActions'
+import { THEMES, applyTheme, themeByKey } from '@/core/theme/themes'
 
 const BADGE: Record<ModuleStatus['availability'], string> = {
   available: 'Active',
@@ -85,6 +87,8 @@ export function SettingsPage() {
       <PageHeader title="Settings" description={`${active.name} · ${template.name}`} />
       {error && <ErrorState message={error} />}
 
+      {(isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <Appearance businessId={active.id} current={themeByKey(active.theme).key} onSaved={refreshBusinesses} />}
+
       <Card className="mb-4">
         <h2 className="mb-2 text-sm font-semibold">Subscription</h2>
         {isDemoMode ? (
@@ -152,5 +156,35 @@ export function SettingsPage() {
       </Card>
       {perms.data?.includes('audit.read') && <AuditPanel businessId={active.id} />}
     </>
+  )
+}
+
+/** Colour theme picker: choosing a swatch repaints the workspace straight away and saves it for everyone in the business. */
+function Appearance({ businessId, current, onSaved }: { businessId: string; current: string; onSaved: () => Promise<void> }) {
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  async function pick(key: string) {
+    setBusy(true); setError(null)
+    const err = await setBusinessTheme(businessId, key)
+    if (err) { setError(err); applyTheme(themeByKey(current)) } else { applyTheme(themeByKey(key)); await onSaved() }
+    setBusy(false)
+  }
+  return (
+    <Card className="mb-4">
+      <h2 className="mb-1 text-sm font-semibold">Appearance</h2>
+      <p className="mb-3 text-xs text-ink/60">Choose the colours of your workspace. Everyone in this business sees the same colours.</p>
+      <ul className="flex flex-wrap gap-3" aria-label="Colour themes">
+        {THEMES.map((t) => (
+          <li key={t.key}>
+            <button type="button" disabled={busy} onClick={() => void pick(t.key)} aria-pressed={t.key === current} aria-label={`${t.name} theme`}
+              className={`flex w-24 flex-col items-center gap-2 rounded-lg border p-2 text-xs font-medium transition hover:-translate-y-0.5 ${t.key === current ? 'border-accent ring-2 ring-accent' : 'border-line'}`}>
+              <span className="flex h-9 w-full overflow-hidden rounded-md" aria-hidden><span className="w-1/3" style={{ background: t.brand }} /><span className="w-1/3" style={{ background: t.accent }} /><span className="w-1/3" style={{ background: t.cta }} /></span>
+              {t.name}{t.key === current && ' ✓'}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {error && <div className="mt-3"><ErrorState title="Not saved" message={error} /></div>}
+    </Card>
   )
 }

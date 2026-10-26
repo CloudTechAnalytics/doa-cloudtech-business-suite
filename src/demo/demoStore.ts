@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { IndustryCode, ModuleCode, PlanCode, RoleName } from '@/shared/types/domain'
 import { PLANS } from '@/core/subscriptions/plans'
+import { THEMES } from '@/core/theme/themes'
 import { computeModuleStatuses } from '@/core/module-registry/availability'
 import { rolePermissions } from '@/core/permissions/roles'
 import type { ModuleStatus } from '@/core/module-registry/availability'
@@ -12,7 +13,7 @@ import { INDUSTRY_TEMPLATES, compatibleModules, defaultModules } from '@/core/mo
  */
 
 export interface DemoUser { id: string; email: string; password: string; name: string }
-export interface DemoSettings { tax_rate_percent?: number; setup?: Record<string, string | number | boolean> }
+export interface DemoSettings { tax_rate_percent?: number; theme?: string; setup?: Record<string, string | number | boolean> }
 export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean; suspended?: boolean; createdAt?: string }
 export interface DemoMember { id: string; businessId: string; userId: string | null; email: string; name: string; role: RoleName; status: 'active' | 'suspended' | 'revoked' | 'invited' }
 
@@ -173,6 +174,15 @@ export function demoCreateBusiness(name: string, industry: IndustryCode, setting
     modules: { ...state.modules, [b.id]: { plan: 'starter', enabled: defaultModules(industry), disabledHistory: [] } },
   })
   return b.id
+}
+
+/** Mirrors set_business_theme(): settings managers only, named themes only. */
+export function demoSetTheme(businessId: string, theme: string): string | null {
+  const b = state.businesses.find((x) => x.id === businessId && !x.archived)
+  if (!b || !canManageStaff(demoRoleIn(businessId))) return 'permission denied'
+  if (!THEMES.some((t) => t.key === theme)) return 'choose one of the colour themes'
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, settings: { ...x.settings, theme } } : x)) })
+  return null
 }
 
 export function demoRoleIn(businessId: string): RoleName | null {

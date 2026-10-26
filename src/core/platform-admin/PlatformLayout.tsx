@@ -1,7 +1,7 @@
 import { Activity, Building2, CreditCard, HeartPulse, LayoutDashboard, LogOut, Menu as MenuIcon, ScrollText, ShieldCheck, Tag, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, Navigate, Outlet } from 'react-router-dom'
-import { BrandMark } from '@/app/layouts/Brand'
+import { Wordmark } from '@/app/layouts/Brand'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { Badge, Notice, Spinner } from '@/shared/components'
 import { isDemoMode } from '@/shared/utilities/env'
@@ -25,8 +25,8 @@ export function PlatformLayout() {
   const ctx = { role: role.data, canWrite: role.data !== 'support', isOwner: role.data === 'owner' }
 
   const sidebar = (
-    <nav aria-label="Platform" className="flex h-full flex-col bg-[#071b33] text-white">
-      <Link to="/platform" onClick={() => setOpen(false)} className="flex items-center gap-3 px-5 py-5"><BrandMark className="size-9" /><span><span className="block text-[17px] font-extrabold leading-tight">DOA</span><span className="block text-[11px] text-white/60">Platform console</span></span></Link>
+    <nav aria-label="Platform" className="flex h-full flex-col bg-brand text-white">
+      <Link to="/platform" onClick={() => setOpen(false)} className="flex items-center gap-3 px-5 py-5"><Wordmark light className="h-8" /><span><span className="block text-[11px] text-white/60">Platform console</span></span></Link>
       <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
         {NAV.map((g) => (
           <div key={g.heading}>

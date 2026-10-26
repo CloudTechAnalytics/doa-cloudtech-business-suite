@@ -63,7 +63,7 @@ export function HelpPage() {
   return (
     <div className="bg-white text-ink">
       <SiteHeader />
-      <section className="bg-gradient-to-b from-[#f1f6fb] via-white to-white px-4 pb-10 pt-16 text-center sm:px-6 sm:pt-20">
+      <section className="bg-gradient-to-b from-[#e3f6fc] via-white to-white px-4 pb-10 pt-16 text-center sm:px-6 sm:pt-20">
         <h1 className="anim-fade-up mx-auto max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl">How can we <Mark>help</Mark>?</h1>
         <div className="anim-fade-up relative mx-auto mt-8 max-w-xl" style={{ '--d': '120ms' } as React.CSSProperties}>
           <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-ink/40" aria-hidden />

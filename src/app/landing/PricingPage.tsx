@@ -39,7 +39,7 @@ export function PricingPage() {
   return (
     <div className="bg-white text-ink">
       <SiteHeader />
-      <section className="bg-gradient-to-b from-[#f1f6fb] via-white to-white px-4 pb-10 pt-16 text-center sm:px-6 sm:pt-20">
+      <section className="bg-gradient-to-b from-[#e3f6fc] via-white to-white px-4 pb-10 pt-16 text-center sm:px-6 sm:pt-20">
         <h1 className="anim-fade-up mx-auto max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl">Simple <Mark>pricing</Mark></h1>
         <p className="anim-fade-up mx-auto mt-5 max-w-xl text-lg font-medium text-ink/70" style={{ '--d': '120ms' } as React.CSSProperties}>Start free for 14 days. Pick a plan when you are ready. One price covers the whole business.</p>
       </section>

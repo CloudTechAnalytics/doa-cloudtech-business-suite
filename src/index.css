@@ -3,22 +3,23 @@
 @import "tailwindcss";
 
 /*
-  Visual language taken from Odoo's own stylesheet (odoo.com): brand navy, teal secondary,
-  near-black text, light grey canvas, soft borders, rounded corners.
+  The DOA palette is ocean blue (coolors.co 03045e, 023e8a, 0077b6, 0096c7, 00b4d8, 48cae4, 90e0ef, ade8f4, caf0f8). A business owner can switch
+  its workspace to another named theme (src/core/theme/themes.ts), which overrides the brand, accent, amber and mint values below at runtime.
+  "amber" is the name of the main button and highlight colour for historical reasons; it is cyan in the Ocean theme.
 */
 @theme {
-  --color-brand: #071b33;
-  --color-brand-dark: #0b2a4a;
-  --color-brand-ink: #0b2a4a;
-  --color-accent: #017e84;
-  --color-accent-soft: #e0f2f1;
-  --color-ink: #111827;
-  --color-surface: #f8f9fa;
-  --color-line: #e6e9ed;
-  --color-canvas: #f3f4f6;
-  --color-mint: #14c8b1;
-  --color-amber: #fbb130;
-  --color-amber-dark: #f59f00;
+  --color-brand: #03045e;
+  --color-brand-dark: #023e8a;
+  --color-brand-ink: #023e8a;
+  --color-accent: #0077b6;
+  --color-accent-soft: #caf0f8;
+  --color-ink: #0b1b33;
+  --color-surface: #f6fbfd;
+  --color-line: #d9e8ef;
+  --color-canvas: #edf6fa;
+  --color-mint: #48cae4;
+  --color-amber: #00b4d8;
+  --color-amber-dark: #0096c7;
 
   --color-success: #1e7e34;
   --color-success-soft: #e3f4e8;
@@ -26,8 +27,8 @@
   --color-warning-soft: #fff3cd;
   --color-danger: #c82333;
   --color-danger-soft: #fdecee;
-  --color-info: #117a8b;
-  --color-info-soft: #def4f8;
+  --color-info: #0077b6;
+  --color-info-soft: #caf0f8;
 
   --font-sans: "Inter Variable", Inter, "Odoo Unicode Support Noto", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
@@ -137,12 +138,12 @@ fieldset.record-read { border: 0; margin: 0; padding: 0; min-width: 0; }
 .record-read [aria-label^='Remove'] { display: none; }
 
 /* Opening screen */
-@keyframes splash-stem { from { transform: translateX(-26px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes splash-bowl { from { transform: translateX(26px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes splash-word { from { opacity: 0; letter-spacing: 0.4em; } to { opacity: 1; letter-spacing: -0.02em; } }
-.splash-stem { animation: splash-stem 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both; }
-.splash-bowl { animation: splash-bowl 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both; }
-.splash-word { animation: splash-word 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s both; }
+@keyframes splash-from-left { from { transform: translateX(-22px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes splash-from-right { from { transform: translateX(22px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes splash-pop { from { transform: scale(0.2); opacity: 0; } 70% { transform: scale(1.12); opacity: 1; } to { transform: none; opacity: 1; } }
+.splash-d { animation: splash-from-left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both; }
+.splash-o { animation: splash-pop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.45s both; }
+.splash-a { animation: splash-from-right 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.8s both; }
 .splash { transition: transform 0.8s cubic-bezier(0.7, 0, 0.2, 1); }
 .splash-out { transform: translateY(-100%); }
 
@@ -152,5 +153,5 @@ fieldset.record-read { border: 0; margin: 0; padding: 0; min-width: 0; }
 .word-mask > span { display: inline-block; animation: word-up 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--d, 0ms); }
 @keyframes header-in { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
 .anim-header { animation: header-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both; }
-@media (prefers-reduced-motion: reduce) { .word-mask > span, .anim-header, .splash-stem, .splash-bowl, .splash-word { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .word-mask > span, .anim-header, .splash-d, .splash-o, .splash-a { animation: none; } }
 html.splash-on .anim-fade-up, html.splash-on .anim-marker, html.splash-on .word-mask > span, html.splash-on .anim-header { animation-play-state: paused; }

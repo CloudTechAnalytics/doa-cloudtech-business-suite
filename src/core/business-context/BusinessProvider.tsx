@@ -13,6 +13,8 @@ export interface BusinessSummary {
   role?: RoleName | null
   /** Only the owner may delete (archive) a business. */
   isOwner?: boolean
+  /** The colour theme the owner chose for this business (a key from src/core/theme/themes.ts), if any. */
+  theme?: string | null
 }
 
 interface BusinessState {
@@ -57,12 +59,12 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     await supabase.rpc('accept_my_invitations')
     const { data, error } = await supabase
       .from('businesses')
-      .select('id, name, primary_industry_code, owner_user_id')
+      .select('id, name, primary_industry_code, owner_user_id, settings')
       .order('created_at')
     if (error) setError(error.message)
     else {
       setError(null)
-      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode, isOwner: b.owner_user_id === userId })))
+      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode, isOwner: b.owner_user_id === userId, theme: (b.settings as { theme?: string } | null)?.theme ?? null })))
     }
     setLoading(false)
     setLoadedFor(userId)
@@ -77,7 +79,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const businesses: BusinessSummary[] = isDemoMode
     ? demo.members
         .filter((m) => m.userId === userId && m.status === 'active')
-        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner' })))
+        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner', theme: b.settings?.theme ?? null })))
     : fetched
   const loading = isDemoMode ? false : fetchLoading || (!!userId && loadedFor !== userId)
   const active = businesses.find((b) => b.id === activeId) ?? businesses[0] ?? null

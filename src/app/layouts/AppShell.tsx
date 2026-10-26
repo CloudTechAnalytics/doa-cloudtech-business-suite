@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Building2, Check, ChevronDown, LayoutGrid, LogOut, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ACCOUNT_MODULES, appPath, buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
@@ -15,6 +15,7 @@ import { resetDemoMart } from '@/demo/demoMart'
 import { resetDemoPharmacy } from '@/demo/demoPharmacy'
 import { resetDemoSchool } from '@/demo/demoSchool'
 import { demoReset } from '@/demo/demoStore'
+import { applyTheme, themeByKey } from '@/core/theme/themes'
 import { resetDemoTrade } from '@/demo/demoTrade'
 import { Spinner } from '@/shared/components'
 import { CrumbContext } from '@/shared/components/breadcrumb'
@@ -88,6 +89,8 @@ export function AppShell() {
   const location = useLocation()
   const { active, loading } = useBusiness()
   const { statuses } = useModules()
+  // The business's chosen colour theme paints the whole workspace, and the website's default comes back when leaving it.
+  useEffect(() => applyTheme(themeByKey(active?.theme)), [active?.theme])
   const [collapsed, setCollapsed] = useState(readCollapsed)
   // The drawer is open only for the page it was opened on, so navigating closes it without an effect.
   const [drawerPath, setDrawerPath] = useState<string | null>(null)

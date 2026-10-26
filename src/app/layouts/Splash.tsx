@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BOWL_PATH, STEM_PATH } from './Brand'
+import { LogoLetters } from './Brand'
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 /** While the opening screen is up, page animations wait so the landing page plays from the start once it lifts. */
@@ -37,12 +37,10 @@ export function Splash() {
 
   if (!show) return null
   return (
-    <div role="status" aria-label={`Loading ${pct} percent`} className={`splash fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#071b33] text-white ${leaving ? 'splash-out' : ''}`}>
-      <svg viewBox="0 0 40 40" className="size-24" aria-hidden>
-        <path className="splash-stem" fill="#ffffff" d={STEM_PATH} />
-        <path className="splash-bowl" fill="#fbb130" d={BOWL_PATH} />
+    <div role="status" aria-label={`Loading ${pct} percent`} className={`splash fixed inset-0 z-[100] flex flex-col items-center justify-center bg-brand text-white ${leaving ? 'splash-out' : ''}`}>
+      <svg viewBox="0 0 110 48" className="h-20 w-auto" aria-hidden>
+        <LogoLetters teal="#ffffff" className={{ d: 'splash-d', o: 'splash-o', a: 'splash-a' }} />
       </svg>
-      <p className="splash-word mt-5 text-3xl font-extrabold tracking-tight">DOA</p>
       <div className="mt-8 h-1 w-56 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-amber" style={{ width: `${pct}%` }} /></div>
       <p className="tabular mt-3 text-sm font-semibold text-white/70">{pct}%</p>
     </div>
