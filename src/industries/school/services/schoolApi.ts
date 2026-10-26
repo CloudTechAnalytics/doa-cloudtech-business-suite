@@ -323,6 +323,14 @@ export async function saveDepartment(b: string, v: { id: string | null; name: st
   if (isDemoMode) return sc.demoSaveDepartment(b, v)
   return msg((await db().rpc('school_save_department', { p_business: b, p_id: v.id, p_name: v.name })).error)
 }
+export async function deleteClass(b: string, id: string) {
+  if (isDemoMode) return sc.demoDeleteClass(b, id)
+  return msg((await db().rpc('school_delete_class', { p_business: b, p_id: id })).error)
+}
+export async function deleteSubject(b: string, id: string) {
+  if (isDemoMode) return sc.demoDeleteSubject(b, id)
+  return msg((await db().rpc('school_delete_subject', { p_business: b, p_id: id })).error)
+}
 export async function deleteDepartment(b: string, id: string) {
   if (isDemoMode) return sc.demoDeleteDepartment(b, id)
   return msg((await db().rpc('school_delete_department', { p_business: b, p_id: id })).error)

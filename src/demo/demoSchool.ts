@@ -266,6 +266,29 @@ export function demoSaveSubject(biz: string, v: { id: string | null; name: strin
     return null
   }).error
 }
+export function demoDeleteClass(biz: string, id: string): string | null {
+  return run(biz, 'school_class_delete', null, (s) => {
+    guard(biz, 'school-classes', 'school.manage')
+    if (!s.classes.some((c) => c.id === id && c.businessId === biz)) throw new Error('class not found')
+    if (s.students.some((x) => x.businessId === biz && x.classId === id && x.status === 'active')) throw new Error('this class still has students; move them to another class first')
+    const used = s.students.some((x) => x.classId === id) || s.enrollments.some((x) => x.classId === id) || s.attendance.some((x) => x.classId === id) || s.scores.some((x) => x.classId === id)
+      || s.feeItems.some((x) => x.classId === id) || s.admissions.some((x) => x.classId === id) || s.announcements.some((x) => x.classId === id)
+    if (used) throw new Error('this class has records (past students, attendance, results or fees), so it cannot be deleted; mark it as not in use instead')
+    s.timetable = s.timetable.filter((x) => x.classId !== id); s.assignments = s.assignments.filter((x) => x.classId !== id)
+    s.classSubjects = s.classSubjects.filter((x) => x.classId !== id); s.classes = s.classes.filter((c) => c.id !== id)
+    return null
+  }).error
+}
+export function demoDeleteSubject(biz: string, id: string): string | null {
+  return run(biz, 'school_subject_delete', null, (s) => {
+    guard(biz, 'school-classes', 'school.manage')
+    if (!s.subjects.some((x) => x.id === id && x.businessId === biz)) throw new Error('subject not found')
+    if (s.scores.some((x) => x.subjectId === id)) throw new Error('this subject already has results recorded, so it cannot be deleted; take it off the classes that no longer study it instead')
+    s.timetable = s.timetable.filter((x) => x.subjectId !== id); s.assignments = s.assignments.filter((x) => x.subjectId !== id)
+    s.classSubjects = s.classSubjects.filter((x) => x.subjectId !== id); s.subjects = s.subjects.filter((x) => x.id !== id)
+    return null
+  }).error
+}
 export function demoSetClassSubjects(biz: string, classId: string, subjectIds: string[]): string | null {
   return run(biz, 'school_class_subjects', null, (s) => {
     guard(biz, 'school-classes', 'school.manage')
