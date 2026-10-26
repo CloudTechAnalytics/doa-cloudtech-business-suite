@@ -9,7 +9,7 @@ import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
 import { Stat, WEEKDAYS, fullName, useSchool } from '../components/schoolUi'
 import { TimetableGrid } from '../components/TimetableGrid'
-import { claimLinks, loadAnnouncements, loadAttendance, loadBills, loadGuardians, loadPayments, loadStudents, loadTimetable, reportCard, updateMyContact } from '../services/schoolApi'
+import { claimLinks, loadAnnouncements, loadAttendance, loadBills, loadGuardians, loadPayments, loadPhotos, loadStudents, loadTimetable, reportCard, updateMyContact } from '../services/schoolApi'
 import type { SAttendance, SStudent } from '../services/schoolApi'
 import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
 import { printReceipt, receiptData } from '../components/ReceiptSheet'
@@ -129,14 +129,15 @@ function AttendanceTab({ ctx, rows }: { ctx: ReturnType<typeof useSchool>; rows:
 function ResultsTab({ ctx, child, term }: { ctx: ReturnType<typeof useSchool>; child: SStudent; term: string }) {
   const terms = ctx.s?.terms ?? []
   const card = useAsync(() => (term ? reportCard(ctx.businessId, child.id, term).catch(() => null) : Promise.resolve(null)), [ctx.businessId, child.id, term])
+  const photo = useAsync(async () => (await loadPhotos(ctx.businessId, [child.id]))[child.id] ?? null, [ctx.businessId, child.id])
   const history = useAsync(() => Promise.all(terms.map(async (t) => ({ t, card: await reportCard(ctx.businessId, child.id, t.id).catch(() => null) }))), [ctx.businessId, child.id, terms.length])
   const past = (history.data ?? []).filter((x) => x.card?.subjects.length)
   return (
     <div className="space-y-4">
       {past.length > 1 && <Card><h3 className="mb-2 text-sm font-semibold">Average by term</h3><ul className="divide-y divide-ink/10 text-sm">{past.map(({ t, card: c }) => <li key={t.id} className="flex justify-between py-1.5"><span>{t.name}</span><b className="tabular">{c!.average ?? '–'}</b></li>)}</ul></Card>}
       <Card>
-        <div className="no-print mb-2 flex justify-end">{card.data?.subjects.length ? <Button variant="secondary" onClick={() => printReportCards([card.data!])}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
-        {card.loading ? <Spinner /> : card.data?.subjects.length ? <ReportCardSheet card={card.data} /> : <p className="text-sm text-ink/60">No published results for this term yet. The school publishes them when they are ready.</p>}
+        <div className="no-print mb-2 flex justify-end">{card.data?.subjects.length ? <Button variant="secondary" onClick={() => printReportCards([card.data!], [photo.data])}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
+        {card.loading ? <Spinner /> : card.data?.subjects.length ? <ReportCardSheet card={card.data} photo={photo.data} /> : <p className="text-sm text-ink/60">No published results for this term yet. The school publishes them when they are ready.</p>}
       </Card>
     </div>
   )

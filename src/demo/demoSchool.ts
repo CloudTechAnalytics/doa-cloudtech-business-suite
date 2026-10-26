@@ -45,7 +45,14 @@ export interface SHoliday { businessId: string; on: string; name: string }
 export interface SPeriod { id: string; businessId: string; label: string; startsAt: string; endsAt: string; isBreak: boolean; position: number }
 export interface SSlot { id: string; businessId: string; classId: string; day: number; periodId: string; subjectId: string; staffId: string | null; room: string | null }
 
+export interface STrait { id: string; businessId: string; domain: 'affective' | 'psychomotor'; name: string; position: number }
+export interface SRating { businessId: string; studentId: string; termId: string; traitId: string; rating: number }
+export interface STemplate { id: string; businessId: string; kind: 'teacher' | 'principal'; text: string }
+export const DOCUMENT_KINDS = [['birth_certificate', 'Birth certificate'], ['previous_results', 'Previous results'], ['medical', 'Medical record'], ['identification', 'Identification'], ['other', 'Other']] as const
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number][0]
+export interface SDocument { id: string; businessId: string; studentId: string; kind: DocumentKind; name: string; mime: string; size: number; data: string; uploadedBy: string | null; createdAt: string }
 interface School {
+  traits: STrait[]; ratings: SRating[]; templates: STemplate[]; photos: Record<string, string>; documents: SDocument[]
   periods: SPeriod[]; timetable: SSlot[]; ttSeeded: string[]; departments: SDepartment[]
   settings: Record<string, SSettings>; bands: Record<string, SBand[]>; sessions: SSession[]; terms: STerm[]; classes: SClass[]; subjects: SSubject[]; classSubjects: { classId: string; subjectId: string }[]
   students: SStudent[]; enrollments: SEnrollment[]; guardians: SGuardian[]; links: SLink[]; admissions: SAdmission[]; staff: SStaff[]; assignments: SAssignment[]; holidays: SHoliday[]
@@ -54,7 +61,7 @@ interface School {
 }
 
 const KEY = 'doa.demo.school.v1'
-const empty = (): School => ({ departments: [], periods: [], timetable: [], ttSeeded: [], settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
+const empty = (): School => ({ traits: [], ratings: [], templates: [], photos: {}, documents: [], departments: [], periods: [], timetable: [], ttSeeded: [], settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
 function load(): School {
   try {
     const raw = localStorage.getItem(KEY)
@@ -380,6 +387,7 @@ function buildStructure(s: School, biz: string, type: SSettings['schoolType'], s
       const sub = s.subjects.find((x) => x.businessId === biz && x.name === name); if (sub) s.classSubjects.push({ classId: c.id, subjectId: sub.id })
     }
   }
+  seedSkills(s, biz)
   s.bands[biz] = DEFAULT_BANDS.map((b) => ({ ...b }))
   if (type === 'online') {
     const name = trim(sessionName) || 'Cohort 1'
@@ -778,8 +786,9 @@ export function demoSaveRemarks(biz: string, studentId: string, termId: string, 
   }).error
 }
 export interface ReportCard {
+  skills?: { domain: 'affective' | 'psychomotor'; name: string; rating: number }[]
   student: { name: string; admissionNo: string; class: string | null; gender?: string | null; dob?: string | null }; term: string; session: string | null
-  subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: ScoreStatus; classAvg?: number | null; highest?: number | null; lowest?: number | null }[]
+  subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: ScoreStatus; classAvg?: number | null; highest?: number | null; lowest?: number | null; position?: number | null }[]
   school?: { name: string; address: string | null; phone: string | null; email: string | null; caMax: number; examMax: number }; bands?: SBand[]; nextTerm?: { name: string; startsOn: string } | null
   average: number | null; attendance: { present: number; absent: number; late: number; excused: number; marked: number }
   remarks: { teacherRemark: string | null; principalRemark: string | null; promotion: string | null } | null; position: number | null; classSize: number | null
@@ -792,6 +801,8 @@ export function demoReportCard(biz: string, studentId: string, termId: string): 
   const mine = state.scores.filter((x) => x.studentId === studentId && x.termId === termId && (x.status === 'published' || staff))
   const figures = (subjectId: string) => state.scores.filter((y) => y.businessId === biz && y.classId === st.classId && y.subjectId === subjectId && y.termId === termId && y.status === 'published').map((y) => (y.ca ?? 0) + (y.exam ?? 0))
   const subjects = mine.map((x) => { const total = r2((x.ca ?? 0) + (x.exam ?? 0)); const fig = figures(x.subjectId); return { subject: state.subjects.find((y) => y.id === x.subjectId)?.name ?? '', ca: x.ca, exam: x.exam, total, grade: gradeOf(state, biz, total), remark: x.remark, status: x.status, classAvg: fig.length ? Math.round((fig.reduce((a, b) => a + b, 0) / fig.length) * 10) / 10 : null, highest: fig.length ? Math.max(...fig) : null, lowest: fig.length ? Math.min(...fig) : null } }).sort((a, b) => a.subject.localeCompare(b.subject))
+  const positioned = subjects.map((x) => { const sid = state.subjects.find((y) => y.businessId === biz && y.name === x.subject)?.id; return { ...x, position: figures(sid ?? '').filter((f) => f > x.total).length + 1 } })
+  subjects.splice(0, subjects.length, ...positioned)
   const average = subjects.length ? r2(subjects.reduce((a, x) => a + x.total, 0) / subjects.length) : null
   const att = state.attendance.filter((a) => a.studentId === studentId && a.on >= t.startsOn && a.on <= t.endsOn)
   const rem = state.remarks.find((r) => r.studentId === studentId && r.termId === termId)
@@ -807,7 +818,163 @@ export function demoReportCard(biz: string, studentId: string, termId: string): 
   return { school: { name: getDemoState().businesses.find((b) => b.id === biz)?.name ?? 'School', address: set?.address ?? null, phone: set?.phone ?? null, email: set?.email ?? null, caMax: set?.caMax ?? 40, examMax: set?.examMax ?? 60 }, bands: [...(state.bands[biz] ?? [])], nextTerm: next ? { name: next.name, startsOn: next.startsOn } : null,
     student: { name: studentName(st), admissionNo: st.admissionNo, class: state.classes.find((c) => c.id === st.classId)?.name ?? null, gender: st.gender, dob: st.dob }, term: t.name, session: state.sessions.find((x) => x.id === t.sessionId)?.name ?? null, subjects, average,
     attendance: { present: att.filter((a) => a.status === 'present').length, absent: att.filter((a) => a.status === 'absent').length, late: att.filter((a) => a.status === 'late').length, excused: att.filter((a) => a.status === 'excused').length, marked: att.length },
-    remarks: rem ? { teacherRemark: rem.teacherRemark, principalRemark: rem.principalRemark, promotion: rem.promotion } : null, position, classSize }
+    remarks: rem ? { teacherRemark: rem.teacherRemark, principalRemark: rem.principalRemark, promotion: rem.promotion } : null, position, classSize,
+    skills: state.ratings.filter((r) => r.studentId === studentId && r.termId === termId).flatMap((r) => { const tr = state.traits.find((x) => x.id === r.traitId); return tr ? [{ domain: tr.domain, name: tr.name, rating: r.rating, position: tr.position }] : [] }).sort((x, y) => x.domain.localeCompare(y.domain) || x.position - y.position).map(({ domain, name, rating }) => ({ domain, name, rating })) }
+}
+
+// ---------------------------------------------------------------------------- skills, comments, annual cards
+const DEFAULT_TRAITS: [STrait['domain'], string][] = [['affective', 'Punctuality'], ['affective', 'Neatness'], ['affective', 'Honesty'], ['affective', 'Politeness'], ['affective', 'Attentiveness'], ['affective', 'Self control'], ['affective', 'Relationship with others'], ['psychomotor', 'Handwriting'], ['psychomotor', 'Sports and games'], ['psychomotor', 'Drawing and painting'], ['psychomotor', 'Musical skills'], ['psychomotor', 'Handling of tools']]
+const DEFAULT_TEMPLATES: [STemplate['kind'], string][] = [['teacher', 'An excellent result. Keep up the good work.'], ['teacher', 'A good performance. You can do even better with more effort.'], ['teacher', 'A fair result. More attention to your studies is needed.'], ['teacher', 'Weak result. Please see me for extra help.'], ['teacher', 'A well-behaved and hardworking pupil.'], ['principal', 'Well done. Promoted to the next class.'], ['principal', 'A satisfactory result. Aim higher next term.'], ['principal', 'Work harder next term.'], ['principal', 'Parents are advised to follow up closely.']]
+/** Mirrors _school_seed_skills(): every school gets the standard skills and comments once. */
+function seedSkills(s: School, biz: string) {
+  if (!s.traits.some((x) => x.businessId === biz)) { const pos: Record<string, number> = {}; for (const [d, name] of DEFAULT_TRAITS) { pos[d] = (pos[d] ?? 0) + 1; s.traits.push({ id: newId('trt'), businessId: biz, domain: d, name, position: pos[d] }) } }
+  if (!s.templates.some((x) => x.businessId === biz)) for (const [kind, text] of DEFAULT_TEMPLATES) s.templates.push({ id: newId('tpl'), businessId: biz, kind, text })
+}
+function ensureSkills(biz: string) {
+  if (!state.settings[biz] || (state.traits.some((x) => x.businessId === biz) && state.templates.some((x) => x.businessId === biz))) return
+  const s = JSON.parse(JSON.stringify(state)) as School
+  seedSkills(s, biz); commit(s)
+}
+export const demoTraits = (biz: string): STrait[] => { ensureDemoSchool(biz); ensureSkills(biz); return state.traits.filter((x) => x.businessId === biz).sort((a, b) => a.domain.localeCompare(b.domain) || a.position - b.position) }
+export const demoTemplates = (biz: string): STemplate[] => { ensureDemoSchool(biz); ensureSkills(biz); return can(biz, 'school.read') || can(biz, 'school.teach') ? state.templates.filter((x) => x.businessId === biz) : [] }
+export const demoRatings = (biz: string): SRating[] => state.ratings.filter((r) => r.businessId === biz && state.students.some((st) => st.id === r.studentId && canSee(state, biz, st)))
+export function demoSaveTraits(biz: string, items: { domain: STrait['domain']; name: string }[]): string | null {
+  return run(biz, 'school_traits', null, (s) => {
+    guard(biz, 'school-settings', 'school.manage')
+    if (items.length > 40) throw new Error('give a list of up to 40 skills')
+    if (items.some((x) => !['affective', 'psychomotor'].includes(x.domain) || !trim(x.name))) throw new Error('every skill needs a name and a group (affective or psychomotor)')
+    const keep: STrait[] = []; const pos = { value: 0 }
+    for (const x of items) {
+      pos.value += 1
+      const have = s.traits.find((y) => y.businessId === biz && y.domain === x.domain && y.name === trim(x.name))
+      if (have) { have.position = pos.value; if (!keep.includes(have)) keep.push(have) } else keep.push({ id: newId('trt'), businessId: biz, domain: x.domain, name: trim(x.name), position: pos.value })
+    }
+    const ids = new Set(keep.map((k) => k.id))
+    s.ratings = s.ratings.filter((r) => r.businessId !== biz || ids.has(r.traitId))
+    s.traits = [...s.traits.filter((x) => x.businessId !== biz), ...keep]
+    return null
+  }).error
+}
+export function demoSaveTemplates(biz: string, items: { kind: STemplate['kind']; text: string }[]): string | null {
+  return run(biz, 'school_templates', null, (s) => {
+    guard(biz, 'school-settings', 'school.manage')
+    if (items.length > 60) throw new Error('give a list of up to 60 comments')
+    if (items.some((x) => !['teacher', 'principal'].includes(x.kind) || !trim(x.text))) throw new Error('every comment needs its text and who writes it (teacher or principal)')
+    const seen = new Set<string>()
+    s.templates = [...s.templates.filter((x) => x.businessId !== biz), ...items.filter((x) => { const k = x.kind + '|' + trim(x.text); if (seen.has(k)) return false; seen.add(k); return true }).map((x) => ({ id: newId('tpl'), businessId: biz, kind: x.kind, text: trim(x.text) }))]
+    return null
+  }).error
+}
+export function demoSaveRatings(biz: string, studentId: string, termId: string, ratings: { traitId: string; rating: number | null }[]): string | null {
+  return run(biz, 'school_ratings', null, (s) => {
+    const st = s.students.find((x) => x.id === studentId && x.businessId === biz); if (!st) throw new Error('permission denied')
+    const head = demoAllowed(biz, 'school-results', 'school.results.approve')
+    const ok = demoAllowed(biz, 'school-results', 'school.results.enter') && (can(biz, 'school.read') || teachesClass(s, biz, st.classId))
+    if (!(head || ok)) throw new Error('permission denied')
+    if (!s.terms.some((x) => x.id === termId && x.businessId === biz)) throw new Error('term not found')
+    for (const r of ratings) {
+      if (!s.traits.some((x) => x.id === r.traitId && x.businessId === biz)) throw new Error('unknown skill')
+      s.ratings = s.ratings.filter((x) => !(x.studentId === studentId && x.termId === termId && x.traitId === r.traitId))
+      if (r.rating !== null) { if (!(r.rating >= 1 && r.rating <= 5)) throw new Error('rate each skill from 1 to 5'); s.ratings.push({ businessId: biz, studentId, termId, traitId: r.traitId, rating: r.rating }) }
+    }
+    return null
+  }).error
+}
+
+export interface AnnualCard {
+  student: { name: string; admissionNo: string; class: string | null; gender?: string | null; dob?: string | null }; session: string; terms: { id: string; name: string }[]
+  subjects: { subject: string; terms: (number | null)[]; average: number; grade: string | null }[]; average: number | null; position: number | null; classSize: number | null; promotion: string | null
+  school?: { name: string; address: string | null; phone: string | null; email: string | null }; bands?: SBand[]
+}
+/** Mirrors school_annual_card(): every subject across the terms of a session, the annual average and grade, and the position among the class (published scores only). */
+export function demoAnnualCard(biz: string, studentId: string, sessionId: string): AnnualCard {
+  const st = state.students.find((x) => x.id === studentId && x.businessId === biz)
+  if (!st || !canSee(state, biz, st)) throw new Error('permission denied')
+  const ses = state.sessions.find((x) => x.id === sessionId && x.businessId === biz); if (!ses) throw new Error('session not found')
+  const terms = state.terms.filter((t) => t.businessId === biz && t.sessionId === sessionId).sort((a, b) => a.startsOn.localeCompare(b.startsOn))
+  const tids = new Set(terms.map((t) => t.id))
+  const pub = (x: SScore) => x.businessId === biz && x.status === 'published' && tids.has(x.termId)
+  const total = (x: SScore) => (x.ca ?? 0) + (x.exam ?? 0)
+  const mine = state.scores.filter((x) => pub(x) && x.studentId === studentId)
+  const subjectIds = [...new Set(mine.map((x) => x.subjectId))]
+  const subjects = subjectIds.map((sid) => {
+    const per = terms.map((t) => { const x = mine.find((y) => y.subjectId === sid && y.termId === t.id); return x ? r2(total(x)) : null })
+    const have = per.filter((v): v is number => v !== null); const average = r2(have.reduce((a, b) => a + b, 0) / have.length)
+    return { subject: state.subjects.find((y) => y.id === sid)?.name ?? '', terms: per, average, grade: gradeOf(state, biz, average) }
+  }).sort((a, b) => a.subject.localeCompare(b.subject))
+  const average = subjects.length ? r2(subjects.reduce((a, x) => a + x.average, 0) / subjects.length) : null
+  const set = state.settings[biz]
+  let position: number | null = null; let classSize: number | null = null
+  if (average !== null) {
+    const byStudent = new Map<string, Map<string, number[]>>()
+    for (const x of state.scores.filter((y) => pub(y) && y.classId === st.classId)) { const m = byStudent.get(x.studentId) ?? new Map<string, number[]>(); m.set(x.subjectId, [...(m.get(x.subjectId) ?? []), total(x)]); byStudent.set(x.studentId, m) }
+    const overall = [...byStudent.values()].map((m) => { const avgs = [...m.values()].map((v) => v.reduce((a, b) => a + b, 0) / v.length); return avgs.reduce((a, b) => a + b, 0) / avgs.length })
+    position = overall.filter((o) => o > average).length + 1; classSize = overall.length
+  }
+  const lastRemark = state.remarks.filter((r) => r.studentId === studentId && tids.has(r.termId)).sort((a, b) => (terms.find((t) => t.id === b.termId)?.startsOn ?? '').localeCompare(terms.find((t) => t.id === a.termId)?.startsOn ?? ''))[0]
+  return { student: { name: studentName(st), admissionNo: st.admissionNo, class: state.classes.find((c) => c.id === st.classId)?.name ?? null, gender: st.gender, dob: st.dob }, session: ses.name, terms: terms.map((t) => ({ id: t.id, name: t.name })), subjects, average,
+    position: set?.showPosition ? position : null, classSize: set?.showPosition ? classSize : null, promotion: lastRemark?.promotion ?? null,
+    school: { name: getDemoState().businesses.find((b) => b.id === biz)?.name ?? 'School', address: set?.address ?? null, phone: set?.phone ?? null, email: set?.email ?? null }, bands: [...(state.bands[biz] ?? [])] }
+}
+
+// ---------------------------------------------------------------------------- bulk, photos, documents
+/** Mirrors school_graduate(): people who manage students graduate a group at once. */
+export function demoGraduate(biz: string, studentIds: string[], reason: string): Out<number> {
+  return run(biz, 'school_graduate', null, (s) => {
+    guard(biz, 'school-students', 'school.students')
+    if (!studentIds.length) throw new Error('choose the students who are graduating')
+    let n = 0
+    for (const id of new Set(studentIds)) {
+      const st = s.students.find((x) => x.id === id && x.businessId === biz && x.status === 'active'); if (!st) continue
+      Object.assign(st, { status: 'graduated', statusReason: nul(reason) ?? 'Graduated', statusOn: today() }); n += 1
+      s.enrollments.filter((e) => e.studentId === id && !e.endedOn).forEach((e) => { e.endedOn = today() })
+    }
+    return n
+  })
+}
+export const demoPhotos = (biz: string, studentIds: string[]): Record<string, string> => Object.fromEntries(studentIds.filter((id) => state.photos[id] && state.students.some((st) => st.id === id && st.businessId === biz && canSee(state, biz, st))).map((id) => [id, state.photos[id]]))
+export function demoSetPhoto(biz: string, studentId: string, photo: string | null): string | null {
+  return run(biz, 'school_photo', null, (s) => {
+    const st = s.students.find((x) => x.id === studentId && x.businessId === biz); if (!st) throw new Error('permission denied')
+    guard(biz, 'school-students', 'school.students')
+    if (!photo) { delete s.photos[studentId]; return null }
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(photo)) throw new Error('the photo must be a JPEG, PNG or WebP picture')
+    if (photo.length > 120000) throw new Error('the photo is too large; use a smaller picture')
+    s.photos[studentId] = photo
+    return null
+  }).error
+}
+export type DocumentRow = Omit<SDocument, 'data'>
+export function demoDocuments(biz: string, studentId: string): DocumentRow[] {
+  if (!can(biz, 'school.students')) return []
+  return state.documents.filter((d) => d.businessId === biz && d.studentId === studentId).map(({ data: _data, ...row }) => row).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+export function demoDocumentData(biz: string, id: string): string | null {
+  if (!can(biz, 'school.students')) return null
+  return state.documents.find((d) => d.businessId === biz && d.id === id)?.data ?? null
+}
+export function demoAddDocument(biz: string, studentId: string, kind: DocumentKind, name: string, mime: string, data: string): string | null {
+  return run(biz, 'school_document_add', null, (s) => {
+    const st = s.students.find((x) => x.id === studentId && x.businessId === biz); if (!st) throw new Error('permission denied')
+    guard(biz, 'school-students', 'school.students')
+    if (!DOCUMENT_KINDS.some((k) => k[0] === kind)) throw new Error('choose what kind of document it is')
+    if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('upload a PDF or a JPEG, PNG or WebP picture')
+    if (!data.startsWith('data:') || data.length > 2_100_000) throw new Error('the file is too large (the limit is about 1.5 MB)')
+    if (s.documents.filter((d) => d.studentId === studentId).length >= 15) throw new Error('a student can have up to 15 documents')
+    const doc: SDocument = { id: newId('doc'), businessId: biz, studentId, kind, name: trim(name), mime, size: Math.floor((data.length * 3) / 4), data, uploadedBy: getDemoState().userId, createdAt: new Date().toISOString() }
+    s.documents.push(doc)
+    s.audit.push({ at: doc.createdAt, action: 'school_document.add', entity: doc.id, detail: `${st.admissionNo}: ${kind} ${doc.name}` })
+    return null
+  }).error
+}
+export function demoDeleteDocument(biz: string, id: string): string | null {
+  return run(biz, 'school_document_delete', null, (s) => {
+    const d = s.documents.find((x) => x.id === id && x.businessId === biz); if (!d) throw new Error('permission denied')
+    guard(biz, 'school-students', 'school.students')
+    s.documents = s.documents.filter((x) => x.id !== id)
+    s.audit.push({ at: new Date().toISOString(), action: 'school_document.delete', entity: id, detail: `${d.kind} ${d.name}` })
+    return null
+  }).error
 }
 
 // ---------------------------------------------------------------------------- fees
@@ -1040,6 +1207,7 @@ export function demoDeleteStudent(biz: string, studentId: string, reason: string
     if (trim(reason).length < 3) throw new Error('say why (it is kept in the audit trail)')
     if (s.payments.some((p) => p.studentId === studentId)) throw new Error('this student has fee payments on record. Records of money are never erased; mark the student as withdrawn instead')
     s.scores = s.scores.filter((x) => x.studentId !== studentId); s.attendance = s.attendance.filter((x) => x.studentId !== studentId); s.remarks = s.remarks.filter((x) => x.studentId !== studentId)
+    s.ratings = s.ratings.filter((x) => x.studentId !== studentId); s.documents = s.documents.filter((x) => x.studentId !== studentId); delete s.photos[studentId]
     s.bills = s.bills.filter((x) => x.studentId !== studentId); s.enrollments = s.enrollments.filter((x) => x.studentId !== studentId); s.links = s.links.filter((x) => x.studentId !== studentId)
     s.admissions.forEach((a) => { if (a.studentId === studentId) a.studentId = null })
     s.students = s.students.filter((x) => x.id !== studentId)

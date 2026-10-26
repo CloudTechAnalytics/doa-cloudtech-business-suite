@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
+import { SkillsSettings } from '../components/SkillsSettings'
 import { WEEKDAYS, today, useSchool } from '../components/schoolUi'
 import { saveGrades, saveSettings, setupSchool } from '../services/schoolApi'
 import type { SBand, SSettings } from '../services/schoolApi'
@@ -67,6 +68,7 @@ export function SchoolSettingsPage() {
           {manage && <div className="mt-3 flex gap-2"><Button variant="secondary" onClick={() => setBands([...bands, { min: '', grade: '', remark: '' }])}>Add line</Button><Button loading={runner.busy} onClick={() => void runner.run(async () => saveGrades(businessId, bands.map<SBand>((b) => ({ min: Number(b.min), grade: b.grade.trim(), remark: b.remark.trim() || null }))), 'Grading scale saved.')}>Save grading scale</Button></div>}
         </Card>
       </div>
+      {s && !fresh && <SkillsSettings businessId={businessId} manage={manage} />}
       {!manage && <p className="mt-3 text-sm text-ink/60">Only the principal and school managers can change these settings.</p>}
     </>
   )

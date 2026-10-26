@@ -1,10 +1,12 @@
 import * as sc from '@/demo/demoSchool'
-import type { ApplicationInput, AttendanceStatus, SPeriod, SSlot, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, SDepartment, Stage, SubjectLevel, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
+import type { AnnualCard, DocumentKind, DocumentRow, SRating, STemplate, STrait, ApplicationInput, AttendanceStatus, SPeriod, SSlot, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, SDepartment, Stage, SubjectLevel, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 
 /** School data access. Live mode reads row-level-secured tables and calls database functions; demo mode runs the browser mirror.
  *  Mutations return an error message or null. */
+export type { AnnualCard, DocumentKind, DocumentRow, SRating, STemplate, STrait }
+export { DOCUMENT_KINDS } from '@/demo/demoSchool'
 export type { SDepartment, SubjectLevel, SPeriod, SSlot, ApplicationInput, AttendanceStatus, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus }
 export { PAY_METHODS, STAGES, SUBJECT_LEVELS, stageOk } from '@/demo/demoSchool'
 
@@ -155,9 +157,19 @@ export async function reportCard(b: string, studentId: string, termId: string): 
   if (isDemoMode) return sc.demoReportCard(b, studentId, termId)
   const { data, error } = await db().rpc('school_report_card', { p_student: studentId, p_term: termId })
   if (error) throw new Error(error.message)
-  const x = data as { student: { name: string; admission_no: string; class: string | null; gender: string | null; dob: string | null }; term: string; session: string | null; subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: SScore['status']; class_avg: number | null; highest: number | null; lowest: number | null }[]; school: { name: string; address: string | null; phone: string | null; email: string | null; ca_max: number; exam_max: number }; bands: { min: number; grade: string; remark: string | null }[]; next_term: { name: string; starts_on: string } | null; average: number | null; attendance: ReportCard['attendance']; remarks: { teacher_remark: string | null; principal_remark: string | null; promotion: string | null } | null; position: number | null; class_size: number | null }
+  const x = data as { student: { name: string; admission_no: string; class: string | null; gender: string | null; dob: string | null }; term: string; session: string | null; subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: SScore['status']; class_avg: number | null; highest: number | null; lowest: number | null; position: number | null }[]; skills: { domain: 'affective' | 'psychomotor'; name: string; rating: number }[] | null; school: { name: string; address: string | null; phone: string | null; email: string | null; ca_max: number; exam_max: number }; bands: { min: number; grade: string; remark: string | null }[]; next_term: { name: string; starts_on: string } | null; average: number | null; attendance: ReportCard['attendance']; remarks: { teacher_remark: string | null; principal_remark: string | null; promotion: string | null } | null; position: number | null; class_size: number | null }
   return { school: { name: x.school.name, address: x.school.address, phone: x.school.phone, email: x.school.email, caMax: n(x.school.ca_max), examMax: n(x.school.exam_max) }, bands: (x.bands ?? []).map((g) => ({ min: n(g.min), grade: g.grade, remark: g.remark })), nextTerm: x.next_term ? { name: x.next_term.name, startsOn: String(x.next_term.starts_on).slice(0, 10) } : null,
-    student: { name: x.student.name, admissionNo: x.student.admission_no, class: x.student.class, gender: x.student.gender, dob: x.student.dob ? String(x.student.dob).slice(0, 10) : null }, term: x.term, session: x.session, subjects: x.subjects.map((s) => ({ ...s, ca: nn(s.ca), exam: nn(s.exam), total: n(s.total), classAvg: nn(s.class_avg), highest: nn(s.highest), lowest: nn(s.lowest) })), average: nn(x.average), attendance: x.attendance, remarks: x.remarks ? { teacherRemark: x.remarks.teacher_remark, principalRemark: x.remarks.principal_remark, promotion: x.remarks.promotion } : null, position: x.position, classSize: x.class_size }
+    student: { name: x.student.name, admissionNo: x.student.admission_no, class: x.student.class, gender: x.student.gender, dob: x.student.dob ? String(x.student.dob).slice(0, 10) : null }, term: x.term, session: x.session, subjects: x.subjects.map((s) => ({ ...s, ca: nn(s.ca), exam: nn(s.exam), total: n(s.total), classAvg: nn(s.class_avg), highest: nn(s.highest), lowest: nn(s.lowest), position: nn(s.position) })), skills: x.skills ?? [], average: nn(x.average), attendance: x.attendance, remarks: x.remarks ? { teacherRemark: x.remarks.teacher_remark, principalRemark: x.remarks.principal_remark, promotion: x.remarks.promotion } : null, position: x.position, classSize: x.class_size }
+}
+/** The annual (cumulative) card: every subject across the terms of a session. */
+export async function annualCard(b: string, studentId: string, sessionId: string): Promise<AnnualCard> {
+  await ready(b)
+  if (isDemoMode) return sc.demoAnnualCard(b, studentId, sessionId)
+  const { data, error } = await db().rpc('school_annual_card', { p_student: studentId, p_session: sessionId })
+  if (error) throw new Error(error.message)
+  const x = data as { student: { name: string; admission_no: string; class: string | null; gender: string | null; dob: string | null }; session: string; terms: { id: string; name: string }[]; subjects: { subject: string; terms: (number | null)[]; average: number; grade: string | null }[]; average: number | null; position: number | null; class_size: number | null; promotion: string | null; school: { name: string; address: string | null; phone: string | null; email: string | null }; bands: { min: number; grade: string; remark: string | null }[] }
+  return { student: { name: x.student.name, admissionNo: x.student.admission_no, class: x.student.class, gender: x.student.gender, dob: x.student.dob ? String(x.student.dob).slice(0, 10) : null }, session: x.session, terms: x.terms, subjects: x.subjects.map((s) => ({ ...s, terms: s.terms.map((v) => (v === null ? null : n(v))), average: n(s.average) })),
+    average: nn(x.average), position: x.position, classSize: x.class_size, promotion: x.promotion, school: x.school, bands: (x.bands ?? []).map((g) => ({ min: n(g.min), grade: g.grade, remark: g.remark })) }
 }
 /** A parent keeping their own phone and address up to date. Returns an error message or null. */
 export async function updateMyContact(b: string, phone: string, address: string) {
@@ -287,6 +299,77 @@ export async function addStaffWithLogin(b: string, v: Parameters<typeof sc.demoS
 export async function deleteStaff(b: string, staffId: string, reason: string) {
   if (isDemoMode) return sc.demoDeleteStaff(b, staffId, reason)
   return msg((await db().rpc('school_delete_staff', { p_business: b, p_staff: staffId, p_reason: reason })).error)
+}
+// ----------------------------------------------------------------- skills, comments, bulk, photos, documents
+export async function loadTraits(b: string): Promise<STrait[]> {
+  await ready(b)
+  if (isDemoMode) return sc.demoTraits(b)
+  return must<Row[]>(await db().from('school_skill_traits').select('*').eq('business_id', b).order('domain').order('position')).map((r) => ({ id: String(r.id), businessId: b, domain: r.domain as STrait['domain'], name: String(r.name), position: n(r.position) }))
+}
+export async function loadTemplates(b: string): Promise<STemplate[]> {
+  await ready(b)
+  if (isDemoMode) return sc.demoTemplates(b)
+  const { data, error } = await db().from('school_remark_templates').select('*').eq('business_id', b).order('text')
+  if (error) return []
+  return (data as Row[]).map((r) => ({ id: String(r.id), businessId: b, kind: r.kind as STemplate['kind'], text: String(r.text) }))
+}
+export async function loadRatings(b: string): Promise<SRating[]> {
+  await ready(b)
+  if (isDemoMode) return sc.demoRatings(b)
+  return must<Row[]>(await db().from('school_skill_ratings').select('*').eq('business_id', b)).map((r) => ({ businessId: b, studentId: String(r.student_id), termId: String(r.term_id), traitId: String(r.trait_id), rating: n(r.rating) }))
+}
+export async function saveTraits(b: string, items: { domain: STrait['domain']; name: string }[]) {
+  if (isDemoMode) return sc.demoSaveTraits(b, items)
+  return msg((await db().rpc('school_save_traits', { p_business: b, p_items: items })).error)
+}
+export async function saveTemplates(b: string, items: { kind: STemplate['kind']; text: string }[]) {
+  if (isDemoMode) return sc.demoSaveTemplates(b, items)
+  return msg((await db().rpc('school_save_remark_templates', { p_business: b, p_items: items })).error)
+}
+export async function saveRatings(b: string, studentId: string, termId: string, ratings: { traitId: string; rating: number | null }[]) {
+  if (isDemoMode) return sc.demoSaveRatings(b, studentId, termId, ratings)
+  return msg((await db().rpc('school_save_ratings', { p_business: b, p_student: studentId, p_term: termId, p_ratings: ratings.map((r) => ({ trait_id: r.traitId, rating: r.rating })) })).error)
+}
+/** Graduates a group of students at once (people who manage students). Returns an error message or null. */
+export async function graduate(b: string, studentIds: string[], reason: string) {
+  if (isDemoMode) return sc.demoGraduate(b, studentIds, reason).error
+  return msg((await db().rpc('school_graduate', { p_business: b, p_students: studentIds, p_reason: reason })).error)
+}
+/** Passport photos for the given students, as picture data keyed by student. Only students the person may see come back. */
+export async function loadPhotos(b: string, studentIds: string[]): Promise<Record<string, string>> {
+  if (!studentIds.length) return {}
+  if (isDemoMode) return sc.demoPhotos(b, studentIds)
+  const out: Record<string, string> = {}
+  for (let i = 0; i < studentIds.length; i += 40) {
+    const { data, error } = await db().from('school_student_photos').select('student_id, photo').eq('business_id', b).in('student_id', studentIds.slice(i, i + 40))
+    if (error) return out
+    for (const r of data as Row[]) out[String(r.student_id)] = String(r.photo)
+  }
+  return out
+}
+export async function setPhoto(b: string, studentId: string, photo: string | null) {
+  if (isDemoMode) return sc.demoSetPhoto(b, studentId, photo)
+  return msg((await db().rpc('school_set_student_photo', { p_student: studentId, p_photo: photo })).error)
+}
+export async function loadDocuments(b: string, studentId: string): Promise<DocumentRow[]> {
+  if (isDemoMode) return sc.demoDocuments(b, studentId)
+  const { data, error } = await db().from('school_documents').select('id, student_id, kind, name, mime, size, uploaded_by, created_at').eq('business_id', b).eq('student_id', studentId).order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return (data as Row[]).map((r) => ({ id: String(r.id), businessId: b, studentId: String(r.student_id), kind: r.kind as DocumentKind, name: String(r.name), mime: String(r.mime), size: n(r.size), uploadedBy: r.uploaded_by as string | null, createdAt: String(r.created_at) }))
+}
+/** The file itself, fetched only when someone opens it. */
+export async function loadDocumentData(b: string, id: string): Promise<string | null> {
+  if (isDemoMode) return sc.demoDocumentData(b, id)
+  const { data } = await db().from('school_documents').select('data').eq('business_id', b).eq('id', id).maybeSingle()
+  return (data as Row | null)?.data as string | null ?? null
+}
+export async function addDocument(b: string, studentId: string, kind: DocumentKind, name: string, mime: string, data: string) {
+  if (isDemoMode) return sc.demoAddDocument(b, studentId, kind, name, mime, data)
+  return msg((await db().rpc('school_add_document', { p_student: studentId, p_kind: kind, p_name: name, p_mime: mime, p_data: data })).error)
+}
+export async function deleteDocument(b: string, id: string) {
+  if (isDemoMode) return sc.demoDeleteDocument(b, id)
+  return msg((await db().rpc('school_delete_document', { p_id: id })).error)
 }
 export async function cancelLogin(b: string, staffId: string) {
   if (isDemoMode) return sc.demoCancelLogin(b, staffId)

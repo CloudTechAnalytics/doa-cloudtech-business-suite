@@ -224,3 +224,12 @@ html { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 @media (display-mode: standalone) {
   body { overscroll-behavior-y: none; }
 }
+
+/* Other designed documents: annual cards, letters, transcripts, certificates and ID cards. */
+@media print {
+  #print-root .doc-sheet { border: 0; box-shadow: none; padding: 0; border-radius: 0; max-width: none; break-after: page; page-break-after: always; }
+  #print-root .doc-sheet:last-child { break-after: auto; page-break-after: auto; }
+  #print-root .id-grid { display: grid; grid-template-columns: repeat(2, 86mm); gap: 6mm; justify-content: center; }
+  #print-root .id-card { break-inside: avoid; page-break-inside: avoid; }
+  #print-root .doc-sheet *, #print-root .id-card * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

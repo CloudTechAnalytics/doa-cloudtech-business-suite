@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowRightLeft, Download, Printer, UserPlus } from 'lucide-react'
+import { ArrowRightLeft, Download, Printer, UserPlus, IdCard, Upload, GraduationCap } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
@@ -10,10 +10,13 @@ import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
 import { ConfirmDelete } from '../components/ConfirmDelete'
 import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
+import { EndOfYearDialog, ImportStudentsDialog } from '../components/StudentBulkDialogs'
+import { StudentDocumentsTab, idCardData } from '../components/StudentDocumentsTab'
+import { printAnnualCards, printIdCards } from '../components/StudentSheets'
 import { NoSetup, downloadCsv, fullName, useSchool } from '../components/schoolUi'
 import { SchoolAdmissionsPage } from './SchoolAdmissionsPage'
 import type { SchoolCtx } from '../components/schoolUi'
-import { deleteStudent, loadAdmissions, loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, registerStudent, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
+import { annualCard, deleteStudent, loadPhotos, loadRemarks, loadAdmissions, loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, registerStudent, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
 import type { GuardianInput, SStudent, StudentInput, StudentStatus } from '../services/schoolApi'
 
 const TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = { active: 'success', transferred: 'warning', withdrawn: 'danger', graduated: 'neutral' }
@@ -27,6 +30,8 @@ export function SchoolStudentsPage() {
   const [q, setQ] = useState(''); const [cls, setCls] = useState(''); const [status, setStatus] = useState('active')
   const apps = useAsync(() => loadAdmissions(businessId).catch(() => []), [businessId])
   const [tab, setTab] = useState<'students' | 'applications'>('students')
+  const remarks = useAsync(() => loadRemarks(businessId).catch(() => []), [businessId])
+  const [importing, setImporting] = useState(false); const [yearEnd, setYearEnd] = useState(false); const [printingIds, setPrintingIds] = useState(false)
   const [adding, setAdding] = useState(false); const [moving, setMoving] = useState(false); const [openId, setOpenId] = useState<string | null>(null)
   if (!ctx.active) return null
   const edit = can('school.students')
@@ -35,6 +40,10 @@ export function SchoolStudentsPage() {
   const open = students.data?.find((x) => x.id === openId) ?? null
   const exportCsv = () => downloadCsv('students', [['Admission no', 'Name', 'Class', 'Gender', 'Date of birth', 'Status', 'Admitted'], ...list.map((x) => [x.admissionNo, fullName(x), className(x.classId), x.gender ?? '', x.dob ?? '', x.status, x.admittedOn])])
 
+  async function printIds() {
+    setPrintingIds(true)
+    try { const shown = list.slice(0, 200); const photos = await loadPhotos(businessId, shown.map((x) => x.id)); printIdCards(shown.map((x) => idCardData(ctx, x, photos[x.id] ?? null))) } finally { setPrintingIds(false) }
+  }
   const pending = (apps.data ?? []).filter((a) => a.status === 'pending').length
   const showApps = can('school.students') || can('school.read')
   const tabs = showApps && (
@@ -55,6 +64,9 @@ export function SchoolStudentsPage() {
       <PageHeader title="Students" description="Everyone enrolled at the school. A student who leaves is marked as transferred or withdrawn; their attendance, results and fee history stay on record."
         actions={<div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={exportCsv} disabled={!list.length}><Download className="size-4" aria-hidden /> Export CSV</Button>
+          <Button variant="secondary" loading={printingIds} disabled={!list.length} onClick={() => void printIds()}><IdCard className="size-4" aria-hidden /> ID cards</Button>
+          {edit && <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" aria-hidden /> Import CSV</Button>}
+          {edit && <Button variant="secondary" onClick={() => setYearEnd(true)}><GraduationCap className="size-4" aria-hidden /> End of year</Button>}
           {edit && <Button variant="secondary" onClick={() => setMoving(true)}><ArrowRightLeft className="size-4" aria-hidden /> Promote or move</Button>}
           {edit && <Button onClick={() => setAdding(true)}><UserPlus className="size-4" aria-hidden /> Register student</Button>}
         </div>} />
@@ -82,6 +94,8 @@ export function SchoolStudentsPage() {
         </Card>
       )}
       {adding && <RegisterDialog ctx={ctx} onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await students.refresh() }} />}
+      {importing && <ImportStudentsDialog ctx={ctx} onClose={() => setImporting(false)} onDone={async () => { await students.refresh() }} />}
+      {yearEnd && <EndOfYearDialog ctx={ctx} students={students.data ?? []} remarks={remarks.data ?? []} onClose={() => setYearEnd(false)} onDone={async () => { await students.refresh() }} />}
       {moving && <MoveDialog ctx={ctx} students={(students.data ?? []).filter((x) => x.status === 'active')} onClose={() => setMoving(false)} onSaved={async () => { setMoving(false); await students.refresh() }} />}
       {open && <Profile ctx={ctx} student={open} edit={edit} onClose={() => setOpenId(null)} onChanged={students.refresh} />}
     </>
@@ -163,12 +177,13 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
   const links = useAsync(() => loadGuardians(businessId), [businessId])
   const att = useAsync(() => loadAttendance(businessId), [businessId])
   const bills = useAsync(() => loadBills(businessId).catch(() => []), [businessId])
+  const photo = useAsync(async () => (await loadPhotos(businessId, [st.id]))[st.id] ?? null, [businessId, st.id])
   const [term, setTerm] = useState(currentTerm?.id ?? '')
   const card = useAsync(() => (term ? reportCard(businessId, st.id, term).catch(() => null) : Promise.resolve(null)), [businessId, st.id, term])
   const mine = (att.data ?? []).filter((a) => a.studentId === st.id)
   const guardians = (links.data?.links ?? []).filter((l) => l.studentId === st.id).map((l) => ({ ...l, g: links.data!.guardians.find((x) => x.id === l.guardianId) })).filter((x) => x.g)
   const myBills = (bills.data ?? []).filter((b) => b.studentId === st.id)
-  const tabs = [['details', 'Details'], ['guardians', 'Parents'], ['attendance', 'Attendance'], ['results', 'Results'], ['fees', 'Fees']] as const
+  const tabs = [['details', 'Details'], ['guardians', 'Parents'], ['attendance', 'Attendance'], ['results', 'Results'], ['fees', 'Fees'], ...(edit ? [['documents', 'Documents'] as const] : [])] as const
   const rate = mine.length ? Math.round((mine.filter((a) => a.status === 'present' || a.status === 'late').length * 1000) / mine.length) / 10 : null
   const [editing, setEditing] = useState(false)
   async function save(e: FormEvent<HTMLFormElement>) { e.preventDefault(); await runner.run(async () => updateStudent(businessId, st.id, readStudent(new FormData(e.currentTarget), st.classId, st.admittedOn)), 'Saved.', () => setEditing(false)) }
@@ -211,10 +226,12 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
         </div>
       )}
 
+      {tab === 'documents' && edit && <StudentDocumentsTab ctx={ctx} student={st} onPhoto={() => void photo.refresh()} />}
+
       {tab === 'results' && (
         <div className="space-y-3">
-          <div className="no-print flex flex-wrap items-end justify-between gap-3"><div className="max-w-xs"><SelectField label={ctx.termWord} value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>{card.data?.subjects.length ? <Button variant="secondary" onClick={() => printReportCards([card.data!])}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
-          {card.loading ? <Spinner /> : !card.data || !card.data.subjects.length ? <p className="text-sm text-ink/60">No results for this term yet.</p> : <ReportCardSheet card={card.data} />}
+          <div className="no-print flex flex-wrap items-end justify-between gap-3"><div className="max-w-xs"><SelectField label={ctx.termWord} value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>{card.data?.subjects.length ? <><Button variant="secondary" onClick={() => printReportCards([card.data!], [photo.data])}><Printer className="size-4" aria-hidden /> Print report card</Button><Button variant="secondary" onClick={() => void (async () => { const sid = s?.terms.find((x) => x.id === term)?.sessionId ?? s?.sessions.find((x) => x.current)?.id; if (!sid) return; const c = await annualCard(businessId, st.id, sid).catch(() => null); if (c) printAnnualCards([c], [photo.data]) })()}><Printer className="size-4" aria-hidden /> Annual report</Button></> : null}</div>
+          {card.loading ? <Spinner /> : !card.data || !card.data.subjects.length ? <p className="text-sm text-ink/60">No results for this term yet.</p> : <ReportCardSheet card={card.data} photo={photo.data} />}
         </div>
       )}
 

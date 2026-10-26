@@ -8,7 +8,8 @@ const date = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en
  * The report card as the school sends it home: school heading, the pupil's details, every subject with class work, exam, total, grade and how the class did,
  * the average and position, attendance, remarks, the grading key and places to sign. It is designed for A4 paper and looks the same on screen and in print.
  */
-export function ReportCardSheet({ card }: { card: ReportCard }) {
+export function ReportCardSheet({ card, photo = null }: { card: ReportCard; photo?: string | null }) {
+  const showPos = card.position !== null
   const a = card.attendance
   const scoreMax = (card.school?.caMax ?? 40) + (card.school?.examMax ?? 60)
   const gradeOfAverage = card.average === null ? null : (card.bands ?? []).find((b) => card.average! >= b.min)?.grade ?? null
@@ -24,7 +25,8 @@ export function ReportCardSheet({ card }: { card: ReportCard }) {
   ]
   return (
     <article className="report-sheet mx-auto max-w-[210mm] rounded-lg border border-line bg-white p-6 text-[13px] leading-snug text-ink shadow-card sm:p-8" aria-label={`Report card for ${card.student.name}`}>
-      <header className="border-b-4 border-double border-ink/70 pb-3 text-center">
+      <header className={`relative border-b-4 border-double border-ink/70 pb-3 text-center ${photo ? 'px-24' : ''}`}>
+        {photo && <img src={photo} alt={`Photo of ${card.student.name}`} className="absolute right-0 top-0 h-24 w-20 rounded border border-ink/40 object-cover" />}
         <h1 className="text-2xl font-extrabold uppercase tracking-wide">{card.school?.name ?? 'School'}</h1>
         {(card.school?.address || card.school?.phone || card.school?.email) && <p className="mt-0.5 text-xs text-ink/70">{[card.school?.address, card.school?.phone, card.school?.email].filter(Boolean).join('  ·  ')}</p>}
         <p className="mt-2 inline-block rounded-full border border-ink/60 px-4 py-0.5 text-xs font-bold uppercase tracking-[0.2em]">Report card</p>
@@ -42,14 +44,14 @@ export function ReportCardSheet({ card }: { card: ReportCard }) {
           <tr className="bg-ink text-left text-[10.5px] uppercase tracking-wide text-white">
             <th className="border border-ink px-2 py-1.5">Subject</th><th className="border border-ink px-2 py-1.5 text-right">Class work<br /><span className="font-normal normal-case opacity-80">/{card.school?.caMax ?? 40}</span></th>
             <th className="border border-ink px-2 py-1.5 text-right">Exam<br /><span className="font-normal normal-case opacity-80">/{card.school?.examMax ?? 60}</span></th><th className="border border-ink px-2 py-1.5 text-right">Total<br /><span className="font-normal normal-case opacity-80">/{scoreMax}</span></th>
-            <th className="border border-ink px-2 py-1.5 text-center">Grade</th>{hasStats && <><th className="border border-ink px-2 py-1.5 text-right">Class avg</th><th className="border border-ink px-2 py-1.5 text-right">Highest</th><th className="border border-ink px-2 py-1.5 text-right">Lowest</th></>}<th className="border border-ink px-2 py-1.5">Remark</th>
+            <th className="border border-ink px-2 py-1.5 text-center">Grade</th>{showPos && <th className="border border-ink px-2 py-1.5 text-center">Pos.</th>}{hasStats && <><th className="border border-ink px-2 py-1.5 text-right">Class avg</th><th className="border border-ink px-2 py-1.5 text-right">Highest</th><th className="border border-ink px-2 py-1.5 text-right">Lowest</th></>}<th className="border border-ink px-2 py-1.5">Remark</th>
           </tr>
         </thead>
         <tbody>
           {card.subjects.map((s, i) => (
             <tr key={s.subject} className={i % 2 ? 'bg-ink/[0.04]' : ''}>
               <td className="border border-ink/40 px-2 py-1 font-medium">{s.subject}</td><td className="tabular border border-ink/40 px-2 py-1 text-right">{fmt(s.ca)}</td><td className="tabular border border-ink/40 px-2 py-1 text-right">{fmt(s.exam)}</td>
-              <td className="tabular border border-ink/40 px-2 py-1 text-right font-bold">{s.total}</td><td className="border border-ink/40 px-2 py-1 text-center font-extrabold">{s.grade ?? '–'}</td>
+              <td className="tabular border border-ink/40 px-2 py-1 text-right font-bold">{s.total}</td><td className="border border-ink/40 px-2 py-1 text-center font-extrabold">{s.grade ?? '–'}</td>{showPos && <td className="tabular border border-ink/40 px-2 py-1 text-center">{s.position ?? '–'}</td>}
               {hasStats && <><td className="tabular border border-ink/40 px-2 py-1 text-right">{fmt(s.classAvg)}</td><td className="tabular border border-ink/40 px-2 py-1 text-right">{fmt(s.highest)}</td><td className="tabular border border-ink/40 px-2 py-1 text-right">{fmt(s.lowest)}</td></>}
               <td className="border border-ink/40 px-2 py-1 text-[12px]">{s.remark ?? ''}</td>
             </tr>
@@ -57,11 +59,20 @@ export function ReportCardSheet({ card }: { card: ReportCard }) {
           {card.subjects.length > 0 && (
             <tr className="bg-canvas font-bold">
               <td className="border border-ink/40 px-2 py-1.5" colSpan={3}>Total marks</td><td className="tabular border border-ink/40 px-2 py-1.5 text-right">{Math.round(total * 100) / 100}</td>
-              <td className="border border-ink/40 px-2 py-1.5 text-center">{gradeOfAverage ?? ''}</td><td className="border border-ink/40 px-2 py-1.5" colSpan={hasStats ? 5 : 2}>Average: <span className="tabular">{fmt(card.average)}</span>{card.position ? <>  ·  Position {card.position} of {card.classSize}</> : null}</td>
+              <td className="border border-ink/40 px-2 py-1.5 text-center">{gradeOfAverage ?? ''}</td><td className="border border-ink/40 px-2 py-1.5" colSpan={(hasStats ? 5 : 2) + (showPos ? 1 : 0)}>Average: <span className="tabular">{fmt(card.average)}</span>{card.position ? <>  ·  Position {card.position} of {card.classSize}</> : null}</td>
             </tr>
           )}
         </tbody>
       </table>
+
+      {(card.skills?.length ?? 0) > 0 && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {(['affective', 'psychomotor'] as const).map((d) => { const list = card.skills!.filter((x) => x.domain === d); if (!list.length) return null; return (
+            <table key={d} className="w-full border-collapse text-[12px]"><thead><tr className="bg-ink/10 text-left text-[10.5px] uppercase tracking-wide"><th className="border border-ink/40 px-2 py-1">{d === 'affective' ? 'Affective domain' : 'Psychomotor skills'}</th><th className="border border-ink/40 px-2 py-1 text-center">Rating</th></tr></thead>
+              <tbody>{list.map((x) => <tr key={x.name}><td className="border border-ink/40 px-2 py-0.5">{x.name}</td><td className="tabular border border-ink/40 px-2 py-0.5 text-center font-bold">{x.rating}</td></tr>)}</tbody></table>) })}
+          <p className="text-[10.5px] text-ink/70 sm:col-span-2">Rating key: <b>5</b> Excellent · <b>4</b> Very good · <b>3</b> Good · <b>2</b> Fair · <b>1</b> Poor</p>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded border border-ink/40 p-2.5"><p className="text-[10px] font-bold uppercase tracking-wide text-ink/55">Class teacher&apos;s remark</p><p className="mt-1 min-h-10">{card.remarks?.teacherRemark ?? ''}</p></div>
@@ -87,7 +98,7 @@ export function ReportCardSheet({ card }: { card: ReportCard }) {
 }
 
 /** Prints one or more report cards, one per A4 page, without anything else from the screen. */
-export function printReportCards(cards: ReportCard[]) {
+export function printReportCards(cards: ReportCard[], photos: (string | null | undefined)[] = []) {
   if (!cards.length) return
-  printSheets(cards.map((c, n) => <ReportCardSheet key={n} card={c} />))
+  printSheets(cards.map((c, n) => <ReportCardSheet key={n} card={c} photo={photos[n] ?? null} />))
 }
