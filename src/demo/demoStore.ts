@@ -99,7 +99,11 @@ function withNewDefaults(st: State): State {
       if (missing.length) modules[b.id] = { ...m, enabled: [...m.enabled, ...missing] }
     }
   }
-  return { ...st, modules }
+  // Demo accounts added in later releases (such as the platform team) must also work for browsers that saved the demo data earlier.
+  const have = new Set(st.users.map((u) => u.id))
+  const users = [...st.users, ...seed().users.filter((u) => !have.has(u.id))]
+  const businesses = st.businesses.map((b) => (b.createdAt ? b : { ...b, createdAt: daysAgo(30) }))
+  return { ...st, modules, users, businesses }
 }
 
 function load(): State {
