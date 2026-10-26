@@ -264,3 +264,6 @@ html { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   main table:not([data-keep-table]) td[colspan] { display: block; text-align: left !important; }
   main table:not([data-keep-table]) td[colspan]::before { display: none; }
 }
+
+/* A page never scrolls sideways: a decorative glow or a wide line of buttons may poke out, but it is clipped instead of widening the whole page (which on a phone also pushes fixed things, like the loader, half off the screen). */
+body { overflow-x: clip; }

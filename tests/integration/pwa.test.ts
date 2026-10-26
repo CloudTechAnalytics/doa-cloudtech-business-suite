@@ -51,3 +51,13 @@ describe('phone layouts', () => {
     expect(read('src/core/platform-admin/PlatformLayout.tsx')).toContain('useGridLabels(true, mainRef)')
   })
 })
+
+describe('no sideways scrolling', () => {
+  it('clips anything that pokes out of the page, so a wide row can never widen the whole page on a phone', () => {
+    expect(read('src/index.css')).toMatch(/^body \{ overflow-x: clip; \}$/m)
+  })
+  it('lets the business picker on the landing page shrink inside its column instead of stretching the page', () => {
+    const src = read('src/app/landing/IndustryExplorer.tsx')
+    expect(src).toContain('grid-cols-[minmax(0,1fr)]'); expect(src).toContain('<div className="min-w-0">')
+  })
+})

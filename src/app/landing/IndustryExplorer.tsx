@@ -31,8 +31,8 @@ export function IndustryExplorer() {
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Pick your business, <Mark>get your app</Mark></h2>
         <p className="mx-auto mt-4 max-w-xl text-base font-medium text-ink/80">Each kind of business gets its own screens and words. Run more than one? Each has its own books, under one login.</p>
       </Reveal>
-      <div ref={ref} className="mt-10 grid items-center gap-8 lg:grid-cols-[1fr_auto] lg:gap-14">
-        <div>
+      <div ref={ref} className="mt-10 grid grid-cols-[minmax(0,1fr)] items-center gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-14">
+        <div className="min-w-0">
           <div role="tablist" aria-label="Kind of business" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
             {industries.map((x) => {
               const soon = x.status !== 'active'; const i = active.findIndex((a) => a.id === x.id); const on = !soon && i === index
@@ -55,7 +55,7 @@ export function IndustryExplorer() {
           </div>
         </div>
         <div className="relative mx-auto">
-          <div aria-hidden className="absolute left-1/2 top-1/2 size-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl transition-colors duration-700" style={{ background: industryColor(cur.id) }} />
+          <div aria-hidden className="absolute left-1/2 top-1/2 size-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl transition-colors duration-700 max-sm:size-[14rem]" style={{ background: industryColor(cur.id) }} />
           <div className="relative"><IPhone label={`The ${cur.name} app on an iPhone`}><ScreenStack ids={ids} active={index} /></IPhone></div>
         </div>
       </div>
