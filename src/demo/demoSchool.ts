@@ -177,8 +177,10 @@ export function demoSaveSettings(biz: string, v: { schoolType: SSettings['school
     if (!v.workingDays.length || v.workingDays.some((d) => d < 1 || d > 7)) throw new Error('choose the days the school is open (1 = Monday ... 7 = Sunday)')
     const full = s.classes.filter((c) => c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage) && s.students.some((x) => x.classId === c.id && x.status === 'active'))
     if (full.length) throw new Error(`these classes still have active students: ${full.map((c) => c.name).join(', ')}. Move or withdraw them before changing the kind of school`)
+    const old = s.settings[biz]?.schoolType ?? null
     s.settings[biz] = { schoolType: v.schoolType, address: nul(v.address), phone: nul(v.phone), email: nul(v.email), caMax: v.caMax, examMax: v.examMax, showPosition: v.showPosition, workingDays: v.workingDays }
-    for (const c of s.classes) if (c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage)) c.active = false
+    if (old && old !== v.schoolType && s.classes.some((c) => c.businessId === biz)) reshape(s, biz, old, v.schoolType)
+    else for (const c of s.classes) if (c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage)) c.active = false
     return null
   }).error
 }
@@ -349,6 +351,55 @@ function buildStructure(s: School, biz: string, type: SSettings['schoolType'], s
   const sess: SSession = { id: newId('ses'), businessId: biz, name: trim(sessionName) || 'Session', startsOn: start, endsOn: addDays(start, 330), current: true }
   s.sessions.push(sess)
   for (let i = 0; i < 3; i++) s.terms.push({ id: newId('trm'), businessId: biz, sessionId: sess.id, name: ['First Term', 'Second Term', 'Third Term'][i], startsOn: addDays(start, i * 110), endsOn: addDays(start, i * 110 + 95), current: i === 0 })
+}
+/**
+ * Mirrors _school_reshape(): changing the kind of school removes the classes (when unused), departments and subjects of the levels it no longer has, and adds
+ * the classes and subjects of the levels it now has, with the standard subjects ticked for every class that takes none.
+ */
+function reshape(s: School, biz: string, oldType: SSettings['schoolType'], type: SSettings['schoolType']) {
+  const usedClass = (id: string) => s.students.some((x) => x.classId === id) || s.enrollments.some((x) => x.classId === id) || s.attendance.some((x) => x.classId === id) || s.scores.some((x) => x.classId === id)
+    || s.feeItems.some((x) => x.classId === id) || s.admissions.some((x) => x.classId === id) || s.announcements.some((x) => x.classId === id)
+  for (const c of s.classes.filter((x) => x.businessId === biz && !stageOk(type, x.stage))) {
+    if (usedClass(c.id)) { c.active = false; c.departmentId = null; continue }
+    s.timetable = s.timetable.filter((x) => x.classId !== c.id); s.assignments = s.assignments.filter((x) => x.classId !== c.id)
+    s.classSubjects = s.classSubjects.filter((x) => x.classId !== c.id); s.classes = s.classes.filter((x) => x.id !== c.id)
+  }
+  if (stageOk(type, 'secondary')) {
+    if (!s.departments.some((d) => d.businessId === biz)) for (const name of ['Science', 'Art', 'Commercial']) s.departments.push({ id: newId('dep'), businessId: biz, name })
+  } else {
+    for (const c of s.classes) if (c.businessId === biz) c.departmentId = null
+    for (const x of s.subjects) if (x.businessId === biz) x.departmentId = null
+    s.departments = s.departments.filter((d) => d.businessId !== biz)
+  }
+  const add = (name: string, order: number, kind: Stage, departmentId: string | null) => {
+    const have = s.classes.find((c) => c.businessId === biz && c.name === name)
+    if (!have) s.classes.push({ id: newId('cls'), businessId: biz, name, levelOrder: order, arm: null, active: true, stage: kind, departmentId })
+    else if (!stageOk(oldType, kind)) have.active = true
+  }
+  for (const [name, order, kind] of STRUCTURE) if (stageOk(type, kind)) add(name, order, kind, null)
+  if (stageOk(type, 'secondary')) for (let year = 1; year <= 3; year++) for (const d of s.departments.filter((x) => x.businessId === biz).sort((a, b) => a.name.localeCompare(b.name))) add(`SS ${year} ${d.name}`, 11 + year, 'secondary', d.id)
+  const classes = s.classes.filter((c) => c.businessId === biz && c.active && stageOk(type, c.stage))
+  const groups = new Set(classes.map((c) => groupOf(c.stage, c.levelOrder)))
+  for (const x of s.subjects.filter((y) => y.businessId === biz && y.levels.length && !y.levels.some((l) => groups.has(l)))) {
+    if (s.scores.some((r) => r.subjectId === x.id)) continue
+    s.timetable = s.timetable.filter((t) => t.subjectId !== x.id); s.assignments = s.assignments.filter((a) => a.subjectId !== x.id)
+    s.classSubjects = s.classSubjects.filter((c) => c.subjectId !== x.id); s.subjects = s.subjects.filter((y) => y.id !== x.id)
+  }
+  for (const name of [...new Set(CATALOGUE.filter((x) => groups.has(x[2])).map((x) => x[0]))]) {
+    const rows = CATALOGUE.filter((x) => x[0] === name && groups.has(x[2]))
+    const levels = [...new Set(rows.map((x) => x[2]))] as SubjectLevel[]
+    const have = s.subjects.find((x) => x.businessId === biz && x.name === name)
+    if (have) { if (have.levels.length) have.levels = [...new Set([...have.levels, ...levels])].sort() as SubjectLevel[]; continue }
+    const dept = rows.find((x) => x[3])?.[3] ?? null
+    s.subjects.push({ id: newId('sub'), businessId: biz, name, code: rows[0][1], levels: levels.sort(), departmentId: dept ? s.departments.find((d) => d.businessId === biz && d.name === dept)?.id ?? null : null })
+  }
+  for (const c of classes.filter((x) => !s.classSubjects.some((cs) => cs.classId === x.id))) {
+    const deptName = s.departments.find((d) => d.id === c.departmentId)?.name ?? null
+    for (const [name, , grp, dept] of CATALOGUE) {
+      if (grp !== groupOf(c.stage, c.levelOrder) || (dept && dept !== deptName)) continue
+      const sub = s.subjects.find((x) => x.businessId === biz && x.name === name); if (sub) s.classSubjects.push({ classId: c.id, subjectId: sub.id })
+    }
+  }
 }
 export function demoSchoolSetup(biz: string, type: SSettings['schoolType'], sessionName: string, start: string): string | null {
   return run(biz, 'school_setup', null, (s) => {

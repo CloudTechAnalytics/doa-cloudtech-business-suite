@@ -409,8 +409,11 @@ describe('the kind of school decides what exists', () => {
     // JSS 1 holds a student, so secondary keeps it and retires the other stages.
     await as(outsider, () => q('select public.school_save_settings($1,$2,null,null,null,40,60,false,$3)', [b, 'secondary', '{1,2,3,4,5}']))
     expect(await names(b, 'active')).toHaveLength(12) // JSS 1 to 3 and the nine senior secondary classes
-    await expect(as(outsider, () => q(`select public.school_save_class($1,$2,'Nursery 1',1,null,true,'nursery')`, [b, nursery]))).rejects.toThrow(/cannot have nursery classes/)
+    await expect(as(outsider, () => q(`select public.school_save_class($1,null,'Nursery 9',1,null,true,'nursery')`, [b]))).rejects.toThrow(/cannot have nursery classes/)
+    // the unused nursery and primary classes were removed with the stage; widening brings the standard ones back
+    expect(await names(b)).not.toContain('Nursery 1')
     await as(outsider, () => q('select public.school_save_settings($1,$2,null,null,null,40,60,false,$3)', [b, 'combined', '{1,2,3,4,5}']))
-    await expect(as(outsider, () => q(`select public.school_save_class($1,$2,'Nursery 1',1,null,true,'nursery')`, [b, nursery]))).resolves.toBeTruthy()
+    expect(await names(b, 'active')).toHaveLength(20)
+    await expect(as(outsider, () => q(`select public.school_save_class($1,null,'Nursery 9',1,null,true,'nursery')`, [b]))).resolves.toBeTruthy()
   })
 })

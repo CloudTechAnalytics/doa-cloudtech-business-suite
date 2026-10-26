@@ -20,10 +20,13 @@ export function SchoolClassesPage() {
   const students = useAsync(() => loadStudents(businessId), [businessId])
   const staff = useAsync(() => loadStaff(businessId).catch(() => ({ staff: [], assignments: [] })), [businessId])
   const [panel, setPanel] = useState<Panel>(null); const [openId, setOpenId] = useState<string | null>(null)
+  const [sq, setSq] = useState(''); const [sLevel, setSLevel] = useState(''); const [sDept, setSDept] = useState('')
   if (!active) return null
   const manage = can('school.manage')
   const done = async () => { setPanel(null); await structure.refresh() }
   const open = s?.classes.find((c) => c.id === openId) ?? null
+  const shownSubjects = ctx.visibleSubjects.filter((x) => (!sq.trim() || (x.name + ' ' + (x.code ?? '')).toLowerCase().includes(sq.trim().toLowerCase())) && (!sLevel || x.levels.includes(sLevel as SubjectLevel)) && (!sDept || (sDept === 'none' ? !x.departmentId : x.departmentId === sDept)))
+  const filtering = !!(sq.trim() || sLevel || sDept)
   return (
     <>
       <PageHeader title="Classes & Subjects" description="The shape of the school year: sessions and terms, the classes, the subjects, and what each class studies." />
@@ -42,7 +45,16 @@ export function SchoolClassesPage() {
         </Card>
         <Card className="lg:col-span-2">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">2. Subjects</h3><p className="text-xs text-ink/60">Every subject the school teaches, listed once. Click one to change or delete it.</p></div>{manage && <Button variant="secondary" onClick={() => setPanel({ kind: 'subject', v: null })}><Plus className="size-4" aria-hidden /> Add subject</Button>}</div>
-          {ctx.visibleSubjects.length ? <ul className="divide-y divide-ink/10 text-sm">{ctx.visibleSubjects.map((x) => { const dept = s?.departments.find((d) => d.id === x.departmentId); const n = (s?.classSubjects ?? []).filter((cs) => cs.subjectId === x.id).length; return (
+          {ctx.visibleSubjects.length > 6 && (
+            <div className="mb-3 flex flex-wrap items-end gap-3">
+              <div className="w-56"><TextField label="Search subjects" value={sq} onChange={(e) => setSq(e.target.value)} placeholder="Name or code" /></div>
+              <div className="w-48"><SelectField label="Taught at" value={sLevel} onChange={(e) => setSLevel(e.target.value)}><option value="">All levels</option>{SUBJECT_LEVELS.filter((l) => levelsOf(ctx.kind).includes(l)).map((l) => <option key={l} value={l}>{LEVEL_NAMES[l]}</option>)}</SelectField></div>
+              {(s?.departments.length ?? 0) > 0 && <div className="w-48"><SelectField label="Department" value={sDept} onChange={(e) => setSDept(e.target.value)}><option value="">All</option><option value="none">Every department</option>{s!.departments.map((d) => <option key={d.id} value={d.id}>{d.name} only</option>)}</SelectField></div>}
+              {filtering && <Button variant="secondary" onClick={() => { setSq(''); setSLevel(''); setSDept('') }}>Clear</Button>}
+              <p className="pb-2 text-xs text-ink/60">{shownSubjects.length} of {ctx.visibleSubjects.length} subjects</p>
+            </div>
+          )}
+          {filtering && !shownSubjects.length ? <p className="py-4 text-center text-sm text-ink/60">No subject matches. Clear the filters, or add it.</p> : ctx.visibleSubjects.length ? <ul className="divide-y divide-ink/10 text-sm">{shownSubjects.map((x) => { const dept = s?.departments.find((d) => d.id === x.departmentId); const n = (s?.classSubjects ?? []).filter((cs) => cs.subjectId === x.id).length; return (
             <li key={x.id}><button disabled={!manage} onClick={() => setPanel({ kind: 'subject', v: x })} className="flex w-full flex-wrap items-center justify-between gap-2 py-2 text-left hover:bg-surface"><span className="font-medium">{x.name}{x.code ? <span className="text-ink/50"> ({x.code})</span> : null}</span>
               <span className="flex flex-wrap items-center gap-1.5 text-xs text-ink/60">{x.levels.map((l) => <Badge key={l}>{LEVEL_NAMES[l]}</Badge>)}{dept && <Badge tone="info">{dept.name} only</Badge>}<span>{n} {n === 1 ? 'class' : 'classes'}</span></span></button></li>) })}</ul> : <EmptyState title="No subjects yet" />}
         </Card>
@@ -136,13 +148,17 @@ function ClassPage({ ctx, c, students, teachers, onClose, onEdit, onChanged }: {
   // A subject fits a class when it is taught at the class's level and (for senior secondary) is in its department or in none.
   const level = classLevel(c)
   const fits = (x: SSubject) => (x.levels.length === 0 || x.levels.includes(level)) && (!x.departmentId || x.departmentId === c.departmentId)
-  const fit = ctx.visibleSubjects.filter((x) => fits(x))
-  const others = ctx.visibleSubjects.filter((x) => !fits(x))
+  const [find, setFind] = useState('')
+  const match = (x: SSubject) => !find.trim() || x.name.toLowerCase().includes(find.trim().toLowerCase())
+  const fit = ctx.visibleSubjects.filter((x) => fits(x) && match(x))
+  const others = ctx.visibleSubjects.filter((x) => !fits(x) && match(x))
   return (
     <DetailPage title={c.name} onClose={onClose} wide actions={manage ? <div className="flex gap-2"><Button variant="secondary" onClick={onEdit}>Edit</Button><ConfirmDelete label={c.name} noun="class" warning="Its subject choices, teacher assignments and timetable are removed. A class that has students, attendance, results or fees on record cannot be deleted; untick In use under Edit instead." onConfirm={() => deleteClass(ctx.businessId, c.id)} onDeleted={async () => { onClose(); await onChanged() }} /></div> : undefined}>
       <div className="grid gap-6 lg:grid-cols-2">
         <div><h3 className="mb-1 text-sm font-semibold">Subjects taken</h3>
           <p className="mb-2 text-xs text-ink/60">Tick the subjects this class studies. The first list shows the subjects that fit the level of this class{c.departmentId ? ' and department' : ''}; the rest are under "Other subjects".</p>
+          {ctx.visibleSubjects.length > 8 && <div className="mb-2 max-w-xs"><TextField label="Find a subject" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Type to filter" /></div>}
+          {find.trim() && !fit.length && !others.length && <p className="text-sm text-ink/60">No subject matches.</p>}
           <ul className="space-y-1 text-sm">{fit.map((x) => <li key={x.id}><label className="flex items-center gap-2"><input type="checkbox" disabled={!manage} checked={picked.includes(x.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, x.id] : picked.filter((id) => id !== x.id))} /> {x.name}</label></li>)}</ul>
           {others.length > 0 && <details className="mt-3" open={others.some((x) => picked.includes(x.id))}><summary className="cursor-pointer text-sm font-medium text-ink/70">Other subjects ({others.length})</summary><ul className="mt-1 space-y-1 text-sm">{others.map((x) => <li key={x.id}><label className="flex items-center gap-2"><input type="checkbox" disabled={!manage} checked={picked.includes(x.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, x.id] : picked.filter((id) => id !== x.id))} /> {x.name} {x.levels.length > 0 && <span className="text-xs text-ink/50">({x.levels.map((l) => LEVEL_NAMES[l]).join(', ')})</span>}</label></li>)}</ul></details>}
           {manage && <div className="mt-3 space-y-2">{runner.error && <ErrorState title="Not saved" message={runner.error} />}{runner.ok && <Notice>{runner.ok}</Notice>}<Button loading={runner.busy} onClick={() => void runner.run(async () => setClassSubjects(ctx.businessId, c.id, picked), 'Subjects saved.')}>Save subjects</Button></div>}
