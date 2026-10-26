@@ -33,7 +33,7 @@ Service cards time a real request from your browser to the database API, sign-in
 
 ## Row actions
 
-Every business row has a menu: View, Edit, Suspend or Reactivate, Transfer ownership (owner), View subscription, Open audit log, Delete business (owner; type the name to confirm). Every user row (one per person per business) has Set inactive, Set active again and Remove from business. The Subscriptions page lists every business with its plan and status as drop-downs; changing one asks for a reason first.
+Every business row has a menu: View, Edit, Suspend or Reactivate, Transfer ownership (owner), View subscription, Open audit log, Delete business (owner; type the name to confirm; the business is archived and nothing is erased) and Delete permanently (owner; type the name and give a reason; every record of the business is erased from the database and cannot be recovered. Only the platform log of the deletion is kept). Every user row (one per person per business) has Set inactive, Set active again and Remove from business. The Subscriptions page lists every business with its plan and status as drop-downs; changing one asks for a reason first.
 
 ## Security
 

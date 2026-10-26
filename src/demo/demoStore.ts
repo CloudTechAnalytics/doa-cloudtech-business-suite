@@ -291,6 +291,10 @@ export function demoPlatformSetPlan(businessId: string, plan: PlanCode) { patchM
 export function demoPlatformPatchBusiness(businessId: string, patch: Partial<DemoBusiness>) {
   commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, ...patch } : x)) })
 }
+export function demoPlatformRemoveBusiness(businessId: string) {
+  const modules = { ...state.modules }; delete modules[businessId]
+  commit({ ...state, businesses: state.businesses.filter((b) => b.id !== businessId), members: state.members.filter((m) => m.businessId !== businessId), modules })
+}
 export function demoPlatformPatchMembers(businessId: string, fn: (m: DemoMember) => DemoMember) {
   commit({ ...state, members: state.members.map((m) => (m.businessId === businessId ? fn(m) : m)) })
 }

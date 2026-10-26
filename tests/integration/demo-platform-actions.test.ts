@@ -56,4 +56,20 @@ describe('the demo console can edit, stop people, move ownership and delete, wit
     const log = pl.demoPlatformAudit()
     expect(log.map((l) => l.action)).toEqual(expect.arrayContaining(['business.update', 'member.suspended', 'business.transfer_ownership', 'business.archive']))
   })
+
+  it('erases a business for good, only for platform owners, with the exact name and a reason', () => {
+    as('engineer@demo.test')
+    expect(pl.demoPlatformPurgeBusiness('b-pharmacy', 'CarePlus Pharmacy', 'erase')).toMatch(/permission denied/)
+    as('platform@demo.test')
+    expect(pl.demoPlatformPurgeBusiness('b-pharmacy', 'CarePlus Pharmacy', '')).toMatch(/say why/)
+    expect(pl.demoPlatformPurgeBusiness('b-pharmacy', 'careplus', 'wrong name')).toMatch(/exactly/)
+    expect(getDemoState().businesses.some((b) => b.id === 'b-pharmacy')).toBe(true)
+    expect(pl.demoPlatformPurgeBusiness('b-pharmacy', 'CarePlus Pharmacy', 'Owner asked for permanent deletion')).toBeNull()
+    expect(getDemoState().businesses.some((b) => b.id === 'b-pharmacy')).toBe(false)
+    expect(getDemoState().members.some((m) => m.businessId === 'b-pharmacy')).toBe(false)
+    expect(pl.demoPlatformBusinesses().some((b) => b.id === 'b-pharmacy')).toBe(false)
+    expect(pl.demoPlatformPurgeBusiness('b-pharmacy', 'CarePlus Pharmacy', 'again')).toMatch(/business not found/)
+    const entry = pl.demoPlatformAudit().find((l) => l.action === 'business.purge')!
+    expect(entry).toMatchObject({ business: 'CarePlus Pharmacy', reason: 'Owner asked for permanent deletion' })
+  })
 })

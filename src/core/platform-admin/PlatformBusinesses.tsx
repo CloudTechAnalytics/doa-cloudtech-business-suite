@@ -10,11 +10,11 @@ import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { PLANS, PLAN_PRICES } from '@/core/subscriptions/plans'
 import { label, naira } from '@/shared/utilities/format'
 import type { PlanCode } from '@/shared/types/domain'
-import { archiveBusiness, loadBusiness, loadBusinesses, setBusinessStatus, setSubscription, transferOwnership, updateBusiness } from './platformApi'
+import { archiveBusiness, loadBusiness, loadBusinesses, purgeBusiness, setBusinessStatus, setSubscription, transferOwnership, updateBusiness } from './platformApi'
 import type { BusinessState, SubStatus } from './platformApi'
 import { StateBadge, SUB_LABEL, SubBadge, day, daysFrom, industryName, usePlatform, when } from './platformUi'
 
-export type Action = 'plan' | 'extend' | 'suspend' | 'reactivate' | 'paid' | 'cancel' | 'edit' | 'transfer' | 'delete'
+export type Action = 'plan' | 'extend' | 'suspend' | 'reactivate' | 'paid' | 'cancel' | 'edit' | 'transfer' | 'delete' | 'purge'
 /** What the action dialog needs to know about a business; the table and the detail page both supply it. */
 export interface Target { id: string; name: string; planCode: string | null; status: BusinessState }
 
@@ -33,6 +33,7 @@ export function BusinessMenu({ b, onAction }: { b: Target; onAction: (a: Action)
     { label: 'View subscription', to: `/platform/subscriptions?q=${encodeURIComponent(b.name)}`, icon: <CreditCard className="size-4" />, divider: true },
     { label: 'Open audit log', to: `/platform/audit?business=${b.id}`, icon: <ScrollText className="size-4" /> },
     ...(isOwner && !archived ? [{ label: 'Delete business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => onAction('delete'), divider: true }] : []),
+    ...(isOwner ? [{ label: 'Delete permanently', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => onAction('purge'), divider: archived }] : []),
   ]
   return (
     <Menu
@@ -142,12 +143,12 @@ export function PlatformBusinessPage() {
         </Card>
       </div>
 
-      {action && <ActionDialog b={target} action={action} onClose={() => setAction(null)} onDone={async () => { const gone = action === 'delete'; setAction(null); if (gone) navigate('/platform/businesses'); else await d.refresh() }} />}
+      {action && <ActionDialog b={target} action={action} onClose={() => setAction(null)} onDone={async () => { const gone = action === 'delete' || action === 'purge'; setAction(null); if (gone) navigate('/platform/businesses'); else await d.refresh() }} />}
     </>
   )
 }
 
-const TITLES: Record<Action, string> = { plan: 'Change plan', extend: 'Extend', suspend: 'Suspend business', reactivate: 'Reactivate business', paid: 'Mark as paid', cancel: 'Cancel subscription', edit: 'Edit business', transfer: 'Transfer ownership', delete: 'Delete business' }
+const TITLES: Record<Action, string> = { plan: 'Change plan', extend: 'Extend', suspend: 'Suspend business', reactivate: 'Reactivate business', paid: 'Mark as paid', cancel: 'Cancel subscription', edit: 'Edit business', transfer: 'Transfer ownership', delete: 'Delete business', purge: 'Delete permanently' }
 
 /** Every change to a business goes through here: it says what will happen, asks for a reason, and only then does it. */
 export function ActionDialog({ b, action, onClose, onDone }: { b: Target; action: Action; onClose: () => void; onDone: () => Promise<void> }) {
@@ -165,9 +166,10 @@ export function ActionDialog({ b, action, onClose, onDone }: { b: Target; action
     if (action === 'edit') return updateBusiness(b.id, { name: f.name, legalName: f.legal, timezone: f.tz, reason: why })
     if (action === 'transfer') return transferOwnership(b.id, email, why)
     if (action === 'delete') return archiveBusiness(b.id, why)
+    if (action === 'purge') return purgeBusiness(b.id, typed, why)
     return setBusinessStatus(b.id, action === 'suspend' ? 'suspended' : 'active', why)
   }
-  const ready = why.trim().length >= 3 && (action !== 'transfer' || email.trim().includes('@')) && (action !== 'delete' || typed.trim() === b.name) && (action !== 'edit' || f.name.trim().length > 0)
+  const ready = why.trim().length >= 3 && (action !== 'transfer' || email.trim().includes('@')) && (!(action === 'delete' || action === 'purge') || typed.trim() === b.name) && (action !== 'edit' || f.name.trim().length > 0)
   return (
     <Dialog title={`${TITLES[action]}: ${b.name}`} onClose={onClose}>
       <div className="space-y-3">
@@ -177,7 +179,9 @@ export function ActionDialog({ b, action, onClose, onDone }: { b: Target; action
         {action === 'transfer' && <><TextField label="New owner's email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Must already be a member of this business" /><Notice>The new owner gets full control. The current owner stays on as a business admin.</Notice></>}
         {action === 'suspend' && <Notice>Nobody in this business will be able to use it until you reactivate it. Their records are kept.</Notice>}
         {action === 'paid' && <Notice>Use this when payment has been received outside the app. It starts a paid month if the period had run out.</Notice>}
-        {action === 'delete' && <><Notice>The business disappears for everyone in it. Its records and history are kept, not erased, but there is no button here to bring it back.</Notice><TextField label={`Type "${b.name}" to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} /></>}
+        {action === 'purge' && <div role="alert" className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"><b>This cannot be undone.</b> Every record of this business is erased from the database: its people, sales, stock, payments, students, history and audit trail. Only the platform's own log of this deletion is kept. Unlike Delete business, nothing can be recovered afterwards.</div>}
+        {(action === 'delete' || action === 'purge') && <TextField label={`Type "${b.name}" to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} />}
+        {action === 'delete' && <Notice>The business disappears for everyone in it. Its records and history are kept, not erased, but there is no button here to bring it back. To erase the records too, use Delete permanently.</Notice>}
         <TextField label="Reason (kept in the audit log)" value={why} onChange={(e) => setWhy(e.target.value)} autoFocus={action !== 'edit'} placeholder="For example: paid by transfer, ref 1234" />
         {runner.error && <ErrorState title="Not done" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!ready} loading={runner.busy} onClick={() => void runner.run(async () => confirm(), 'Done.')}>{TITLES[action]}</Button></div>

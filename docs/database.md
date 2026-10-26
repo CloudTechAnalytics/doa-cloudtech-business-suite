@@ -27,6 +27,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0021_platform_admin` | `platform_admins` (owner, engineer, support) and the append-only `platform_audit_log`; `platform_*` functions for overview, businesses, users, plans, audit, health and team, and for changing subscriptions and suspending businesses (each needs a reason and is logged). See docs/platform-admin.md |
 | `…0024_platform_actions` | `platform_update_business`, `platform_set_member_status` (engineer or owner), `platform_transfer_ownership` and `platform_archive_business` (platform owner only); each needs a reason and is logged. The owner of a business cannot be stopped until ownership is moved. See docs/platform-admin.md |
 | `…0025_platform_usage` | `platform_settings` (plan limits, closed to direct access) and `platform_usage()`: database size, file storage, businesses, users and audit events for the System Health page. Limits start at the free plan (500 MB, 1 GB); raise them in `platform_settings` after upgrading |
+| `…0026_platform_purge` | `platform_purge_business(business, exact name, reason)`: platform owners only; erases every row of a business in every table (children first, append-only guards off for that one transaction only, all or nothing) and keeps only the platform log of the deletion. `platform_audit` now shows the name of a deleted business |
 
 ## Tables named in the architecture brief
 

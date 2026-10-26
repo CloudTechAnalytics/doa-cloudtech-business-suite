@@ -1,5 +1,5 @@
 import { PLANS, PLAN_PRICES } from '@/core/subscriptions/plans'
-import { demoPlatformPatchBusiness, demoPlatformPatchMembers, demoPlatformSetPlan, demoPlatformSetSuspended, getDemoState } from '@/demo/demoStore'
+import { demoPlatformPatchBusiness, demoPlatformPatchMembers, demoPlatformRemoveBusiness, demoPlatformSetPlan, demoPlatformSetSuspended, getDemoState } from '@/demo/demoStore'
 import type { DemoBusiness } from '@/demo/demoStore'
 import type { PlanCode } from '@/shared/types/domain'
 
@@ -201,6 +201,18 @@ export function demoPlatformRemoveAdmin(userId: string): string | null {
   })
 }
 
+/** Permanent deletion: the business and everything in it are gone, only the platform's own log remains. Demo data of other apps for that business is left behind in the browser. */
+export function demoPlatformPurgeBusiness(businessId: string, confirmName: string, why: string): string | null {
+  return run((s) => {
+    need('owner'); reason(why)
+    const b = getDemoState().businesses.find((x) => x.id === businessId); if (!b) throw new Error('business not found')
+    if (confirmName.trim() !== b.name) throw new Error('type the business name exactly to confirm')
+    log(s, 'business.purge', businessId, why, { name: b.name })
+    s.audit[0].business = b.name
+    delete s.subs[businessId]; delete s.details[businessId]
+    demoPlatformRemoveBusiness(businessId)
+  })
+}
 export function demoPlatformUpdateBusiness(businessId: string, v: { name: string; legalName: string; timezone: string; reason: string }): string | null {
   return run((s) => {
     need('write'); reason(v.reason)

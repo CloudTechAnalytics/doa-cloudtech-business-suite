@@ -110,6 +110,11 @@ export async function setMemberStatus(businessId: string, userId: string, status
   if (isDemoMode) return pl.demoPlatformSetMemberStatus(businessId, userId, status, reason)
   return msg('platform_set_member_status', { p_business: businessId, p_user: userId, p_status: status, p_reason: reason })
 }
+/** Erases a business and all of its records for good. Platform owners only. */
+export async function purgeBusiness(businessId: string, confirmName: string, reason: string): Promise<string | null> {
+  if (isDemoMode) return pl.demoPlatformPurgeBusiness(businessId, confirmName, reason)
+  return msg('platform_purge_business', { p_business: businessId, p_confirm_name: confirmName, p_reason: reason })
+}
 export async function archiveBusiness(businessId: string, reason: string): Promise<string | null> {
   if (isDemoMode) return pl.demoPlatformArchiveBusiness(businessId, reason)
   return msg('platform_archive_business', { p_business: businessId, p_reason: reason })
