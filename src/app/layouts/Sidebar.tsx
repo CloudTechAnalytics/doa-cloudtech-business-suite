@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { appPath, sidebarEntries } from '@/app/navigation/navigation'
@@ -12,7 +12,7 @@ const readShut = (): string[] => { try { return JSON.parse(localStorage.getItem(
  * In-app navigation: every usable module, grouped by app. Collapses to icons on wide screens
  * (remembered per browser); on narrow screens the shell shows it as a drawer.
  */
-export function Sidebar({ apps, collapsed = false, onToggle, onNavigate }: { apps: AppDef[]; collapsed?: boolean; onToggle?: () => void; onNavigate?: () => void }) {
+export function Sidebar({ apps, collapsed = false, onNavigate }: { apps: AppDef[]; collapsed?: boolean; onNavigate?: () => void }) {
   const entries = sidebarEntries(apps)
   const { pathname } = useLocation()
   // Section headings fold their links away (remembered per browser); the section holding the open page opens by itself.
@@ -49,13 +49,6 @@ export function Sidebar({ apps, collapsed = false, onToggle, onNavigate }: { app
           ),
         )}
       </div>
-      {onToggle && (
-        <div className={clsx('border-t border-line p-2', collapsed && 'flex justify-center')}>
-          <button type="button" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink/60 hover:bg-surface hover:text-ink">
-            {collapsed ? <ChevronsRight className="size-[18px]" aria-hidden /> : <><ChevronsLeft className="size-[18px]" aria-hidden />Collapse</>}
-          </button>
-        </div>
-      )}
     </nav>
   )
 }

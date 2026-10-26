@@ -2,6 +2,7 @@ import { Bell, ChevronDown, LogOut, RefreshCw, UserCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useProfile } from '@/core/auth/useProfile'
+import { Avatar } from './Avatar'
 import { Menu } from '@/shared/components/menu'
 import type { MenuItem } from '@/shared/components/menu'
 
@@ -59,7 +60,7 @@ export function AccountMenu({ roleLabel, extra = [], emailSubtitle = false }: { 
       label="Account menu"
       trigger={({ toggle }) => (
         <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className="flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 text-left transition hover:bg-surface">
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand text-sm font-bold text-white" aria-hidden>{p.initials}</span>
+          <Avatar url={p.picture} initials={p.initials} className="size-8 text-xs" />
           <span className="hidden min-w-0 leading-tight sm:block"><span className="block max-w-40 truncate text-sm font-semibold">{p.name}</span><span className="block max-w-40 truncate text-xs text-ink/60">{emailSubtitle ? p.email : roleLabel}</span></span>
           <ChevronDown className="hidden size-4 text-ink/50 sm:block" aria-hidden />
         </button>

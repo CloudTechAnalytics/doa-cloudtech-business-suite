@@ -1,12 +1,14 @@
 import { ArrowLeft } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, ErrorState, Notice, TextField } from '@/shared/components'
+import { Avatar } from '@/shared/topbar/Avatar'
+import { blobToDataUrl, shrinkImage } from '@/shared/utilities/image'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { passwordProblem } from './AuthPages'
-import { useProfile } from './useProfile'
+import { announceAvatarChange, setDemoAvatar, useProfile } from './useProfile'
 
 /** A person's own details: their name and phone, and a new password. Everyone reaches it from the account menu at the top right. */
 export function ProfilePage() {
@@ -17,6 +19,43 @@ export function ProfilePage() {
   const [pwError, setPwError] = useState<string | null>(null)
   const [pwDone, setPwDone] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [picError, setPicError] = useState<string | null>(null)
+  const [picBusy, setPicBusy] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  async function choosePicture(file: File | undefined) {
+    if (!file) return
+    setPicError(null); setPicBusy(true)
+    try {
+      const blob = await shrinkImage(file)
+      if (isDemoMode) setDemoAvatar(profile.userId ?? '', await blobToDataUrl(blob))
+      else {
+        if (!supabase || !profile.userId) throw new Error('You are not signed in.')
+        const path = `${profile.userId}/avatar-${Date.now()}.jpg`
+        const up = await supabase.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+        if (up.error) throw new Error(up.error.message)
+        const set = await supabase.from('profiles').update({ avatar_path: path }).eq('id', profile.userId)
+        if (set.error) throw new Error(set.error.message)
+        if (profile.picturePath) await supabase.storage.from('avatars').remove([profile.picturePath])
+        announceAvatarChange()
+      }
+    } catch (e) { setPicError((e as Error).message) }
+    setPicBusy(false)
+    if (fileInput.current) fileInput.current.value = ''
+  }
+  async function removePicture() {
+    setPicError(null); setPicBusy(true)
+    try {
+      if (isDemoMode) setDemoAvatar(profile.userId ?? '', null)
+      else if (supabase && profile.userId) {
+        const set = await supabase.from('profiles').update({ avatar_path: null }).eq('id', profile.userId)
+        if (set.error) throw new Error(set.error.message)
+        if (profile.picturePath) await supabase.storage.from('avatars').remove([profile.picturePath])
+        announceAvatarChange()
+      }
+    } catch (e) { setPicError((e as Error).message) }
+    setPicBusy(false)
+  }
 
   async function saveDetails(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -54,9 +93,16 @@ export function ProfilePage() {
 
         <Card>
           <div className="mb-4 flex items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-xl bg-brand text-base font-bold text-white" aria-hidden>{profile.initials}</span>
-            <div><p className="font-semibold">{profile.name}</p><p className="text-sm text-ink/60">{profile.email}</p></div>
+            <Avatar url={profile.picture} initials={profile.initials} className="size-16 text-lg" />
+            <div className="min-w-0 flex-1"><p className="truncate font-semibold">{profile.name}</p><p className="truncate text-sm text-ink/60">{profile.email}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Choose a profile picture" onChange={(e) => void choosePicture(e.target.files?.[0])} />
+                <Button type="button" variant="secondary" loading={picBusy} onClick={() => fileInput.current?.click()}>{profile.picture ? 'Change picture' : 'Add a picture'}</Button>
+                {profile.picture && <Button type="button" variant="ghost" disabled={picBusy} onClick={() => void removePicture()}>Remove</Button>}
+              </div>
+            </div>
           </div>
+          {picError && <div className="mb-3"><ErrorState title="Picture not saved" message={picError} /></div>}
           <form onSubmit={saveDetails} noValidate className="space-y-3" key={`${profile.name}|${profile.phone}`}>
             <TextField label="Name" name="name" defaultValue={profile.name} />
             <TextField label="Phone (optional)" name="phone" defaultValue={profile.phone} />

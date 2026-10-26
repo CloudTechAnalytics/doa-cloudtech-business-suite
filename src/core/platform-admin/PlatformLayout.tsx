@@ -1,9 +1,10 @@
 import { Activity, Building2, CreditCard, HeartPulse, LayoutDashboard, LayoutGrid, Menu as MenuIcon, ScrollText, ShieldCheck, Tag, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, Navigate, Outlet } from 'react-router-dom'
-import { Wordmark } from '@/app/layouts/Brand'
+import { BrandMark, Wordmark } from '@/app/layouts/Brand'
 import { Notice, Spinner } from '@/shared/components'
 import { AccountMenu, AttentionBell, RefreshButton } from '@/shared/topbar/TopBar'
+import { EdgeToggle } from '@/shared/topbar/EdgeToggle'
 import { isDemoMode } from '@/shared/utilities/env'
 import { resetDemoPlatform } from '@/demo/demoPlatform'
 import { PlatformContext, usePlatformAttention, usePlatformRole } from './platformUi'
@@ -21,35 +22,37 @@ export function PlatformLayout() {
   const attention = usePlatformAttention()
   const [open, setOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('doa.platform.collapsed') === '1' } catch { return false } })
+  const toggle = () => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('doa.platform.collapsed', next ? '1' : '0') } catch { /* storage unavailable */ } }
   if (role.loading) return <Spinner />
   if (!role.data) return <Navigate to="/businesses" replace />
   const ctx = { role: role.data, canWrite: role.data !== 'support', isOwner: role.data === 'owner' }
 
-  const sidebar = (
+  // On a wide screen the sidebar can fold down to icons; in the phone drawer it is always the full one.
+  const nav = (folded: boolean) => (
     <nav aria-label="Platform" className="flex h-full flex-col bg-brand text-white">
-      <Link to="/platform" onClick={() => setOpen(false)} className="flex items-center gap-3 px-5 py-5"><Wordmark light className="h-6" /></Link>
-      <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
+      <Link to="/platform" onClick={() => setOpen(false)} aria-label="DOA platform home" className={`flex items-center py-5 ${folded ? 'justify-center' : 'px-5'}`}>{folded ? <BrandMark className="size-8" /> : <Wordmark light className="h-6" />}</Link>
+      <div className={`flex-1 space-y-5 overflow-y-auto pb-4 ${folded ? 'px-2' : 'px-3'}`}>
         {NAV.map((g) => (
           <div key={g.heading}>
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/45">{g.heading}</p>
+            {folded ? <hr className="mx-3 mb-2 border-white/10" /> : <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/45">{g.heading}</p>}
             {g.items.map((it) => (
-              <NavLink key={it.to} to={it.to} end={'end' in it && it.end} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? 'bg-white/12 text-white' : 'text-white/70 hover:bg-white/8 hover:text-white'}`}>
-                <it.icon className="size-[18px]" aria-hidden />{it.label}
+              <NavLink key={it.to} to={it.to} end={'end' in it && it.end} onClick={() => setOpen(false)} title={folded ? it.label : undefined} aria-label={folded ? it.label : undefined} className={({ isActive }) => `flex items-center rounded-lg py-2 text-sm font-medium transition ${folded ? 'justify-center px-0' : 'gap-3 px-3'} ${isActive ? 'bg-white/12 text-white' : 'text-white/70 hover:bg-white/8 hover:text-white'}`}>
+                <it.icon className="size-[18px]" aria-hidden />{!folded && it.label}
               </NavLink>
             ))}
           </div>
         ))}
       </div>
-      <div className="border-t border-white/10 px-5 py-3 text-xs text-white/50">Platform console</div>
     </nav>
   )
 
   return (
     <PlatformContext.Provider value={ctx}>
       <div className="min-h-dvh bg-surface text-ink">
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 lg:block">{sidebar}</aside>
-        {open && <div className="fixed inset-0 z-40 lg:hidden"><div className="absolute inset-0 bg-ink/40" onClick={() => setOpen(false)} /><div className="absolute inset-y-0 left-0 w-64">{sidebar}</div></div>}
-        <div className="lg:pl-60">
+        <aside className={`fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-200 lg:block ${collapsed ? 'w-16' : 'w-60'}`}>{nav(collapsed)}<EdgeToggle collapsed={collapsed} onToggle={toggle} /></aside>
+        {open && <div className="fixed inset-0 z-40 lg:hidden"><div className="absolute inset-0 bg-ink/40" onClick={() => setOpen(false)} /><div className="absolute inset-y-0 left-0 w-64">{nav(false)}</div></div>}
+        <div className={`transition-[padding] duration-200 ${collapsed ? 'lg:pl-16' : 'lg:pl-60'}`}>
           {isDemoMode && <div className="bg-amber/25 px-4 py-1 text-center text-xs font-medium">DEMO MODE: browser-only data. <button className="underline" onClick={() => { resetDemoPlatform(); location.reload() }}>Reset console data</button></div>}
           <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-white/90 px-4 backdrop-blur sm:px-6">
             <div className="flex items-center gap-3">

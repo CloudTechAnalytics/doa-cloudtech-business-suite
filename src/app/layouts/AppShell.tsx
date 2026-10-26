@@ -17,6 +17,7 @@ import { demoReset } from '@/demo/demoStore'
 import { applyTheme, themeByKey } from '@/core/theme/themes'
 import { ViewMenu } from '@/shared/view/ViewMenu'
 import { AccountMenu, AttentionBell, RefreshButton } from '@/shared/topbar/TopBar'
+import { EdgeToggle } from '@/shared/topbar/EdgeToggle'
 import { useWorkspaceAttention } from './useWorkspaceAttention'
 import { useGridLabels } from '@/shared/view/useGridLabels'
 import { useViewPrefs } from '@/shared/view/viewPrefs'
@@ -149,7 +150,8 @@ export function AppShell() {
         {isHome ? <Outlet key={`${active.id}-${refreshKey}`} /> : (
           <div className="flex">
             <aside className={`no-print sticky top-12 hidden h-[calc(100dvh-3rem)] shrink-0 self-start border-r border-line bg-white transition-[width] lg:block ${collapsed ? 'w-16' : 'w-60'}`}>
-              <Sidebar apps={apps} collapsed={collapsed} onToggle={toggleCollapsed} />
+              <Sidebar apps={apps} collapsed={collapsed} />
+              <EdgeToggle collapsed={collapsed} onToggle={toggleCollapsed} />
             </aside>
             <main ref={mainRef} data-list-view={view.list} className="min-w-0 flex-1 px-4 py-5 sm:px-6">
               <DetailSlotContext.Provider value={detailSlot}>
