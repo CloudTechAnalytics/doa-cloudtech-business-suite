@@ -61,7 +61,7 @@ export function PlatformLayout() {
               <button type="button" onClick={signOut} aria-label="Sign out" className="grid size-9 place-items-center rounded-md text-ink/70 hover:bg-surface hover:text-ink"><LogOut className="size-[18px]" aria-hidden /></button>
             </div>
           </header>
-          <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+          <main className="px-4 py-6 sm:px-6">
             {role.data === 'support' && <div className="mb-4"><Notice>You have read-only access. Ask a platform engineer or owner to make changes.</Notice></div>}
             <Outlet />
           </main>
