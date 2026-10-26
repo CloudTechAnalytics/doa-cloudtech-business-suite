@@ -30,7 +30,7 @@ export function SchoolStaffPage() {
   const count = (id: string) => (data.data?.assignments ?? []).filter((a) => a.staffId === id).length
   return (
     <>
-      <PageHeader title="Teachers & Staff" description="Everyone who works at the school. Not everyone needs to sign in: a cleaner or driver is just a record. When you add a teacher or other staff who should sign in, choose &quot;Can sign in&quot;: you set a temporary password and they choose their own at first sign-in."
+      <PageHeader title={ctx.classWord === 'Course' ? 'Instructors & Staff' : 'Teachers & Staff'} description="Everyone who works at the school. Not everyone needs to sign in: a cleaner or driver is just a record. When you add a teacher or other staff who should sign in, choose &quot;Can sign in&quot;: you set a temporary password and they choose their own at first sign-in."
         actions={manage ? <Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> Add staff</Button> : undefined} />
       {data.error && <ErrorState message={data.error} />}
       {data.loading ? <Spinner /> : !data.data?.staff.length ? <Card><EmptyState title="No staff yet" description="Add the teachers and other staff." /></Card> : (

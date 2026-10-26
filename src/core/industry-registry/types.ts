@@ -102,6 +102,8 @@ export interface IndustryDefinition {
    * which is shown to the owner; the business itself is still created.
    */
   afterCreate?: (businessId: string, answers: Record<string, SetupAnswerValue>) => Promise<string | null>
+  /** Menu names this business uses instead of the standard ones (for example a school that offers online courses calls Classes "Courses"). Looked up as the person moves about the app. */
+  moduleLabels?: (businessId: string) => Promise<Record<string, string>>
 
   permissions: PermissionDefinition[]
   navigation: NavSection[]

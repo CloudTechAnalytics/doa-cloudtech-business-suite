@@ -27,6 +27,13 @@ function ready(b: string): Promise<void> {
 export interface Structure { departments: SDepartment[]; settings: SSettings | null; bands: SBand[]; sessions: SSession[]; terms: STerm[]; classes: SClass[]; subjects: SSubject[]; classSubjects: { classId: string; subjectId: string }[]; holidays: SHoliday[] }
 
 // --------------------------------------------------------------------- reads
+/** Just the kind of school (nursery, primary, secondary, combined or online), for wording the menus. */
+export async function loadSchoolKind(b: string): Promise<SSettings['schoolType'] | null> {
+  if (isDemoMode) return sc.getSchool().settings[b]?.schoolType ?? null
+  const { data, error } = await db().from('school_settings').select('school_type').eq('business_id', b).maybeSingle()
+  if (error) return null
+  return (data?.school_type as SSettings['schoolType'] | undefined) ?? null
+}
 export async function loadStructure(b: string): Promise<Structure> {
   await ready(b)
   if (isDemoMode) return sc.demoStructure(b)

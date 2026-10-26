@@ -31,6 +31,11 @@ export const school = defineIndustry({
     const err = await setupSchool(businessId, type, session, new Date().toISOString().slice(0, 10))
     return err ? `The school was created, but its classes and subjects could not be set up (${err}). Open School Settings and use "Start from the standard structure".` : null
   },
+  // An online school talks about courses, units and instructors.
+  moduleLabels: async (businessId): Promise<Record<string, string>> => {
+    const { loadSchoolKind } = await import('./services/schoolApi')
+    return (await loadSchoolKind(businessId)) === 'online' ? { 'school-my-classes': 'My Courses', 'school-classes': 'Courses & Units', 'school-staff': 'Instructors & Staff' } : {}
+  },
   dashboardWidgets: [{ id: 'school-kpis', title: 'School overview', component: SchoolDashboardWidget }],
   workflows: [
     { id: 'take-attendance', label: 'Take attendance', module: 'school-attendance', description: 'Mark attendance for a class.' },

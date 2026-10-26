@@ -23,6 +23,7 @@ import { useGridLabels } from '@/shared/view/useGridLabels'
 import { useViewPrefs } from '@/shared/view/viewPrefs'
 import { resetDemoTrade } from '@/demo/demoTrade'
 import { AccessSuspended } from './AccessSuspended'
+import { getIndustry } from '@/core/industry-registry'
 import { Spinner } from '@/shared/components'
 import { CrumbContext } from '@/shared/components/breadcrumb'
 import { DetailSlotContext } from '@/shared/components/detail-page'
@@ -90,6 +91,18 @@ export function AppShell() {
   // The business's chosen colour theme paints the whole workspace, and the website's default comes back when leaving it.
   useEffect(() => applyTheme(themeByKey(active?.theme)), [active?.theme])
   const [refreshKey, setRefreshKey] = useState(0)
+  // Some kinds of business word their menus differently (an online school says Courses); looked up again as the person moves about, so a change in Settings shows up.
+  const [menuNames, setMenuNames] = useState<Record<string, string>>({})
+  const namesFor = active ? `${active.id}|${active.industry}` : ''
+  useEffect(() => {
+    if (!active) return
+    const lookup = getIndustry(active.industry).moduleLabels
+    let live = true
+    if (lookup) void lookup(active.id).then((l) => { if (live) setMenuNames(l) }).catch(() => undefined)
+    else setMenuNames({})
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [namesFor, location.pathname])
   const view = useViewPrefs()
   const mainRef = useRef<HTMLElement>(null)
   const attention = useWorkspaceAttention(active?.id ?? null, !!active?.isOwner, statuses.some((s) => s.usable && (s.code === 'inventory' || s.code === 'retail-products' || s.code === 'pharmacy-medicines')))
@@ -117,7 +130,7 @@ export function AppShell() {
   if (!active) return <Navigate to="/onboarding" replace />
 
   const usable = new Set(statuses.filter((s) => s.usable).map((s) => s.code))
-  const apps = buildApps(active.industry, usable)
+  const apps = buildApps(active.industry, usable).map((a) => ({ ...a, modules: a.modules.map((m) => (menuNames[m.code] ? { ...m, name: menuNames[m.code] } : m)) }))
   const current = findCurrentApp(apps, location.pathname)
   const isHome = location.pathname.replace(/\/$/, '') === '/app'
   const quick = buildQuickActions(active.industry, usable).map((a) => ({ label: a.label, to: a.to }))
