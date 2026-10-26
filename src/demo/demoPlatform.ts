@@ -1,5 +1,5 @@
 import { PLANS, PLAN_PRICES } from '@/core/subscriptions/plans'
-import { demoPlatformSetPlan, demoPlatformSetSuspended, getDemoState } from '@/demo/demoStore'
+import { demoPlatformPatchBusiness, demoPlatformPatchMembers, demoPlatformSetPlan, demoPlatformSetSuspended, getDemoState } from '@/demo/demoStore'
 import type { DemoBusiness } from '@/demo/demoStore'
 import type { PlanCode } from '@/shared/types/domain'
 
@@ -30,14 +30,14 @@ export interface PHealth { checkedAt: string; checks: { name: string; ok: boolea
 export interface PAdmin { userId: string; name: string; email: string; role: PlatformRole; since: string }
 
 interface Sub { status: SubStatus; trialEnd: string | null; periodEnd: string; plan?: PlanCode }
-interface Platform { admins: { userId: string; role: PlatformRole; since: string }[]; subs: Record<string, Sub>; audit: (PAuditRow & { detail?: unknown })[] }
+interface Platform { admins: { userId: string; role: PlatformRole; since: string }[]; subs: Record<string, Sub>; audit: (PAuditRow & { detail?: unknown })[]; details: Record<string, { legalName: string | null; timezone: string }> }
 
 const KEY = 'doa.demo.platform.v1'
 const DAY = 86400000
 const iso = (ms: number) => new Date(ms).toISOString()
 const seed = (): Platform => ({
   admins: [{ userId: 'u-platform', role: 'owner', since: iso(Date.now() - 200 * DAY) }, { userId: 'u-engineer', role: 'engineer', since: iso(Date.now() - 90 * DAY) }, { userId: 'u-support', role: 'support', since: iso(Date.now() - 30 * DAY) }],
-  subs: {}, audit: [],
+  subs: {}, audit: [], details: {},
 })
 function load(): Platform { try { const raw = localStorage.getItem(KEY); if (raw) return { ...seed(), ...(JSON.parse(raw) as Platform) } } catch { /* fresh */ } return seed() }
 let state = load()
@@ -106,7 +106,7 @@ export function demoPlatformBusiness(id: string): PBusinessDetail {
   const st = getDemoState(); const b = st.businesses.find((x) => x.id === id); if (!b) throw new Error('business not found')
   const s = subOf(b)
   return {
-    id: b.id, name: b.name, legalName: null, industry: b.industry, status: statusOf(b), createdAt: created(b), country: 'NG', currency: 'NGN', timezone: 'Africa/Lagos', owner: ownerOf(id),
+    id: b.id, name: b.name, legalName: state.details[id]?.legalName ?? null, industry: b.industry, status: statusOf(b), createdAt: created(b), country: 'NG', currency: 'NGN', timezone: state.details[id]?.timezone ?? 'Africa/Lagos', owner: ownerOf(id),
     subscription: { planCode: planOf(b), planName: PLANS[planOf(b)].name, status: s.status, trialEnd: s.trialEnd, periodEnd: s.periodEnd, price: PLAN_PRICES[planOf(b)] },
     members: st.members.filter((m) => m.businessId === id).map((m) => ({ userId: m.userId, name: m.name, email: m.email, role: m.role, status: m.status, joinedAt: null })),
     modules: [...(st.modules[id]?.enabled ?? [])].sort(), activity: [],
@@ -197,5 +197,49 @@ export function demoPlatformRemoveAdmin(userId: string): string | null {
     if (a.role === 'owner' && s.admins.filter((x) => x.role === 'owner').length === 1) throw new Error('there must always be at least one platform owner')
     s.admins = s.admins.filter((x) => x.userId !== userId)
     log(s, 'team.remove', null, null, { userId, role: a.role })
+  })
+}
+
+export function demoPlatformUpdateBusiness(businessId: string, v: { name: string; legalName: string; timezone: string; reason: string }): string | null {
+  return run((s) => {
+    need('write'); reason(v.reason)
+    const b = getDemoState().businesses.find((x) => x.id === businessId && !x.archived); if (!b) throw new Error('business not found')
+    const name = v.name.trim(); if (name.length < 1 || name.length > 120) throw new Error('enter the business name (up to 120 characters)')
+    if (!v.timezone.trim() || !(Intl.supportedValuesOf('timeZone').includes(v.timezone.trim()) || v.timezone.trim() === 'Africa/Lagos')) throw new Error('unknown time zone')
+    log(s, 'business.update', businessId, v.reason, { before: { name: b.name, ...s.details[businessId] }, after: { name, legalName: v.legalName.trim() || null, timezone: v.timezone.trim() } })
+    s.details[businessId] = { legalName: v.legalName.trim() || null, timezone: v.timezone.trim() }
+    demoPlatformPatchBusiness(businessId, { name })
+  })
+}
+export function demoPlatformTransferOwnership(businessId: string, email: string, why: string): string | null {
+  return run((s) => {
+    need('owner'); reason(why)
+    const st = getDemoState(); const b = st.businesses.find((x) => x.id === businessId && !x.archived); if (!b) throw new Error('business not found')
+    const target = st.members.find((m) => m.businessId === businessId && m.status === 'active' && m.email.toLowerCase() === email.trim().toLowerCase())
+    if (!target) throw new Error('that person is not an active member of this business; invite them first')
+    const current = st.members.find((m) => m.businessId === businessId && m.role === 'owner' && m.status === 'active')
+    if (current?.id === target.id) throw new Error('that person already owns this business')
+    log(s, 'business.transfer_ownership', businessId, why, { from: current?.email, to: target.email })
+    demoPlatformPatchMembers(businessId, (m) => (m.id === target.id ? { ...m, role: 'owner' } : m.id === current?.id ? { ...m, role: 'business_admin' } : m))
+  })
+}
+export function demoPlatformSetMemberStatus(businessId: string, userId: string, status: 'active' | 'suspended' | 'revoked', why: string): string | null {
+  return run((s) => {
+    need('write'); reason(why)
+    if (!['active', 'suspended', 'revoked'].includes(status)) throw new Error('choose active, suspended or revoked')
+    const st = getDemoState(); const b = st.businesses.find((x) => x.id === businessId && !x.archived); if (!b) throw new Error('business not found')
+    const m = st.members.find((x) => x.businessId === businessId && x.userId === userId); if (!m) throw new Error('that person is not a member of this business')
+    if (status !== 'active' && m.role === 'owner' && m.status === 'active') throw new Error('this person owns the business; transfer ownership before stopping their access')
+    if (m.status === status) return
+    log(s, 'member.' + status, businessId, why, { userId, from: m.status, to: status })
+    demoPlatformPatchMembers(businessId, (x) => (x.id === m.id ? { ...x, status } : x))
+  })
+}
+export function demoPlatformArchiveBusiness(businessId: string, why: string): string | null {
+  return run((s) => {
+    need('owner'); reason(why)
+    const b = getDemoState().businesses.find((x) => x.id === businessId && !x.archived); if (!b) throw new Error('business not found')
+    log(s, 'business.archive', businessId, why, { name: b.name })
+    demoPlatformPatchBusiness(businessId, { archived: true })
   })
 }

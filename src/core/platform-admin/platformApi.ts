@@ -97,3 +97,20 @@ export async function removeAdmin(userId: string): Promise<string | null> {
   if (isDemoMode) return pl.demoPlatformRemoveAdmin(userId)
   return msg('platform_remove_admin', { p_user: userId })
 }
+
+export async function updateBusiness(businessId: string, v: { name: string; legalName: string; timezone: string; reason: string }): Promise<string | null> {
+  if (isDemoMode) return pl.demoPlatformUpdateBusiness(businessId, v)
+  return msg('platform_update_business', { p_business: businessId, p_name: v.name, p_legal_name: v.legalName, p_timezone: v.timezone, p_reason: v.reason })
+}
+export async function transferOwnership(businessId: string, email: string, reason: string): Promise<string | null> {
+  if (isDemoMode) return pl.demoPlatformTransferOwnership(businessId, email, reason)
+  return msg('platform_transfer_ownership', { p_business: businessId, p_email: email, p_reason: reason })
+}
+export async function setMemberStatus(businessId: string, userId: string, status: 'active' | 'suspended' | 'revoked', reason: string): Promise<string | null> {
+  if (isDemoMode) return pl.demoPlatformSetMemberStatus(businessId, userId, status, reason)
+  return msg('platform_set_member_status', { p_business: businessId, p_user: userId, p_status: status, p_reason: reason })
+}
+export async function archiveBusiness(businessId: string, reason: string): Promise<string | null> {
+  if (isDemoMode) return pl.demoPlatformArchiveBusiness(businessId, reason)
+  return msg('platform_archive_business', { p_business: businessId, p_reason: reason })
+}

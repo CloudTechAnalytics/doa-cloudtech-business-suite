@@ -287,6 +287,13 @@ export function demoPlatformSetSuspended(businessId: string, suspended: boolean)
   commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, suspended } : x)) })
 }
 export function demoPlatformSetPlan(businessId: string, plan: PlanCode) { patchModules(businessId, { plan }) }
+/** Demo only, for the Platform console: rename, archive, and change who owns or can use a business. */
+export function demoPlatformPatchBusiness(businessId: string, patch: Partial<DemoBusiness>) {
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, ...patch } : x)) })
+}
+export function demoPlatformPatchMembers(businessId: string, fn: (m: DemoMember) => DemoMember) {
+  commit({ ...state, members: state.members.map((m) => (m.businessId === businessId ? fn(m) : m)) })
+}
 
 /** Demo only: stands in for a verified payment-provider webhook. */
 export function demoSetPlan(businessId: string, plan: PlanCode | null): string | null {

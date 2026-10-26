@@ -9,8 +9,8 @@ A separate `platform_admins` table, completely independent of business roles. Be
 
 | Role | Can |
 |---|---|
-| owner | Everything, including adding and removing platform team members |
-| engineer | See everything; change plans, extend trials, mark as paid, cancel, suspend or reactivate a business |
+| owner | Everything, including transferring a business to another of its members, deleting (archiving) a business, and adding or removing platform team members |
+| engineer | See everything; edit a business, change plans, extend trials, mark as paid, cancel, suspend or reactivate a business, and set a person inactive or remove them from a business |
 | support | See everything; change nothing |
 
 There must always be at least one owner. Make the first owner once, as the database owner:
@@ -27,6 +27,10 @@ After that, owners add people from **Platform Team** in the console (the person 
 Dashboard (businesses, paying, trials, suspended, MRR and ARR, users, by kind of business, trials ending soon, health), Businesses (search, owner, plan; open one for its people,
 subscription, apps and the changes made from the console), Users, Subscriptions, Plans & Pricing, Platform Team, Audit Log, System Health.
 
+## Row actions
+
+Every business row has a menu: View, Edit, Suspend or Reactivate, Transfer ownership (owner), View subscription, Open audit log, Delete business (owner; type the name to confirm). Every user row (one per person per business) has Set inactive, Set active again and Remove from business. The Subscriptions page lists every business with its plan and status as drop-downs; changing one asks for a reason first.
+
 ## Security
 
 * No table is readable or writable from the console directly. Everything goes through `platform_*` security-definer functions that first check `platform_admins`.
@@ -36,5 +40,5 @@ subscription, apps and the changes made from the console), Users, Subscriptions,
 
 ## Not built (no data behind it yet)
 
-Billing and revenue analytics beyond MRR/ARR, support tickets, error logs, platform-wide settings, and impersonating a business user (deliberately left out).
+Billing and revenue analytics beyond MRR/ARR, support tickets, error logs, platform-wide settings, and "start a support session" (impersonating a business user, deliberately left out because it needs its own consent, time limit and audit design).
 "Signed in today" uses `auth.users.last_sign_in_at` and shows a dash in demo mode.
