@@ -5,7 +5,7 @@ import type { SPeriod } from '../services/schoolApi'
 export function TimetableGrid({ periods, days, cell }: { periods: SPeriod[]; days: readonly (readonly [number, string])[]; cell: (day: number, period: SPeriod) => ReactNode }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] border-separate border-spacing-0 text-sm">
+      <table data-keep-table className="w-full min-w-[40rem] border-separate border-spacing-0 text-sm">
         <thead>
           <tr><th className="sticky left-0 z-10 w-28 bg-surface p-2 text-left text-xs font-semibold text-ink/70">Period</th>{days.map(([n, d]) => <th key={n} className="bg-surface p-2 text-left text-xs font-semibold text-ink/70">{d}</th>)}</tr>
         </thead>

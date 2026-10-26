@@ -241,3 +241,26 @@ html { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .phone-rise-a { animation: phone-rise-a 7s ease-in-out infinite; }
 .phone-rise-b { animation: phone-rise-b 7s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .phone-rise-a, .phone-rise-b { animation: none; } }
+
+/*
+ * Phones: a table is never wider than the screen. Each row becomes a small card and each cell says what it is (the label is copied from the column heading by useGridLabels),
+ * so nobody has to slide sideways to read a list. A table that really is a grid (the timetable) says data-keep-table and keeps scrolling inside its own box.
+ */
+@media (max-width: 639px) {
+  main table:not([data-keep-table]) { display: block; width: 100%; min-width: 0 !important; }
+  main table:not([data-keep-table]) thead { display: none; }
+  main table:not([data-keep-table]) tbody, main table:not([data-keep-table]) tfoot { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; padding: 0.6rem; }
+  main table:not([data-keep-table]) tr {
+    display: flex; flex-direction: column; gap: 0.3rem; padding: 0.8rem; border: 1px solid var(--color-line) !important; border-radius: 0.75rem; background: #fff; box-shadow: var(--shadow-card);
+  }
+  main table:not([data-keep-table]) td, main table:not([data-keep-table]) th[scope='row'] {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0 !important; border: 0 !important; text-align: right !important; min-width: 0; overflow-wrap: anywhere;
+  }
+  main table:not([data-keep-table]) td::before { content: attr(data-label); flex-shrink: 0; max-width: 45%; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; text-align: left; color: rgb(11 27 51 / 0.5); }
+  main table:not([data-keep-table]) td:first-child { display: block; text-align: left !important; font-size: 0.95rem; font-weight: 600; }
+  main table:not([data-keep-table]) td:first-child::before { display: none; }
+  main table:not([data-keep-table]) td:empty { display: none; }
+  main table:not([data-keep-table]) td input, main table:not([data-keep-table]) td select { max-width: 55%; }
+  main table:not([data-keep-table]) td[colspan] { display: block; text-align: left !important; }
+  main table:not([data-keep-table]) td[colspan]::before { display: none; }
+}

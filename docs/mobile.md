@@ -51,4 +51,4 @@ Build steps (once the domain is live):
 
 * Data needs a connection. Offline, the app shell opens but records cannot be read or saved, by design: nothing sensitive is stored by the worker.
 * No push notifications yet. If parents should get notices on their phones, the next step is a Capacitor wrapper (or web push) with a notification service; the web code stays the same.
-* Phone layouts were built responsive from the start (drawer menu, bottom-sheet dialogs, scrolling tables), but every page has not been checked at phone width yet.
+* Phone layouts: on a phone every table becomes a list of small cards (each line labelled from the column heading), the top bar keeps only what is used all the time, and no page scrolls sideways at 320, 360 or 390 px wide (checked by loading every main page at those widths in a real browser). The timetable is the one grid that still scrolls sideways inside its own box, on purpose.

@@ -38,3 +38,16 @@ describe('the installable app (PWA)', () => {
     expect(existsSync('public/offline.html')).toBe(true)
   })
 })
+
+describe('phone layouts', () => {
+  const css = read('src/index.css')
+  it('turns every table into cards on a phone, except the ones that opt out', () => {
+    expect(css).toMatch(/@media \(max-width: 639px\) \{\s*main table:not\(\[data-keep-table\]\) \{ display: block;/)
+    expect(css).toContain('td::before { content: attr(data-label)')
+    expect(read('src/industries/school/components/TimetableGrid.tsx')).toContain('<table data-keep-table')
+  })
+  it('labels the cells so a card says what each line is, in the app and in the platform console', () => {
+    expect(read('src/app/layouts/AppShell.tsx')).toContain('useGridLabels(true, mainRef)')
+    expect(read('src/core/platform-admin/PlatformLayout.tsx')).toContain('useGridLabels(true, mainRef)')
+  })
+})

@@ -106,7 +106,7 @@ export function AppShell() {
   const view = useViewPrefs()
   const mainRef = useRef<HTMLElement>(null)
   const attention = useWorkspaceAttention(active?.id ?? null, !!active?.isOwner, statuses.some((s) => s.usable && (s.code === 'inventory' || s.code === 'retail-products' || s.code === 'pharmacy-medicines')))
-  useGridLabels(view.list === 'grid', mainRef)
+  useGridLabels(true, mainRef) // card view and the phone layout both read the column headings off each cell
   const panel = view.detail === 'panel'
   const [collapsed, setCollapsed] = useState(readCollapsed)
   // The drawer is open only for the page it was opened on, so navigating closes it without an effect.
@@ -149,11 +149,12 @@ export function AppShell() {
             <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface lg:hidden"><MenuIcon className="size-5" aria-hidden /></button>
           )}
           <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface"><LayoutGrid className="size-5" aria-hidden /></NavLink>
-          <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA'}</span>
+          <span className="truncate px-2 text-[15px] font-semibold max-[380px]:hidden">{current?.label ?? 'DOA'}</span>
           <div className="ml-auto flex items-center gap-2">
-            <RefreshButton onRefresh={() => { setRefreshKey((k) => k + 1); return attention.refresh() }} />
+            {/* On a phone the bar keeps only what is used all the time; refresh and the list style are for bigger screens (a phone pulls down to refresh, and always shows cards). */}
+            <div className="hidden sm:contents"><RefreshButton onRefresh={() => { setRefreshKey((k) => k + 1); return attention.refresh() }} /></div>
             <AttentionBell items={attention.items} loading={attention.loading} />
-            <ViewMenu />
+            <div className="hidden sm:contents"><ViewMenu /></div>
             <RecordMenu items={quick} />
             <BusinessSwitcher />
             <UserMenu modules={[...new Map(apps.flatMap((a) => a.modules).filter((m) => ACCOUNT_MODULES.includes(m.code)).map((m) => [m.code, m])).values()]} roleLabel={active.isOwner ? 'Owner' : active.role ? active.role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : 'Member'} />

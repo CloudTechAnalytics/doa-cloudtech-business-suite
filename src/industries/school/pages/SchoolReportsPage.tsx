@@ -54,7 +54,7 @@ export function SchoolReportsPage() {
     <>
       <PageHeader title="Reports" description="Figures counted from the school's records. Download any of them as a CSV file to open in Excel." actions={<Button variant="secondary" disabled={!table.rows.length} onClick={() => downloadCsv(`school-${rep}`, [table.head, ...table.rows])}><Download className="size-4" aria-hidden /> Export CSV</Button>} />
       <div className="mb-3 flex flex-wrap items-end gap-3">
-        <div className="flex gap-1">{reports.map(([id, x]) => <Button key={id} variant={rep === id ? 'primary' : 'secondary'} onClick={() => setRep(id)}>{x}</Button>)}</div>
+        <div className="flex flex-wrap gap-1">{reports.map(([id, x]) => <Button key={id} variant={rep === id ? 'primary' : 'secondary'} onClick={() => setRep(id)}>{x}</Button>)}</div>
         {rep !== 'enrolment' && <div className="w-48"><SelectField label={ctx.termWord} value={t} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField></div>}
         <div className="w-44"><SelectField label={ctx.classWord} value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
       </div>

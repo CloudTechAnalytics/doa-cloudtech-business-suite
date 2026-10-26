@@ -1,10 +1,11 @@
 import { Activity, Building2, CreditCard, HeartPulse, LayoutDashboard, LayoutGrid, Menu as MenuIcon, ScrollText, ShieldCheck, Tag, Users, X } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Outlet } from 'react-router-dom'
 import { BrandMark, Wordmark } from '@/app/layouts/Brand'
 import { Notice, Spinner } from '@/shared/components'
 import { AccountMenu, AttentionBell, RefreshButton } from '@/shared/topbar/TopBar'
 import { EdgeToggle } from '@/shared/topbar/EdgeToggle'
+import { useGridLabels } from '@/shared/view/useGridLabels'
 import { isDemoMode } from '@/shared/utilities/env'
 import { resetDemoPlatform } from '@/demo/demoPlatform'
 import { PlatformContext, usePlatformAttention, usePlatformRole } from './platformUi'
@@ -21,6 +22,8 @@ export function PlatformLayout() {
   const role = usePlatformRole()
   const attention = usePlatformAttention()
   const [open, setOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
+  useGridLabels(true, mainRef) // tables become cards on a phone, so each cell needs its column heading
   const [refreshKey, setRefreshKey] = useState(0)
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('doa.platform.collapsed') === '1' } catch { return false } })
   const toggle = () => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('doa.platform.collapsed', next ? '1' : '0') } catch { /* storage unavailable */ } }
@@ -65,7 +68,7 @@ export function PlatformLayout() {
               <AccountMenu roleLabel={`Platform ${role.data}`} emailSubtitle extra={[{ label: 'My businesses', to: '/businesses', icon: <LayoutGrid className="size-4" /> }, { label: 'Platform team', to: '/platform/team', icon: <ShieldCheck className="size-4" /> }]} />
             </div>
           </header>
-          <main className="px-4 py-6 sm:px-6">
+          <main ref={mainRef} className="px-4 py-6 sm:px-6">
             {role.data === 'support' && <div className="mb-4"><Notice>You have read-only access. Ask a platform engineer or owner to make changes.</Notice></div>}
             <Outlet key={refreshKey} />
           </main>
