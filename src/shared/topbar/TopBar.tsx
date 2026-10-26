@@ -50,7 +50,7 @@ export function AccountMenu({ roleLabel, extra = [], emailSubtitle = false }: { 
   const { signOut } = useAuth()
   const p = useProfile()
   const items: MenuItem[] = [
-    { label: p.name, heading: true, custom: <span className="block min-w-0 px-0.5 py-1"><span className="block truncate text-sm font-semibold">{p.name}</span><span className="block truncate text-xs text-ink/60">{p.email}</span><span className="mt-1.5 inline-block rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">{roleLabel}</span></span> },
+    { label: p.name, heading: true, custom: <span className="block min-w-0 px-0.5 py-1"><span className="block truncate text-sm font-semibold">{p.name}</span><span className="block truncate text-xs text-ink/60">{p.email}</span><span className="mt-1.5 inline-block max-w-full truncate rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">{p.title || roleLabel}</span>{p.title && p.title.toLowerCase() !== roleLabel.toLowerCase() && <span className="mt-1 block text-xs text-ink/50">{roleLabel}</span>}</span> },
     { label: 'Profile', to: '/account', icon: <UserCircle className="size-4" />, divider: true },
     ...extra,
     { label: 'Sign out', icon: <LogOut className="size-4 text-danger" />, onSelect: signOut, divider: true },
@@ -61,7 +61,7 @@ export function AccountMenu({ roleLabel, extra = [], emailSubtitle = false }: { 
       trigger={({ toggle }) => (
         <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className="flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 text-left transition hover:bg-surface">
           <Avatar url={p.picture} initials={p.initials} className="size-8 text-xs" />
-          <span className="hidden min-w-0 leading-tight sm:block"><span className="block max-w-40 truncate text-sm font-semibold">{p.name}</span><span className="block max-w-40 truncate text-xs text-ink/60">{emailSubtitle ? p.email : roleLabel}</span></span>
+          <span className="hidden min-w-0 leading-tight sm:block"><span className="block max-w-40 truncate text-sm font-semibold">{p.name}</span><span className="block max-w-40 truncate text-xs text-ink/60">{p.title || (emailSubtitle ? p.email : roleLabel)}</span></span>
           <ChevronDown className="hidden size-4 text-ink/50 sm:block" aria-hidden />
         </button>
       )}

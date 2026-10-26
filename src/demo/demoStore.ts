@@ -149,6 +149,11 @@ export function demoSignUp(name: string, email: string, password: string): strin
   return null
 }
 
+/** Demo only: a person changing their own name on the profile page. */
+export function demoSetUserName(userId: string, name: string) {
+  commit({ ...state, users: state.users.map((u) => (u.id === userId ? { ...u, name } : u)), members: state.members.map((m) => (m.userId === userId ? { ...m, name } : m)) })
+}
+
 export function demoSignOut() { commit({ ...state, userId: null }) }
 
 /** Mirrors archive_business(): owner only, exact name to confirm, data kept but the business disappears. */

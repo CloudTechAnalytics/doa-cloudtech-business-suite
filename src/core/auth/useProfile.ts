@@ -6,6 +6,7 @@ import { supabase } from '@/shared/utilities/supabase'
 import { useAuth } from './AuthProvider'
 
 const demoKey = (userId: string) => `doa.demo.avatar.${userId}`
+const demoTitleKey = (userId: string) => `doa.demo.title.${userId}`
 const CHANGED = 'doa-avatar-changed'
 /** Tells every part of the page showing the picture (the top bar, the profile page) to look again. */
 export const announceAvatarChange = () => window.dispatchEvent(new Event(CHANGED))
@@ -15,6 +16,12 @@ export function setDemoAvatar(userId: string, dataUrl: string | null) {
   try { if (dataUrl) localStorage.setItem(demoKey(userId), dataUrl); else localStorage.removeItem(demoKey(userId)) } catch { /* storage unavailable */ }
   announceAvatarChange()
 }
+/** Demo mode keeps the job title in this browser too. */
+export function setDemoTitle(userId: string, title: string | null) {
+  try { if (title) localStorage.setItem(demoTitleKey(userId), title); else localStorage.removeItem(demoTitleKey(userId)) } catch { /* storage unavailable */ }
+  announceAvatarChange()
+}
+const readDemoTitle = (userId: string | null) => { try { return userId ? localStorage.getItem(demoTitleKey(userId)) : null } catch { return null } }
 const readDemoAvatar = (userId: string | null) => { try { return userId ? localStorage.getItem(demoKey(userId)) : null } catch { return null } }
 
 /** Where a stored picture can be looked at. Pictures live in the public "avatars" bucket, in a folder named after the person. */
@@ -27,8 +34,8 @@ export function useProfile() {
   const [, tick] = useState(0)
   const live = useAsync(async () => {
     if (isDemoMode || !userId || !supabase) return null
-    const { data } = await supabase.from('profiles').select('display_name, phone, avatar_path').eq('id', userId).maybeSingle()
-    return (data as { display_name: string | null; phone: string | null; avatar_path: string | null } | null) ?? null
+    const { data } = await supabase.from('profiles').select('display_name, phone, avatar_path, job_title').eq('id', userId).maybeSingle()
+    return (data as { display_name: string | null; phone: string | null; avatar_path: string | null; job_title: string | null } | null) ?? null
   }, [userId])
   useEffect(() => {
     const sync = () => { tick((n) => n + 1); void live.refresh() }
@@ -37,8 +44,9 @@ export function useProfile() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
   const demoPic = isDemoMode ? readDemoAvatar(userId) : null
+  const title = (isDemoMode ? readDemoTitle(userId) : live.data?.job_title) ?? ''
   const name = (isDemoMode ? demo.users.find((u) => u.id === userId)?.name : live.data?.display_name) || email?.split('@')[0] || 'Account'
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || 'A'
   const picturePath = live.data?.avatar_path ?? null
-  return { userId, name, email, phone: live.data?.phone ?? '', initials, picture: isDemoMode ? demoPic : avatarUrl(picturePath), picturePath, loading: live.loading, refresh: live.refresh }
+  return { userId, name, email, title, phone: live.data?.phone ?? '', initials, picture: isDemoMode ? demoPic : avatarUrl(picturePath), picturePath, loading: live.loading, refresh: live.refresh }
 }

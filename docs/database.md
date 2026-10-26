@@ -30,6 +30,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0026_platform_purge` | `platform_purge_business(business, exact name, reason)`: platform owners only; erases every row of a business in every table (children first, append-only guards off for that one transaction only, all or nothing) and keeps only the platform log of the deletion. `platform_audit` now shows the name of a deleted business |
 | `…0027_purge_accounts` | `platform_purge_business` also deletes the accounts of people who belonged only to the deleted business (not people in another business, not the platform team, not the person doing it). The result and the platform log give the counts |
 | `…0028_avatars` | public storage bucket `avatars` (small JPEG, PNG or WebP only, 512 KB) with policies so a person can add, replace or remove pictures only inside a folder named after their own user id; `profiles.avatar_path` remembers the file. Does nothing where the storage schema does not exist (the test database) |
+| `…0029_profile_title` | `profiles.job_title` (up to 60 characters, set only by the person themselves): what they are called at work (Principal, Director...), shown at the top of the app in place of the role. No effect on permissions |
 
 ## Tables named in the architecture brief
 

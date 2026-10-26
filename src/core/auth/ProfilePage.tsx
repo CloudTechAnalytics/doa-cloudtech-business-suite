@@ -8,7 +8,8 @@ import { blobToDataUrl, shrinkImage } from '@/shared/utilities/image'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { passwordProblem } from './AuthPages'
-import { announceAvatarChange, setDemoAvatar, useProfile } from './useProfile'
+import { demoSetUserName } from '@/demo/demoStore'
+import { announceAvatarChange, setDemoAvatar, setDemoTitle, useProfile } from './useProfile'
 
 /** A person's own details: their name and phone, and a new password. Everyone reaches it from the account menu at the top right. */
 export function ProfilePage() {
@@ -60,14 +61,16 @@ export function ProfilePage() {
   async function saveDetails(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
-    const name = String(f.get('name') ?? '').trim(); const phone = String(f.get('phone') ?? '').trim()
+    const name = String(f.get('name') ?? '').trim(); const phone = String(f.get('phone') ?? '').trim(); const title = String(f.get('title') ?? '').trim()
     setSaved(null); setError(null)
     if (name.length < 2) return setError('Enter your name.')
-    if (isDemoMode || !supabase) return setError('Profile changes need the live database connection.')
+    if (title.length > 60) return setError('Your title can be at most 60 characters.')
+    if (isDemoMode) { demoSetUserName(profile.userId ?? '', name); setDemoTitle(profile.userId ?? '', title || null); return setSaved('Saved. (Demo: your phone number is not kept.)') }
+    if (!supabase) return setError('Profile changes need the live database connection.')
     setBusy(true)
-    const { error: err } = await supabase.from('profiles').update({ display_name: name, phone: phone || null }).eq('id', (await supabase.auth.getUser()).data.user?.id ?? '')
+    const { error: err } = await supabase.from('profiles').update({ display_name: name, phone: phone || null, job_title: title || null }).eq('id', (await supabase.auth.getUser()).data.user?.id ?? '')
     setBusy(false)
-    if (err) setError(err.message); else { setSaved('Saved.'); await profile.refresh() }
+    if (err) setError(err.message); else { setSaved('Saved.'); announceAvatarChange(); await profile.refresh() }
   }
 
   async function savePassword(e: FormEvent<HTMLFormElement>) {
@@ -103,8 +106,10 @@ export function ProfilePage() {
             </div>
           </div>
           {picError && <div className="mb-3"><ErrorState title="Picture not saved" message={picError} /></div>}
-          <form onSubmit={saveDetails} noValidate className="space-y-3" key={`${profile.name}|${profile.phone}`}>
+          <form onSubmit={saveDetails} noValidate className="space-y-3" key={`${profile.name}|${profile.phone}|${profile.title}`}>
             <TextField label="Name" name="name" defaultValue={profile.name} />
+            <TextField label="Your title (optional)" name="title" defaultValue={profile.title} maxLength={60} list="title-suggestions" placeholder="For example Principal, Director or Manager" hint="Shown under your name at the top of the app, in place of your role. It does not change what you can do." />
+            <datalist id="title-suggestions">{['Owner', 'Director', 'Managing Director', 'CEO', 'Proprietor', 'Principal', 'Head Teacher', 'Proprietress', 'Manager', 'Administrator', 'Pharmacist-in-charge', 'Farm Manager'].map((x) => <option key={x} value={x} />)}</datalist>
             <TextField label="Phone (optional)" name="phone" defaultValue={profile.phone} />
             <TextField label="Email" value={profile.email ?? ''} readOnly disabled hint="Your email is how you sign in. It cannot be changed here." />
             {error && <ErrorState title="Not saved" message={error} />}
