@@ -27,9 +27,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return
     const apply = (s: { user: { id: string; email?: string; user_metadata?: Record<string, unknown> } } | null) =>
       setReal({ userId: s?.user.id ?? null, email: s?.user.email ?? null, loading: false, mustChange: s?.user.user_metadata?.must_change_password === true })
-    supabase.auth.getSession().then(({ data }) => apply(data.session))
+    supabase.auth.getSession().then(({ data }) => { apply(data.session); if (data.session) void verify() })
     const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session))
-    return () => data.subscription.unsubscribe()
+    // A saved session is only a browser's memory of a sign-in. If the account was deleted or the sign-in was revoked, the server says so here and this
+    // browser forgets it, instead of carrying on as that person. A network failure is not an answer, so it is ignored.
+    async function verify() {
+      if (!supabase) return
+      const { data: who, error } = await supabase.auth.getUser()
+      const gone = !!error && (error.status === 401 || error.status === 403 || error.status === 404 || /user_not_found|session_not_found|bad_jwt|jwt/i.test(error.code ?? error.message ?? ''))
+      if (gone || (!error && !who.user)) await supabase.auth.signOut({ scope: 'local' })
+    }
+    const again = () => { if (document.visibilityState === 'visible') void verify() }
+    const timer = setInterval(again, 60_000)
+    document.addEventListener('visibilitychange', again)
+    return () => { data.subscription.unsubscribe(); clearInterval(timer); document.removeEventListener('visibilitychange', again) }
   }, [])
 
   const value: AuthState = isDemoMode

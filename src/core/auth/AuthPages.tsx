@@ -155,11 +155,17 @@ export function SignInPage() {
   )
 }
 
+/** Create account always shows the sign-up form. Someone already signed in is told so, and can continue or create a new account. */
 export function SignUpPage() {
-  const { userId } = useAuth()
-  if (userId) return <Navigate to="/businesses" replace />
+  const { userId, email } = useAuth()
   return (
     <AuthLayout title="Create your account">
+      {userId && (
+        <div className="mb-4 rounded-lg border border-line bg-surface p-3 text-sm">
+          <p>You are signed in{email ? <> as <b>{email}</b></> : null}. Creating an account below signs you in as the new person.</p>
+          <Link to="/businesses" className="mt-2 inline-flex h-9 items-center rounded-md border border-line px-3.5 text-sm font-semibold hover:bg-white">Back to my businesses</Link>
+        </div>
+      )}
       <AuthForm mode="signup" />
       <p className="mt-5 text-center text-sm text-ink/70">
         Already registered? <Link to="/sign-in" className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Sign in</Link>
