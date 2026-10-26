@@ -3,7 +3,7 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { Card } from '@/shared/components'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { toCsv } from '@/industries/retail/csv'
-import { loadStructure, stageOk } from '../services/schoolApi'
+import { loadStaff, loadStructure, stageOk } from '../services/schoolApi'
 import type { SClass, SStudent, STerm, SubjectLevel } from '../services/schoolApi'
 
 /** The school's structure (sessions, terms, classes, subjects, grades) plus what the signed-in person may do. */
@@ -13,6 +13,11 @@ export function useSchool() {
   const structure = useAsync(() => loadStructure(businessId), [businessId])
   const { can } = usePermissions(businessId)
   const s = structure.data
+  // A teacher (someone who teaches but cannot see the whole school) works only with the classes and subjects assigned to them.
+  const isTeacher = can('school.teach') && !can('school.read')
+  const mine = useAsync(() => (isTeacher && businessId ? loadStaff(businessId).catch(() => ({ staff: [], assignments: [] })) : Promise.resolve(null)), [businessId, isTeacher])
+  const myAssignments = isTeacher ? (mine.data?.assignments ?? []).filter((a) => (mine.data?.staff ?? []).some((x) => x.id === a.staffId)) : null
+  const myClassIds = myAssignments ? new Set(myAssignments.map((a) => a.classId)) : null
   const kind = s?.settings?.schoolType ?? null
   // A secondary school never shows nursery or primary classes or their subjects, and so on for the other kinds.
   const visibleClasses = (s?.classes ?? []).filter((c) => stageOk(kind, c.stage))
@@ -23,7 +28,11 @@ export function useSchool() {
   const currentTerm: STerm | null = s?.terms.find((t) => t.current) ?? s?.terms[0] ?? null
   return {
     active, businessId, structure, s, can, currentTerm, kind, visibleClasses, visibleSubjects,
-    classes: (s?.classes ?? []).filter((c) => c.active),
+    isTeacher, myAssignments,
+    /** Classes to choose from: every active class, or for a teacher only the ones assigned to them. */
+    classes: (s?.classes ?? []).filter((c) => c.active && (!myClassIds || myClassIds.has(c.id))),
+    /** The subjects a teacher may work on in a class, or null for someone who is not restricted. */
+    mySubjectsIn: (classId: string): string[] | null => (myAssignments ? [...new Set(myAssignments.filter((a) => a.classId === classId && a.subjectId).map((a) => a.subjectId!))] : null),
     className: (id: string | null) => s?.classes.find((c) => c.id === id)?.name ?? '–',
     subjectName: (id: string) => s?.subjects.find((x) => x.id === id)?.name ?? 'Subject',
     termName: (id: string) => s?.terms.find((t) => t.id === id)?.name ?? 'Term',

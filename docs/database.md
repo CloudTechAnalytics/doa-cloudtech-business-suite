@@ -38,6 +38,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0034_school_delete_class_subject` | `school_delete_class` and `school_delete_subject` (school managers): an unused class or subject is removed with its subject choices, assignments and timetable lessons; one that holds students, attendance, results or fees is refused with a plain reason |
 | `…0035_school_create_login` | `school_create_login`: the principal or an admin creates a staff member's login with a temporary password (stored only as a hash; the person must choose their own at first sign-in). Refused for an email that already has an account, so it can never reset or take over someone's sign-in |
 | `…0036_school_staff_access_heal` | `school_staff_access` links a staff record to the active member whose email matches it, so the staff list shows the true sign-in state |
+| `…0037_school_teacher_scope` | permission `school.guardians` (teachers, principal, bursar, admissions officer, manager, admin, owner) opens Parents & Guardians; `school.teach` (My Classes) now belongs to the teacher role alone |
 
 ## Tables named in the architecture brief
 

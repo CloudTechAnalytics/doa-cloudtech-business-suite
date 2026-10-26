@@ -8,7 +8,7 @@ export const schoolModules: ModuleDefinition[] = [
   { ...base, code: 'school-my-classes', name: 'My Classes', description: 'The classes and subjects a teacher is responsible for: pupils, attendance and results at a glance.', path: 'school/my-classes', permission: 'school.teach', icon: LayoutList },
   { ...base, code: 'school-students', name: 'Students', description: 'Student records, profiles, promotion, transfers and withdrawals.', path: 'school/students', permission: 'school.read', icon: GraduationCap },
   { ...base, code: 'school-admissions', name: 'Admissions', description: 'Applications, decisions and admission numbers.', path: 'school/admissions', permission: 'school.students', icon: ClipboardList },
-  { ...base, code: 'school-guardians', name: 'Parents & Guardians', description: 'Parents and guardians linked to students.', path: 'school/guardians', permission: 'school.read', icon: HeartHandshake },
+  { ...base, code: 'school-guardians', name: 'Parents & Guardians', description: 'Parents and guardians linked to students.', path: 'school/guardians', permission: 'school.guardians', icon: HeartHandshake },
   { ...base, code: 'school-classes', name: 'Classes & Subjects', description: 'Sessions, terms, classes and subjects.', path: 'school/classes', permission: 'school.read', icon: BookOpen },
   { ...base, code: 'school-staff', name: 'Teachers & Staff', description: 'Staff directory and class and subject assignments.', path: 'school/staff', permission: 'school.manage', icon: UserCog },
   { ...base, code: 'school-timetable', name: 'Timetable', description: 'The periods of the school day and the weekly timetable of every class.', path: 'school/timetable', permission: 'school.manage', icon: CalendarDays },

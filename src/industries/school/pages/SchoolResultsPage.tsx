@@ -39,7 +39,8 @@ export function SchoolResultsPage() {
   // teachers can only see their own pupils, so start on a class that has some
   useEffect(() => { if (!cls && classes.length && students.data) setCls((classes.find((c) => students.data!.some((x) => x.classId === c.id && x.status === 'active')) ?? classes[0]).id) }, [classes, cls, students.data])
   useEffect(() => { if (!term && currentTerm) setTerm(currentTerm.id) }, [currentTerm, term])
-  const subjects = (s?.classSubjects ?? []).filter((x) => x.classId === cls).map((x) => x.subjectId)
+  const mySubjects = ctx.mySubjectsIn(cls)
+  const subjects = (s?.classSubjects ?? []).filter((x) => x.classId === cls && (!mySubjects || mySubjects.includes(x.subjectId))).map((x) => x.subjectId)
   useEffect(() => { if (!subjects.includes(subject)) setSubject(subjects[0] ?? '') /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [cls, s])
   const roster = (students.data ?? []).filter((x) => x.status === 'active' && x.classId === cls)
   const rows = (scores.data ?? []).filter((x) => x.classId === cls && x.subjectId === subject && x.termId === term)
