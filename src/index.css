@@ -212,3 +212,15 @@ html.classic-palette {
 @keyframes loader-pulse { 0%, 100% { transform: scale(0.7); opacity: 0.6; } 50% { transform: scale(1.1); opacity: 1; } }
 @keyframes loader-dot { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .loader-ring, .loader-core, .loader-dots i { animation-duration: 3s; } }
+
+/* Phones: no zoom-on-focus in iOS (inputs must be at least 16px), no double-tap delay, comfortable tap targets, and room for the home-bar on notched phones. */
+@media (max-width: 640px) {
+  input:not([type='checkbox']):not([type='radio']), select, textarea { font-size: 16px; }
+}
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']), select { min-height: 2.75rem; }
+}
+html { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+@media (display-mode: standalone) {
+  body { overscroll-behavior-y: none; }
+}
