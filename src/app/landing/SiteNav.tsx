@@ -67,11 +67,11 @@ export function SiteNav() {
 
   const panel = (k: Key, cols: SiteMenuColumn[], footer: string) => (
     <div id={`menu-${k}`} role="region" aria-label={k === 'apps' ? 'Apps' : 'Industries'} className="absolute inset-x-0 top-full z-10 max-h-[calc(100dvh-4rem)] overflow-y-auto overflow-x-hidden border-b border-line bg-white shadow-raised [animation:menu-in_160ms_ease-out]">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-mint via-mint to-amber" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-mint via-[#1bb6f9] to-[#fbb130]" />
       <div className="relative mx-auto grid max-w-6xl gap-x-10 gap-y-6 px-6 pb-5 pt-5 md:grid-cols-2 lg:grid-cols-4">
         {cols.map((c) => <Column key={c.id} col={c} onNavigate={close} />)}
       </div>
-      <div className="relative bg-gradient-to-r from-brand to-brand-dark text-white">
+      <div className="relative bg-gradient-to-r from-brand to-[#0f3a66] text-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-2 text-sm">
           <span className="text-white/80">{footer}</span>
           <Link to="/start" onClick={close} className="inline-flex items-center gap-1.5 rounded-md bg-amber px-3 py-1.5 font-bold text-ink transition hover:bg-amber-dark">Try it free <ArrowRight className="size-4" aria-hidden /></Link>

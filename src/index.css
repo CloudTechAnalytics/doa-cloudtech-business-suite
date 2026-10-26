@@ -155,3 +155,24 @@ fieldset.record-read { border: 0; margin: 0; padding: 0; min-width: 0; }
 .anim-header { animation: header-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both; }
 @media (prefers-reduced-motion: reduce) { .word-mask > span, .anim-header, .splash-d, .splash-o, .splash-a { animation: none; } }
 html.splash-on .anim-fade-up, html.splash-on .anim-marker, html.splash-on .word-mask > span, html.splash-on .anim-header { animation-play-state: paused; }
+
+/*
+  The public website, the sign-in pages and the Platform console keep the original navy and amber look. The business workspace (under /app)
+  uses the ocean palette above, or whichever theme the business owner picked. SitePalette in the router switches this class on and off.
+*/
+html.classic-palette {
+  --color-brand: #071b33;
+  --color-brand-dark: #0b2a4a;
+  --color-brand-ink: #0b2a4a;
+  --color-accent: #017e84;
+  --color-accent-soft: #e0f2f1;
+  --color-ink: #111827;
+  --color-surface: #f8f9fa;
+  --color-line: #e6e9ed;
+  --color-canvas: #f3f4f6;
+  --color-mint: #14c8b1;
+  --color-amber: #fbb130;
+  --color-amber-dark: #f59f00;
+  --color-info: #117a8b;
+  --color-info-soft: #def4f8;
+}

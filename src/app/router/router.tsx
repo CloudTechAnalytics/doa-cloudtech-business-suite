@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useLayoutEffect } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from '@/app/layouts/AppShell'
 import { AppsHome } from '@/app/layouts/AppsHome'
@@ -27,6 +27,13 @@ function StartPage() {
   return <OnboardingPage key={search} />
 }
 
+/** The website and Platform console keep the classic navy and amber colours; only the business workspace (/app) uses the ocean palette and its theme. */
+function SitePalette() {
+  const { pathname } = useLocation()
+  useLayoutEffect(() => { document.documentElement.classList.toggle('classic-palette', !pathname.startsWith('/app')) }, [pathname])
+  return null
+}
+
 /** A new page opens at the top, unless the link points at a section. */
 function ScrollToTop() {
   const { pathname, hash } = useLocation()
@@ -37,6 +44,7 @@ function ScrollToTop() {
 export function AppRoutes() {
   return (
     <>
+    <SitePalette />
     <ScrollToTop />
     <Routes>
       <Route path="/" element={<LandingPage />} />

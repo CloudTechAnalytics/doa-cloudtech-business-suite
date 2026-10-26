@@ -48,11 +48,11 @@ export function LandingPage() {
     <div className="bg-white text-ink">
       <SiteHeader />
 
-      <section className="relative isolate overflow-hidden bg-gradient-to-b from-[#e3f6fc] via-white to-white px-4 pb-24 pt-16 text-center sm:px-6 sm:pb-32 sm:pt-24">
+      <section className="relative isolate overflow-hidden bg-gradient-to-b from-[#f1f6fb] via-white to-white px-4 pb-24 pt-16 text-center sm:px-6 sm:pb-32 sm:pt-24">
         <HeroBackdrop />
         <h1 aria-label="All your business on one platform." className="relative mx-auto max-w-4xl text-5xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl">
           {['All', 'your', 'business', 'on'].map((w, i) => <span key={w} aria-hidden className="word-mask mr-[0.25em]"><span style={d(80 + i * 90)}>{w}</span></span>)}
-          <span aria-hidden className="relative whitespace-nowrap"><span className="anim-marker absolute -inset-x-2 inset-y-1 -z-0 -rotate-1 rounded-xl bg-amber" style={d(900)} /><span className="word-mask relative"><span style={d(450)}>one platform.</span></span></span>
+          <span aria-hidden className="relative whitespace-nowrap"><span className="anim-marker absolute -inset-x-2 inset-y-1 -z-0 -rotate-1 rounded-xl bg-[#fbb130]" style={d(900)} /><span className="word-mask relative"><span style={d(450)}>one platform.</span></span></span>
         </h1>
         <p className="anim-fade-up relative mx-auto mt-8 max-w-2xl text-xl font-medium text-ink/80 sm:text-2xl" style={d(220)}>
           Shops, farms, bakeries, pharmacies and schools, each with{' '}
@@ -111,9 +111,9 @@ export function LandingPage() {
             </dl>
           </section>
 
-          <Reveal as="section" className="anim-gradient relative mt-24 overflow-hidden rounded-2xl bg-gradient-to-r from-brand via-brand-dark to-brand px-6 py-14 text-center text-white sm:px-12">
+          <Reveal as="section" className="anim-gradient relative mt-24 overflow-hidden rounded-2xl bg-gradient-to-r from-brand via-[#0f3a66] to-brand px-6 py-14 text-center text-white sm:px-12">
             <span aria-hidden className="absolute -right-10 -top-16 size-56 rounded-full bg-mint/25 blur-3xl" />
-            <span aria-hidden className="absolute -bottom-16 -left-10 size-56 rounded-full bg-amber/20 blur-3xl" />
+            <span aria-hidden className="absolute -bottom-16 -left-10 size-56 rounded-full bg-[#fbb130]/20 blur-3xl" />
             <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">Ready to <span className="text-amber">try it</span>?</h2>
             <p className="relative mx-auto mt-3 max-w-lg text-white/80">Pick your business type, name it, and you are in. The first 14 days are free.</p>
             <Link to="/start" className="relative mt-8 inline-flex h-12 items-center rounded-md bg-amber px-7 text-base font-bold text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-amber-dark hover:shadow-raised active:translate-y-0">Try it free</Link>
