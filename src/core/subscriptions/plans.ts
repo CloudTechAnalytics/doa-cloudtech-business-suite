@@ -13,5 +13,8 @@ export const PLANS: Record<PlanCode, { name: string; excluded: ModuleCode[]; lim
   business: { name: 'Business', excluded: [], limits: { maxMembers: 50, maxBranches: 10 } },
 }
 
+/** Monthly prices in naira. These match the plans seeded in the database (checked by tests/integration/pricing.test.ts). */
+export const PLAN_PRICES: Record<PlanCode, number> = { starter: 0, basic: 5000, growth: 15000, business: 40000 }
+
 export const planIncludes = (plan: PlanCode, module: ModuleCode) =>
   CORE_MODULES.includes(module) || !PLANS[plan].excluded.includes(module)

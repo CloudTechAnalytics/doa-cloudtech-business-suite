@@ -11,7 +11,10 @@ import { BusinessesPage } from '@/core/businesses/BusinessesPage'
 import { OnboardingPage } from '@/core/businesses/OnboardingPage'
 import { ModuleRoute } from '@/core/module-registry/ModuleRoute'
 import { buildModuleRoutes } from '@/core/module-registry/routes'
-import { PlatformAdminPage } from '@/core/platform-admin/PlatformAdminPage'
+import { PlatformBusinessPage, PlatformBusinesses, PlatformSubscriptions } from '@/core/platform-admin/PlatformBusinesses'
+import { PlatformDashboard } from '@/core/platform-admin/PlatformDashboard'
+import { PlatformLayout } from '@/core/platform-admin/PlatformLayout'
+import { PlatformAudit, PlatformHealth, PlatformPlans, PlatformTeam, PlatformUsers } from '@/core/platform-admin/PlatformMore'
 import { EmptyState, Spinner } from '@/shared/components'
 
 // Built once from the shared modules and the industry registry; adding an industry adds its routes here with no router edits.
@@ -43,9 +46,20 @@ export function AppRoutes() {
       <Route path="/start" element={<StartPage />} />
       <Route path="/onboarding" element={<StartPage />} />
       <Route path="/businesses" element={<RequireAuth><BusinessesPage /></RequireAuth>} />
+      <Route path="/platform" element={<RequireAuth><PlatformLayout /></RequireAuth>}>
+        <Route index element={<PlatformDashboard />} />
+        <Route path="businesses" element={<PlatformBusinesses />} />
+        <Route path="businesses/:id" element={<PlatformBusinessPage />} />
+        <Route path="subscriptions" element={<PlatformSubscriptions />} />
+        <Route path="users" element={<PlatformUsers />} />
+        <Route path="plans" element={<PlatformPlans />} />
+        <Route path="team" element={<PlatformTeam />} />
+        <Route path="audit" element={<PlatformAudit />} />
+        <Route path="health" element={<PlatformHealth />} />
+      </Route>
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<AppsHome />} />
-        <Route path="platform-admin" element={<PlatformAdminPage />} />
+        <Route path="platform-admin" element={<Navigate to="/platform" replace />} />
         {MODULE_ROUTES.map(({ path, code, component: Page }) => (
           <Route key={code} path={path} element={<ModuleRoute code={code}><Suspense fallback={<Spinner />}><Page /></Suspense></ModuleRoute>} />
         ))}

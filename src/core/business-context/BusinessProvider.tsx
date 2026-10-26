@@ -77,7 +77,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const businesses: BusinessSummary[] = isDemoMode
     ? demo.members
         .filter((m) => m.userId === userId && m.status === 'active')
-        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner' })))
+        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner' })))
     : fetched
   const loading = isDemoMode ? false : fetchLoading || (!!userId && loadedFor !== userId)
   const active = businesses.find((b) => b.id === activeId) ?? businesses[0] ?? null

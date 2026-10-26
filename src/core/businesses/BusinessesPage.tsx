@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, LayoutGrid, LogOut, Settings, Trash2, UserCircle } from 'lucide-react'
+import { ChevronDown, ChevronRight, LayoutGrid, LogOut, Settings, ShieldCheck, Trash2, UserCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
@@ -9,6 +9,7 @@ import { useAuth } from '@/core/auth/AuthProvider'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { getIndustry } from '@/core/industry-registry'
 import { archiveBusiness } from '@/core/businesses/businessActions'
+import { usePlatformRole } from '@/core/platform-admin/platformUi'
 import type { BusinessSummary } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, ErrorState, Spinner } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
@@ -58,9 +59,11 @@ export function BusinessesPage() {
   const { email, signOut } = useAuth()
   const { businesses, loading, error, select, refresh } = useBusiness()
   const [deleting, setDeleting] = useState<BusinessSummary | null>(null)
+  const platform = usePlatformRole()
 
-  if (loading) return <Spinner />
-  if (!businesses.length && !error) return <Navigate to="/start" replace />
+  if (loading || platform.loading) return <Spinner />
+  // A platform admin with no business of their own lands in the console, not on the new-business form.
+  if (!businesses.length && !error) return <Navigate to={platform.data ? '/platform' : '/start'} replace />
 
   const open = (id: string) => { select(id); navigate('/app') }
 
@@ -80,6 +83,7 @@ export function BusinessesPage() {
             items={[
               { label: email ?? 'Account', heading: true },
               { label: 'My businesses', to: '/businesses', icon: <LayoutGrid className="size-4" /> },
+              ...(platform.data ? [{ label: 'Platform console', to: '/platform', icon: <ShieldCheck className="size-4" /> }] : []),
               { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut, divider: true },
             ]}
           />

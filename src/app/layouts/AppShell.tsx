@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Building2, Check, ChevronDown, LayoutGrid, LogOut, Menu as MenuIcon, Plus, X } from 'lucide-react'
+import { Building2, Check, ChevronDown, LayoutGrid, LogOut, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ACCOUNT_MODULES, appPath, buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
 import type { ModuleDefinition } from '@/shared/types/domain'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { useModules } from '@/core/module-registry/ModulesProvider'
+import { usePlatformRole } from '@/core/platform-admin/platformUi'
 import { resetDemoBakery } from '@/demo/demoBakery'
 import { resetDemoCrm } from '@/demo/demoCrm'
 import { resetDemoFarm } from '@/demo/demoFarm'
@@ -53,6 +54,7 @@ function BusinessSwitcher() {
 function UserMenu({ modules }: { modules: ModuleDefinition[] }) {
   const { email, signOut } = useAuth()
   const name = email ?? 'Account'
+  const platform = usePlatformRole()
   return (
     <Menu
       label="Account menu"
@@ -62,7 +64,8 @@ function UserMenu({ modules }: { modules: ModuleDefinition[] }) {
       items={[
         { label: name, heading: true },
         ...modules.map((m) => ({ label: m.name, to: appPath(m), icon: <m.icon className="size-4" /> })),
-        { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut, divider: modules.length > 0 },
+        ...(platform.data ? [{ label: 'Platform console', to: '/platform', icon: <ShieldCheck className="size-4" />, divider: modules.length > 0 }] : []),
+        { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut, divider: modules.length > 0 || !!platform.data },
       ]}
     />
   )

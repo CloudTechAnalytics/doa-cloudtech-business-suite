@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { PLAN_PRICES } from '@/app/landing/PricingPage'
+import { PLAN_PRICES } from '@/core/subscriptions/plans'
 
 describe('the public pricing page', () => {
   it('shows the same monthly prices as the plans seeded in the database', () => {

@@ -145,7 +145,7 @@ describe('attendance', () => {
     await expect(mark(owner, p1, iso(2), [{ student_id: ada, status: 'present' }])).rejects.toThrow(/future/)
     const sunday = iso(-((new Date().getDay() + 7) % 7 || 7))
     await expect(mark(owner, p1, sunday, [{ student_id: ada, status: 'present' }])).rejects.toThrow(/not open/)
-    const hol = weekday(-3)
+    const hol = weekday(-10)
     await as(owner, () => q(`select public.school_save_holiday($1,$2,'Founders Day')`, [biz, hol]))
     await expect(mark(owner, p1, hol, [{ student_id: ada, status: 'present' }])).rejects.toThrow(/holiday/)
     await expect(mark(owner, p1, weekday(-1), [{ student_id: chidi, status: 'present' }])).rejects.toThrow(/member of this class/)

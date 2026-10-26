@@ -16,7 +16,7 @@ npm test               # 230+ tests (in-process PostgreSQL via PGlite; no Docker
 
 Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` the app runs in **demo mode**: a browser-only backend with demo logins and illustrative data. It switches off automatically when the variables are set. Copy `.env.example` to `.env` to configure Supabase; never put the service-role key in any `VITE_*` variable.
 
-Demo logins (password `demo1234`): `owner@demo.test` (owns a farm, a bakery, a retail shop and a pharmacy), `cashier@demo.test` (cashier at CityMart), `accountant@demo.test`.
+Demo logins (password `demo1234`): `owner@demo.test` (owns a farm, a bakery, a retail shop and a pharmacy), `cashier@demo.test` (cashier at CityMart), `accountant@demo.test`, and for the Platform console `platform@demo.test`, `engineer@demo.test` and `support@demo.test`.
 
 ## Layout
 

@@ -1,6 +1,6 @@
 import { Check, Minus } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { PLANS } from '@/core/subscriptions/plans'
+import { PLANS, PLAN_PRICES } from '@/core/subscriptions/plans'
 import { naira } from '@/shared/utilities/format'
 import type { PlanCode } from '@/shared/types/domain'
 import { Mark } from './Mark'
@@ -8,8 +8,6 @@ import { Reveal } from './Reveal'
 import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
 
-/** Monthly prices in naira. These match the plans seeded in the database (checked by tests/integration/pricing.test.ts). */
-export const PLAN_PRICES: Record<PlanCode, number> = { starter: 0, basic: 5000, growth: 15000, business: 40000 }
 
 const ORDER: PlanCode[] = ['starter', 'basic', 'growth', 'business']
 const TAGLINE: Record<PlanCode, string> = {

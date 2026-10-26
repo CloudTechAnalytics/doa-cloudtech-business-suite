@@ -1,0 +1,40 @@
+# Platform console
+
+The place where the people who run DOA (not any one business) see every business and client, and manage the system. It lives at `/platform`.
+Migration: `supabase/migrations/20261021000021_platform_admin.sql`. Demo mirror: `src/demo/demoPlatform.ts`.
+
+## Who can use it
+
+A separate `platform_admins` table, completely independent of business roles. Being the owner of a business gives no access here.
+
+| Role | Can |
+|---|---|
+| owner | Everything, including adding and removing platform team members |
+| engineer | See everything; change plans, extend trials, mark as paid, cancel, suspend or reactivate a business |
+| support | See everything; change nothing |
+
+There must always be at least one owner. Make the first owner once, as the database owner:
+
+```sql
+insert into public.platform_admins (user_id, role)
+select id, 'owner' from auth.users where email = 'you@example.com';
+```
+
+After that, owners add people from **Platform Team** in the console (the person needs an account first).
+
+## Pages
+
+Dashboard (businesses, paying, trials, suspended, MRR and ARR, users, by kind of business, trials ending soon, health), Businesses (search, owner, plan; open one for its people,
+subscription, apps and the changes made from the console), Users, Subscriptions, Plans & Pricing, Platform Team, Audit Log, System Health.
+
+## Security
+
+* No table is readable or writable from the console directly. Everything goes through `platform_*` security-definer functions that first check `platform_admins`.
+* Every change needs a reason of at least three characters and is written to `platform_audit_log` (who, what, which business, why). That log cannot be updated or deleted.
+* Suspending a business makes `is_active_member` false for everyone in it, so access stops at once. Nothing is deleted; reactivating restores it.
+* Demo mode: `platform@demo.test` (owner), `engineer@demo.test`, `support@demo.test`, password `demo1234`.
+
+## Not built (no data behind it yet)
+
+Billing and revenue analytics beyond MRR/ARR, support tickets, error logs, platform-wide settings, and impersonating a business user (deliberately left out).
+"Signed in today" uses `auth.users.last_sign_in_at` and shows a dash in demo mode.

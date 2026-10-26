@@ -13,7 +13,7 @@ import { INDUSTRY_TEMPLATES, compatibleModules, defaultModules } from '@/core/mo
 
 export interface DemoUser { id: string; email: string; password: string; name: string }
 export interface DemoSettings { tax_rate_percent?: number; setup?: Record<string, string | number | boolean> }
-export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean }
+export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean; suspended?: boolean; createdAt?: string }
 export interface DemoMember { id: string; businessId: string; userId: string | null; email: string; name: string; role: RoleName; status: 'active' | 'suspended' | 'revoked' | 'invited' }
 
 export interface DemoBusinessModules { plan: PlanCode | null; enabled: ModuleCode[]; disabledHistory: ModuleCode[] }
@@ -35,8 +35,12 @@ export const DEMO_LOGINS = [
   { email: 'teacher@demo.test', password: 'demo1234', note: 'Class teacher at Bright Future Academy' },
   { email: 'parent@demo.test', password: 'demo1234', note: 'Parent at Bright Future Academy' },
   { email: 'bursar@demo.test', password: 'demo1234', note: 'Bursar at Bright Future Academy' },
+  { email: 'platform@demo.test', password: 'demo1234', note: 'Platform owner: opens the Platform console' },
+  { email: 'engineer@demo.test', password: 'demo1234', note: 'Platform engineer: can manage businesses and subscriptions' },
+  { email: 'support@demo.test', password: 'demo1234', note: 'Platform support: read only' },
 ]
 
+const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
 const seed = (): State => ({
   userId: null,
   modules: {
@@ -56,13 +60,16 @@ const seed = (): State => ({
     { id: 'u-parent', email: 'parent@demo.test', password: 'demo1234', name: 'Mrs Obi' },
     { id: 'u-bursar', email: 'bursar@demo.test', password: 'demo1234', name: 'Demo Bursar' },
     { id: 'u-principal', email: 'principal@demo.test', password: 'demo1234', name: 'Demo Principal' },
+    { id: 'u-platform', email: 'platform@demo.test', password: 'demo1234', name: 'Platform Owner' },
+    { id: 'u-engineer', email: 'engineer@demo.test', password: 'demo1234', name: 'Platform Engineer' },
+    { id: 'u-support', email: 'support@demo.test', password: 'demo1234', name: 'Platform Support' },
   ],
   businesses: [
-    { id: 'b-farm', name: 'Greenfield Farms', industry: 'farm' },
-    { id: 'b-bakery', name: 'Sunrise Bakery', industry: 'bakery' },
-    { id: 'b-retail', name: 'CityMart', industry: 'retail' },
-    { id: 'b-pharmacy', name: 'CarePlus Pharmacy', industry: 'pharmacy' },
-    { id: 'b-school', name: 'Bright Future Academy', industry: 'school' },
+    { id: 'b-farm', name: 'Greenfield Farms', industry: 'farm', createdAt: daysAgo(120) },
+    { id: 'b-bakery', name: 'Sunrise Bakery', industry: 'bakery', createdAt: daysAgo(6) },
+    { id: 'b-retail', name: 'CityMart', industry: 'retail', createdAt: daysAgo(11) },
+    { id: 'b-pharmacy', name: 'CarePlus Pharmacy', industry: 'pharmacy', createdAt: daysAgo(50) },
+    { id: 'b-school', name: 'Bright Future Academy', industry: 'school', createdAt: daysAgo(2) },
   ],
   members: [
     { id: 'm1', businessId: 'b-farm', userId: 'u-owner', email: 'owner@demo.test', name: 'Demo Owner', role: 'owner', status: 'active' },
@@ -153,7 +160,7 @@ export function demoReset() { commit({ ...seed() }) }
 export function demoCreateBusiness(name: string, industry: IndustryCode, settings: DemoSettings = {}): string {
   const user = state.users.find((u) => u.id === state.userId)
   if (!user) throw new Error('Not signed in')
-  const b: DemoBusiness = { id: uid('b'), name, industry, settings }
+  const b: DemoBusiness = { id: uid('b'), name, industry, settings, createdAt: new Date().toISOString() }
   const m: DemoMember = { id: uid('m'), businessId: b.id, userId: user.id, email: user.email, name: user.name, role: 'owner', status: 'active' }
   commit({
     ...state,
@@ -260,6 +267,12 @@ export function demoChangeIndustry(businessId: string, industry: IndustryCode, c
     return (e as Error).message
   }
 }
+
+/** Demo only, for the Platform console: suspending hides the business from everyone, like the database does. */
+export function demoPlatformSetSuspended(businessId: string, suspended: boolean) {
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, suspended } : x)) })
+}
+export function demoPlatformSetPlan(businessId: string, plan: PlanCode) { patchModules(businessId, { plan }) }
 
 /** Demo only: stands in for a verified payment-provider webhook. */
 export function demoSetPlan(businessId: string, plan: PlanCode | null): string | null {
