@@ -30,7 +30,7 @@ export function LogoLetters({ className, teal = LOGO_TEAL, amber = LOGO_AMBER }:
 /** The wordmark on its own. Pass `light` on a dark background, where the teal letters turn white. */
 export function Wordmark({ light = false, className }: { light?: boolean; className?: string }) {
   return (
-    <svg viewBox="0 0 110 48" role="img" aria-label="DOA" className={clsx('h-7 w-auto shrink-0', className)}>
+    <svg viewBox="0 0 110 48" role="img" aria-label="DOA" className={clsx('h-6 w-auto shrink-0', className)}>
       <LogoLetters teal={light ? '#ffffff' : LOGO_TEAL} />
     </svg>
   )
@@ -49,7 +49,7 @@ export function BrandMark({ className }: { className?: string }) {
 export function BrandLockup({ light = false, className }: { light?: boolean; className?: string }) {
   return (
     <div className={clsx('group flex items-center', className)}>
-      <Wordmark light={light} className="h-8 transition-transform duration-300 group-hover:scale-105" />
+      <Wordmark light={light} className="h-6 transition-transform duration-300 group-hover:scale-105" />
     </div>
   )
 }

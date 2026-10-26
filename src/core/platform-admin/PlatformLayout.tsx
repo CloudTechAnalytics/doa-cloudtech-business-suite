@@ -27,7 +27,7 @@ export function PlatformLayout() {
 
   const sidebar = (
     <nav aria-label="Platform" className="flex h-full flex-col bg-brand text-white">
-      <Link to="/platform" onClick={() => setOpen(false)} className="flex items-center gap-3 px-5 py-5"><Wordmark light className="h-8" /><span><span className="block text-[11px] text-white/60">Platform console</span></span></Link>
+      <Link to="/platform" onClick={() => setOpen(false)} className="flex items-center gap-3 px-5 py-5"><Wordmark light className="h-6" /></Link>
       <div className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
         {NAV.map((g) => (
           <div key={g.heading}>
