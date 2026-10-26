@@ -52,7 +52,7 @@ export function SchoolPortalPage() {
       {kids.error && <ErrorState message={kids.error} />}
       <div className="no-print mb-4 flex flex-wrap items-end gap-3">
         {children.length > 1 && <div className="w-64"><SelectField label="Child" value={child.id} onChange={(e) => setKid(e.target.value)}>{children.map((x) => <option key={x.id} value={x.id}>{fullName(x)}</option>)}</SelectField></div>}
-        <div className="w-48"><SelectField label="Term" value={term} onChange={(e) => setTermId(e.target.value)}>{(s?.terms ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField></div>
+        <div className="w-48"><SelectField label={ctx.termWord} value={term} onChange={(e) => setTermId(e.target.value)}>{(s?.terms ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField></div>
       </div>
       <p className="mb-3 text-sm"><b>{fullName(child)}</b> · {child.admissionNo} · {className(child.classId)} <Badge tone={child.status === 'active' ? 'success' : 'neutral'}>{label(child.status)}</Badge></p>
       <div role="tablist" aria-label="Parent portal sections" className="no-print mb-4 flex flex-wrap gap-1 border-b border-ink/10">

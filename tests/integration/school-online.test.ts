@@ -24,10 +24,10 @@ const course = (b: string, name: string, description: string | null = null, dura
 beforeAll(async () => { db = await createDb(); [owner, teacher] = await Promise.all(['o', 't'].map((p) => createUser(db, `${p}@example.com`))) })
 
 describe('an online school', () => {
-  it('starts with no courses, units or departments, only the terms and grading', async () => {
+  it('starts with no courses, units or departments, and one cohort instead of three terms', async () => {
     const b = await fresh('online')
     expect(await names(b, 'school_classes')).toEqual([]); expect(await names(b, 'school_subjects')).toEqual([]); expect(await names(b, 'school_departments')).toEqual([])
-    expect(await names(b, 'school_terms')).toEqual(['First Term', 'Second Term', 'Third Term'])
+    expect(await names(b, 'school_terms')).toEqual(['2026/2027']); expect(await names(b, 'school_sessions')).toEqual(['2026/2027']) // one cohort, not three terms
     expect((await q<{ school_type: string }>('select school_type from public.school_settings where business_id=$1', [b]))[0].school_type).toBe('online')
   })
 
@@ -105,5 +105,60 @@ describe('the same in the demo', () => {
     expect(st.classes).toEqual([]); expect(st.departments).toEqual([]); expect(st.subjects).toEqual([])
     expect(save('nursery')).toBeNull()
     expect(sc.demoStructure(id).classes.map((c) => c.name)).toEqual(['Nursery 1', 'Nursery 2'])
+  })
+})
+
+describe('cohorts instead of terms', () => {
+  const cohort = (b: string, id: string | null, name: string, starts = '2027-01-11', ends = '2027-04-30', current = false, u = owner) =>
+    as(u, () => q('select public.school_save_cohort($1,$2,$3,$4::date,$5::date,$6) as id', [b, id, name, starts, ends, current]))
+
+  it('creates a cohort as a session with one term of the same name, and keeps them together when edited', async () => {
+    const b = await fresh('online')
+    const id = (await cohort(b, null, 'January 2027 intake', '2027-01-11', '2027-04-30', true))[0].id as string
+    expect(await names(b, 'school_sessions')).toEqual(['2026/2027', 'January 2027 intake'])
+    expect(await names(b, 'school_terms')).toEqual(['2026/2027', 'January 2027 intake'])
+    expect((await q('select 1 from public.school_terms where business_id=$1 and name=$2 and is_current', [b, 'January 2027 intake'])).length).toBe(1)
+    await cohort(b, id, 'January 2027 cohort', '2027-01-11', '2027-05-14', true)
+    expect(await names(b, 'school_terms')).toEqual(['2026/2027', 'January 2027 cohort'])
+    await expect(cohort(b, null, 'January 2027 cohort')).rejects.toThrow(/already exists/)
+    await expect(cohort(b, null, 'Bad dates', '2027-05-01', '2027-04-01')).rejects.toThrow(/enter the cohort name/)
+    await expect(cohort(b, null, 'Hacked', '2027-01-01', '2027-02-01', false, teacher)).rejects.toThrow(/permission denied/)
+  })
+
+  it('lets unused sessions and terms be deleted, and refuses ones in use', async () => {
+    const b = await fresh('online')
+    const del = (fn: string, id: string) => as(owner, () => q(`select public.${fn}($1,$2)`, [b, id]))
+    const extra = (await cohort(b, null, 'Spare cohort'))[0].id as string
+    await del('school_delete_session', extra)
+    expect(await names(b, 'school_sessions')).toEqual(['2026/2027'])
+    const course = (await course_(b))
+    const reg = await as(owner, () => q<{ r: { student_id: string } }>('select public.school_register_student($1,$2::jsonb,null,$3) as r', [b, JSON.stringify({ first: 'Ada', last: 'Obi', class_id: course }), key()]))
+    expect(reg[0].r.student_id).toBeTruthy()
+    const used = (await q<{ id: string }>('select id from public.school_sessions where business_id=$1', [b]))[0].id
+    await expect(del('school_delete_session', used)).rejects.toThrow(/cannot be deleted/)
+    const term = (await q<{ id: string }>('select id from public.school_terms where business_id=$1', [b]))[0].id
+    await del('school_delete_term', term) // nothing recorded against it yet
+    expect(await names(b, 'school_terms')).toEqual([])
+  })
+
+  const course_ = async (b: string) => (await course(b, 'Any Course'))[0].id as string
+})
+
+describe('cohorts in the demo', () => {
+  it('starts with one cohort, saves cohorts as a pair, and deletes unused ones', async () => {
+    demoSignOut(); demoSignIn('owner@demo.test', 'demo1234')
+    const id = demoCreateBusiness('Cohort Academy', 'school')
+    await getIndustry('school').afterCreate!(id, { school_type: 'online', session_name: 'Cohort 1' })
+    let st = sc.demoStructure(id)
+    expect(st.sessions.map((x) => x.name)).toEqual(['Cohort 1']); expect(st.terms.map((x) => x.name)).toEqual(['Cohort 1'])
+    expect(sc.demoSaveCohort(id, { id: null, name: 'Cohort 2', startsOn: '2027-02-01', endsOn: '2027-05-30', current: true })).toBeNull()
+    st = sc.demoStructure(id)
+    expect(st.sessions.map((x) => x.name).sort()).toEqual(['Cohort 1', 'Cohort 2']); expect(st.terms.map((x) => x.name).sort()).toEqual(['Cohort 1', 'Cohort 2'])
+    expect(st.terms.find((x) => x.name === 'Cohort 2')!.current).toBe(true)
+    expect(sc.demoSaveCohort(id, { id: null, name: 'Cohort 2', startsOn: '2027-02-01', endsOn: '2027-05-30', current: false })).toMatch(/already exists/)
+    const c2 = st.sessions.find((x) => x.name === 'Cohort 2')!
+    expect(sc.demoDeleteSession(id, c2.id)).toBeNull()
+    expect(sc.demoStructure(id).sessions.map((x) => x.name)).toEqual(['Cohort 1'])
+    expect(sc.demoDeleteTerm(id, sc.demoStructure(id).terms[0].id)).toBeNull()
   })
 })

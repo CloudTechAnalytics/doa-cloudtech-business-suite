@@ -6,7 +6,7 @@ import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { LEVEL_NAMES, NoSetup, classLevel, fullName, levelsOf, useSchool } from '../components/schoolUi'
-import { deleteClass, deleteDepartment, deleteSubject, loadStaff, loadStudents, saveClass, saveDepartment, saveHoliday, saveSession, saveSubject, saveTerm, setClassSubjects } from '../services/schoolApi'
+import { deleteClass, deleteDepartment, deleteSession, deleteSubject, deleteTerm, loadStaff, loadStudents, saveClass, saveCohort, saveDepartment, saveHoliday, saveSession, saveSubject, saveTerm, setClassSubjects } from '../services/schoolApi'
 import { STAGES, SUBJECT_LEVELS, stageOk } from '../services/schoolApi'
 import type { SClass, SDepartment, SSession, SSubject, STerm, Stage, SubjectLevel } from '../services/schoolApi'
 import { ConfirmDelete } from '../components/ConfirmDelete'
@@ -68,11 +68,20 @@ export function SchoolClassesPage() {
             {s?.departments.length ? <ul className="mt-2 flex flex-wrap gap-2 text-sm">{s.departments.map((d) => <li key={d.id}><button disabled={!manage} onClick={() => setPanel({ kind: 'department', v: d })} className="rounded-full border border-line px-3 py-1 hover:bg-surface">{d.name} <span className="text-ink/50">· {s.classes.filter((c) => c.departmentId === d.id && c.active).length} classes</span></button></li>)}</ul> : <p className="mt-2 text-sm text-ink/60">No departments yet.</p>}
           </Card>
         )}
-        <Card>
-          <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold">Sessions & terms</h3>{manage && <div className="flex gap-2"><Button variant="secondary" onClick={() => setPanel({ kind: 'session', v: null })}><Plus className="size-4" aria-hidden /> Session</Button><Button variant="secondary" disabled={!s?.sessions.length} onClick={() => setPanel({ kind: 'term', v: null })}><Plus className="size-4" aria-hidden /> Term</Button></div>}</div>
-          {s?.sessions.length ? <ul className="space-y-3 text-sm">{s.sessions.map((x) => <li key={x.id}><div className="flex items-center justify-between"><button className="font-medium underline" disabled={!manage} onClick={() => setPanel({ kind: 'session', v: x })}>{x.name}</button><span className="text-ink/60">{x.startsOn} to {x.endsOn} {x.current && <Badge tone="success">Current</Badge>}</span></div>
-            <ul className="ml-4 mt-1 divide-y divide-ink/10">{s.terms.filter((t) => t.sessionId === x.id).map((t) => <li key={t.id} className="flex items-center justify-between py-1"><button disabled={!manage} className="underline" onClick={() => setPanel({ kind: 'term', v: t })}>{t.name}</button><span className="text-ink/60">{t.startsOn} to {t.endsOn} {t.current && <Badge tone="success">Current</Badge>}</span></li>)}</ul></li>)}</ul> : <EmptyState title="No sessions yet" />}
-        </Card>
+        {online ? (
+          <Card>
+            <div className="mb-2 flex items-center justify-between"><div><h3 className="text-sm font-semibold">Cohorts</h3><p className="text-xs text-ink/60">A cohort is a group of learners who start together, such as "January 2027 intake".</p></div>{manage && <Button variant="secondary" onClick={() => setPanel({ kind: 'session', v: null })}><Plus className="size-4" aria-hidden /> Cohort</Button>}</div>
+            {s?.sessions.length ? <ul className="space-y-3 text-sm">{s.sessions.map((x) => { const periods = s.terms.filter((t) => t.sessionId === x.id); return (
+              <li key={x.id}><div className="flex items-center justify-between"><button className="font-medium underline" disabled={!manage} onClick={() => setPanel({ kind: 'session', v: x })}>{x.name}</button><span className="text-ink/60">{x.startsOn} to {x.endsOn} {x.current && <Badge tone="success">Current</Badge>}</span></div>
+                {periods.length !== 1 && <ul className="ml-4 mt-1 divide-y divide-ink/10">{periods.map((t) => <li key={t.id} className="flex items-center justify-between py-1"><button disabled={!manage} className="underline" onClick={() => setPanel({ kind: 'term', v: t })}>{t.name}</button><span className="text-ink/60">{t.startsOn} to {t.endsOn} {t.current && <Badge tone="success">Current</Badge>}</span></li>)}</ul>}</li>) })}</ul> : <EmptyState title="No cohorts yet" description="Add the first cohort so learners can be enrolled and fees billed." />}
+          </Card>
+        ) : (
+          <Card>
+            <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold">Sessions & terms</h3>{manage && <div className="flex gap-2"><Button variant="secondary" onClick={() => setPanel({ kind: 'session', v: null })}><Plus className="size-4" aria-hidden /> Session</Button><Button variant="secondary" disabled={!s?.sessions.length} onClick={() => setPanel({ kind: 'term', v: null })}><Plus className="size-4" aria-hidden /> Term</Button></div>}</div>
+            {s?.sessions.length ? <ul className="space-y-3 text-sm">{s.sessions.map((x) => <li key={x.id}><div className="flex items-center justify-between"><button className="font-medium underline" disabled={!manage} onClick={() => setPanel({ kind: 'session', v: x })}>{x.name}</button><span className="text-ink/60">{x.startsOn} to {x.endsOn} {x.current && <Badge tone="success">Current</Badge>}</span></div>
+              <ul className="ml-4 mt-1 divide-y divide-ink/10">{s.terms.filter((t) => t.sessionId === x.id).map((t) => <li key={t.id} className="flex items-center justify-between py-1"><button disabled={!manage} className="underline" onClick={() => setPanel({ kind: 'term', v: t })}>{t.name}</button><span className="text-ink/60">{t.startsOn} to {t.endsOn} {t.current && <Badge tone="success">Current</Badge>}</span></li>)}</ul></li>)}</ul> : <EmptyState title="No sessions yet" />}
+          </Card>
+        )}
         <Card>
           <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold">Holidays & days off</h3>{manage && <Button variant="secondary" onClick={() => setPanel({ kind: 'holiday' })}><Plus className="size-4" aria-hidden /> Holiday</Button>}</div>
           {s?.holidays.length ? <ul className="divide-y divide-ink/10 text-sm">{s.holidays.map((h) => <li key={h.on} className="flex justify-between py-1.5"><span>{h.name}</span><span className="text-ink/60">{h.on}</span></li>)}</ul> : <p className="text-sm text-ink/60">None. Attendance cannot be taken on a holiday.</p>}
@@ -100,12 +109,13 @@ function Editor({ ctx, panel, onClose, onSaved }: { ctx: ReturnType<typeof useSc
     if (panel.kind === 'class') return runner.run(async () => saveClass(b, { id: panel.v?.id ?? null, name: f.name.trim(), levelOrder: f.level ? Number(f.level) : Math.max(0, ...(ctx.s?.classes ?? []).map((c) => c.levelOrder)) + 1, arm: f.arm.trim(), active: !!f.active, stage: f.stage as Stage, departmentId: f.stage === 'secondary' && f.department ? f.department : null, description: f.description, duration: f.duration }), 'Saved.')
     if (panel.kind === 'subject') return runner.run(async () => saveSubject(b, { id: panel.v?.id ?? null, name: f.name.trim(), code: f.code.trim(), levels: (f.levels ? f.levels.split(',') : []) as SubjectLevel[], departmentId: f.department || null }), 'Saved.')
     if (panel.kind === 'department') return runner.run(async () => saveDepartment(b, { id: panel.v?.id ?? null, name: f.name.trim() }), 'Saved.')
+    if (panel.kind === 'session' && ctx.kind === 'online') return runner.run(async () => saveCohort(b, { id: panel.v?.id ?? null, name: f.name.trim(), startsOn: f.starts, endsOn: f.ends, current: !!f.current }), 'Saved.')
     if (panel.kind === 'session') return runner.run(async () => saveSession(b, { id: panel.v?.id ?? null, name: f.name.trim(), startsOn: f.starts, endsOn: f.ends, current: !!f.current }), 'Saved.')
     if (panel.kind === 'term') return runner.run(async () => saveTerm(b, { id: panel.v?.id ?? null, sessionId: f.session, name: f.name.trim(), startsOn: f.starts, endsOn: f.ends, current: !!f.current }), 'Saved.')
     return runner.run(async () => saveHoliday(b, f.on, f.name.trim()), 'Saved.')
   }
   const isOnline = ctx.kind === 'online'
-  const title = { class: isOnline ? 'Course' : 'Class', subject: isOnline ? 'Unit' : 'Subject', session: 'Academic session', term: 'Term', holiday: 'Holiday', department: 'Department' }[panel.kind]
+  const title = { class: isOnline ? 'Course' : 'Class', subject: isOnline ? 'Unit' : 'Subject', session: isOnline ? 'Cohort' : 'Academic session', term: isOnline ? 'Period' : 'Term', holiday: 'Holiday', department: 'Department' }[panel.kind]
   const levelsNow = f.levels ? f.levels.split(',') : []
   const toggleLevel = (l: SubjectLevel) => setF((p) => ({ ...p, levels: (levelsNow.includes(l) ? levelsNow.filter((x) => x !== l) : [...levelsNow, l]).join(',') }))
   const departments = ctx.s?.departments ?? []
@@ -136,6 +146,8 @@ function EditorDelete({ ctx, panel, onDone }: { ctx: ReturnType<typeof useSchool
   const b = ctx.businessId
   if (panel.kind === 'subject' && panel.v) { const id = panel.v.id; return <ConfirmDelete label={panel.v.name} noun="subject" warning="It is taken off every class and removed from the timetable. A subject that already has results recorded cannot be deleted." onConfirm={() => deleteSubject(b, id)} onDeleted={onDone} /> }
   if (panel.kind === 'department' && panel.v) { const id = panel.v.id; return <ConfirmDelete label={panel.v.name} noun="department" warning="A department that still has classes or subjects cannot be deleted; move them first." onConfirm={() => deleteDepartment(b, id)} onDeleted={onDone} /> }
+  if (panel.kind === 'session' && panel.v) { const id = panel.v.id; return <ConfirmDelete label={panel.v.name} noun={ctx.kind === 'online' ? 'cohort' : 'session'} warning="Its terms go with it. One that already has results, fee bills, remarks or students recorded cannot be deleted." onConfirm={() => deleteSession(b, id)} onDeleted={onDone} /> }
+  if (panel.kind === 'term' && panel.v) { const id = panel.v.id; return <ConfirmDelete label={panel.v.name} noun={ctx.kind === 'online' ? 'period' : 'term'} warning="A term that already has results, fee bills or remarks recorded cannot be deleted." onConfirm={() => deleteTerm(b, id)} onDeleted={onDone} /> }
   if (panel.kind === 'class' && panel.v) { const id = panel.v.id; return <ConfirmDelete label={panel.v.name} noun="class" warning="Its subject choices, teacher assignments and timetable are removed. A class that has students, attendance, results or fees on record cannot be deleted; untick In use instead." onConfirm={() => deleteClass(b, id)} onDeleted={onDone} /> }
   return <span />
 }

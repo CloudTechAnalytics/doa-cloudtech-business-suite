@@ -183,6 +183,19 @@ export async function saveSession(b: string, v: Parameters<typeof sc.demoSaveSes
   if (isDemoMode) return sc.demoSaveSession(b, v)
   return msg((await db().rpc('school_save_session', { p_business: b, p_id: v.id, p_name: v.name, p_starts: v.startsOn, p_ends: v.endsOn, p_current: v.current })).error)
 }
+/** An online school's cohort: a session with one term of the same name, saved together. */
+export async function saveCohort(b: string, v: Parameters<typeof sc.demoSaveCohort>[1]) {
+  if (isDemoMode) return sc.demoSaveCohort(b, v)
+  return msg((await db().rpc('school_save_cohort', { p_business: b, p_id: v.id, p_name: v.name, p_starts: v.startsOn, p_ends: v.endsOn, p_current: v.current })).error)
+}
+export async function deleteTerm(b: string, id: string) {
+  if (isDemoMode) return sc.demoDeleteTerm(b, id)
+  return msg((await db().rpc('school_delete_term', { p_business: b, p_id: id })).error)
+}
+export async function deleteSession(b: string, id: string) {
+  if (isDemoMode) return sc.demoDeleteSession(b, id)
+  return msg((await db().rpc('school_delete_session', { p_business: b, p_id: id })).error)
+}
 export async function saveTerm(b: string, v: Parameters<typeof sc.demoSaveTerm>[1]) {
   if (isDemoMode) return sc.demoSaveTerm(b, v)
   return msg((await db().rpc('school_save_term', { p_business: b, p_id: v.id, p_session: v.sessionId, p_name: v.name, p_starts: v.startsOn, p_ends: v.endsOn, p_current: v.current })).error)

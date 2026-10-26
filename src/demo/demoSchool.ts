@@ -218,6 +218,37 @@ export function demoSaveTerm(biz: string, v: { id: string | null; sessionId: str
     return null
   }).error
 }
+/** Mirrors school_save_cohort(): an online school's cohort is a session with one term of the same name, kept together. */
+export function demoSaveCohort(biz: string, v: { id: string | null; name: string; startsOn: string; endsOn: string; current: boolean }): string | null {
+  const err = demoSaveSession(biz, v)
+  if (err) return err
+  return run(biz, 'school_cohort', null, (s) => {
+    const sess = s.sessions.find((x) => x.businessId === biz && x.name === trim(v.name))!
+    const terms = s.terms.filter((t) => t.businessId === biz && t.sessionId === sess.id)
+    if (!terms.length) { if (v.current) s.terms.filter((x) => x.businessId === biz).forEach((x) => { x.current = false }); s.terms.push({ id: newId('trm'), businessId: biz, sessionId: sess.id, name: trim(v.name), startsOn: v.startsOn, endsOn: v.endsOn, current: v.current }) }
+    else if (terms.length === 1) { if (v.current) s.terms.filter((x) => x.businessId === biz).forEach((x) => { x.current = false }); Object.assign(terms[0], { name: trim(v.name), startsOn: v.startsOn, endsOn: v.endsOn, current: v.current }) }
+    return null
+  }).error
+}
+export function demoDeleteTerm(biz: string, id: string): string | null {
+  return run(biz, 'school_term_delete', null, (s) => {
+    guard(biz, 'school-classes', 'school.manage')
+    if (!s.terms.some((t) => t.id === id && t.businessId === biz)) throw new Error('term not found')
+    if (s.scores.some((x) => x.termId === id) || s.bills.some((b) => b.termId === id) || s.remarks.some((r) => r.termId === id) || s.feeItems.some((f) => f.termId === id)) throw new Error('this term already has results, fee bills or remarks recorded, so it cannot be deleted')
+    s.terms = s.terms.filter((t) => t.id !== id)
+    return null
+  }).error
+}
+export function demoDeleteSession(biz: string, id: string): string | null {
+  return run(biz, 'school_session_delete', null, (s) => {
+    guard(biz, 'school-classes', 'school.manage')
+    if (!s.sessions.some((x) => x.id === id && x.businessId === biz)) throw new Error('session not found')
+    const termIds = s.terms.filter((t) => t.sessionId === id).map((t) => t.id)
+    if (s.scores.some((x) => termIds.includes(x.termId)) || s.bills.some((b) => termIds.includes(b.termId)) || s.remarks.some((r) => termIds.includes(r.termId)) || s.feeItems.some((f) => f.termId && termIds.includes(f.termId)) || s.students.some((x) => x.sessionId === id)) throw new Error('this session or cohort already has results, fee bills, remarks or students recorded, so it cannot be deleted')
+    s.terms = s.terms.filter((t) => t.sessionId !== id); s.sessions = s.sessions.filter((x) => x.id !== id)
+    return null
+  }).error
+}
 export function demoSaveClass(biz: string, v: { id: string | null; name: string; levelOrder: number; arm: string; active: boolean; stage: Stage; departmentId?: string | null; description?: string; duration?: string }): string | null {
   return run(biz, 'school_class', null, (s) => {
     guard(biz, 'school-classes', 'school.manage')
@@ -350,6 +381,12 @@ function buildStructure(s: School, biz: string, type: SSettings['schoolType'], s
     }
   }
   s.bands[biz] = DEFAULT_BANDS.map((b) => ({ ...b }))
+  if (type === 'online') {
+    const name = trim(sessionName) || 'Cohort 1'
+    const sess: SSession = { id: newId('ses'), businessId: biz, name, startsOn: start, endsOn: addDays(start, 120), current: true }
+    s.sessions.push(sess); s.terms.push({ id: newId('trm'), businessId: biz, sessionId: sess.id, name, startsOn: start, endsOn: addDays(start, 120), current: true })
+    return
+  }
   const sess: SSession = { id: newId('ses'), businessId: biz, name: trim(sessionName) || 'Session', startsOn: start, endsOn: addDays(start, 330), current: true }
   s.sessions.push(sess)
   for (let i = 0; i < 3; i++) s.terms.push({ id: newId('trm'), businessId: biz, sessionId: sess.id, name: ['First Term', 'Second Term', 'Third Term'][i], startsOn: addDays(start, i * 110), endsOn: addDays(start, i * 110 + 95), current: i === 0 })

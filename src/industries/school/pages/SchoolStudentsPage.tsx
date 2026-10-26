@@ -213,7 +213,7 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
 
       {tab === 'results' && (
         <div className="space-y-3">
-          <div className="no-print flex flex-wrap items-end justify-between gap-3"><div className="max-w-xs"><SelectField label="Term" value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>{card.data?.subjects.length ? <Button variant="secondary" onClick={() => printReportCards([card.data!])}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
+          <div className="no-print flex flex-wrap items-end justify-between gap-3"><div className="max-w-xs"><SelectField label={ctx.termWord} value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>{card.data?.subjects.length ? <Button variant="secondary" onClick={() => printReportCards([card.data!])}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
           {card.loading ? <Spinner /> : !card.data || !card.data.subjects.length ? <p className="text-sm text-ink/60">No results for this term yet.</p> : <ReportCardSheet card={card.data} />}
         </div>
       )}

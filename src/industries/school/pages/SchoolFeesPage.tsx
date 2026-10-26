@@ -47,7 +47,7 @@ export function SchoolFeesPage() {
       {tab === 'bills' && (
         <>
           <div className="mb-3 flex flex-wrap items-end gap-3">
-            <div className="w-48"><SelectField label="Term" value={t} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField></div>
+            <div className="w-48"><SelectField label={ctx.termWord} value={t} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField></div>
             <div className="w-44"><SelectField label={ctx.classWord} value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
             <div className="w-44"><SelectField label="Status" value={state} onChange={(e) => setState(e.target.value)}><option value="">All</option>{Object.keys(TONE).map((x) => <option key={x} value={x}>{label(x)}</option>)}</SelectField></div>
             <div className="w-56"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Student or bill number" /></div>
@@ -84,7 +84,7 @@ function FeeDialog({ ctx, item, onClose, onSaved }: { ctx: ReturnType<typeof use
         <TextField label="Name" name="name" defaultValue={item?.name} placeholder="Tuition, Books, Uniform" autoFocus />
         <TextField label="Amount (₦)" name="amount" type="number" min={0} step="any" defaultValue={item?.amount} />
         <SelectField label="Applies to" name="class" defaultValue={item?.classId ?? ''}><option value="">Every class</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField>
-        <SelectField label="Term" name="term" defaultValue={item?.termId ?? ''}><option value="">Every term</option>{(ctx.s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField>
+        <SelectField label={ctx.termWord} name="term" defaultValue={item?.termId ?? ''}><option value="">Every term</option>{(ctx.s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField>
         <SelectField label="Charged" name="when" defaultValue={item?.onAdmission ? 'admission' : 'term'}><option value="term">Every term</option><option value="admission">Once, when a student is admitted</option></SelectField>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={item?.active ?? true} /> In use (untick to stop charging it on new bills)</label>
         <Notice>Changing a fee does not change bills already made.</Notice>
@@ -101,7 +101,7 @@ function GenerateDialog({ ctx, defaultTerm, onClose, onDone }: { ctx: ReturnType
   return (
     <Dialog title="Make bills" onClose={onClose}>
       <div className="space-y-3">
-        <SelectField label="Term" value={term} onChange={(e) => setTerm(e.target.value)}>{(ctx.s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField>
+        <SelectField label={ctx.termWord} value={term} onChange={(e) => setTerm(e.target.value)}>{(ctx.s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField>
         <SelectField label="Class" value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField>
         <TextField label="Pay by (optional)" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
         <Notice>Active students get one bill for the term from the fees that apply to their class. A student who already has a bill for this term is skipped, so running it again is safe.</Notice>

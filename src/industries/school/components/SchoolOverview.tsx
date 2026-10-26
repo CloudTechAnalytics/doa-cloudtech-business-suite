@@ -36,7 +36,7 @@ function Shortcuts() {
 }
 
 function Figures() {
-  const { businessId, s } = useSchool()
+  const { businessId, s, termWord } = useSchool()
   const [term, setTerm] = useState('')
   const data = useAsync(() => loadOverview(businessId, term || null), [businessId, term])
   const notes = useAsync(() => loadAnnouncements(businessId).catch(() => []), [businessId])
@@ -44,7 +44,7 @@ function Figures() {
   if (!businessId) return null
   return (
     <div className="space-y-4">
-      {s && s.terms.length > 0 && <div className="max-w-xs"><SelectField label="Term" value={term} onChange={(e) => setTerm(e.target.value)}><option value="">Current term</option>{s.terms.map((t) => <option key={t.id} value={t.id}>{t.name} ({s.sessions.find((x) => x.id === t.sessionId)?.name})</option>)}</SelectField></div>}
+      {s && s.terms.length > 0 && <div className="max-w-xs"><SelectField label={termWord} value={term} onChange={(e) => setTerm(e.target.value)}><option value="">Current term</option>{s.terms.map((t) => <option key={t.id} value={t.id}>{t.name} ({s.sessions.find((x) => x.id === t.sessionId)?.name})</option>)}</SelectField></div>}
       {data.error && <ErrorState message={data.error} />}
       {data.loading && !o ? <Spinner /> : !o ? null : (
         <>

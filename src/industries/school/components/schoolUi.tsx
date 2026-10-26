@@ -31,6 +31,8 @@ export function useSchool() {
     isTeacher, myAssignments,
     /** What this school calls its groups of learners: an online school has courses. */
     classWord: kind === 'online' ? 'Course' : 'Class',
+    /** An online school has cohorts where other schools have terms. */
+    termWord: kind === 'online' ? 'Cohort' : 'Term',
     /** Classes to choose from: every active class, or for a teacher only the ones assigned to them. */
     classes: (s?.classes ?? []).filter((c) => c.active && (!myClassIds || myClassIds.has(c.id))),
     /** The subjects a teacher may work on in a class, or null for someone who is not restricted. */

@@ -54,7 +54,7 @@ export function SchoolMyClassesPage() {
         <Card><EmptyState title={ctx.classWord === 'Course' ? 'No courses assigned to you yet' : 'No classes assigned to you yet'} description={me ? 'Ask the principal to assign you to a class or subject under Teachers & Staff.' : 'Your login is not matched to a staff record yet. Ask the principal to add you under Teachers & Staff using the same email you sign in with.'} /></Card>
       ) : (
         <>
-          <div className="mb-3 max-w-xs"><SelectField label="Term" value={term} onChange={(e) => setTermId(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>
+          <div className="mb-3 max-w-xs"><SelectField label={ctx.termWord} value={term} onChange={(e) => setTermId(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>
           {me && week.data && week.data.periods.length > 0 && week.data.slots.some((x) => x.staffId === me.id) && (
             <Card className="mb-4 p-0">
               <h2 className="border-b border-line p-3 font-semibold">My week</h2>
