@@ -81,7 +81,7 @@ function LiveStaffPage() {
     if (!supabase || !active) return
     setLoading(true)
     const [m, i] = await Promise.all([
-      supabase.from('business_members').select('id, user_id, status, roles(name), profiles(display_name)').eq('business_id', active.id),
+      supabase.from('business_members').select('id, user_id, status, roles(name), profiles!business_members_user_id_fkey(display_name)').eq('business_id', active.id),
       supabase.from('business_invitations').select('id, email, roles(name)').eq('business_id', active.id).eq('status', 'pending'),
     ])
     setError(m.error?.message ?? null)

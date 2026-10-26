@@ -1,7 +1,8 @@
 import type { IndustryRoute } from '@/core/industry-registry/types'
-import { SchoolAdmissionsPage, SchoolAnnouncementsPage, SchoolAttendancePage, SchoolClassesPage, SchoolFeesPage, SchoolGuardiansPage, SchoolPaymentsPage, SchoolPortalPage, SchoolReportsPage, SchoolResultsPage, SchoolSettingsPage, SchoolStaffPage, SchoolStudentsPage } from './lazyPages'
+import { SchoolAdmissionsPage, SchoolAnnouncementsPage, SchoolAttendancePage, SchoolClassesPage, SchoolFeesPage, SchoolGuardiansPage, SchoolMyClassesPage, SchoolPaymentsPage, SchoolPortalPage, SchoolReportsPage, SchoolResultsPage, SchoolSettingsPage, SchoolStaffPage, SchoolStudentsPage } from './lazyPages'
 
 export const schoolRoutes: IndustryRoute[] = [
+  { module: 'school-my-classes', component: SchoolMyClassesPage },
   { module: 'school-students', component: SchoolStudentsPage },
   { module: 'school-admissions', component: SchoolAdmissionsPage },
   { module: 'school-guardians', component: SchoolGuardiansPage },

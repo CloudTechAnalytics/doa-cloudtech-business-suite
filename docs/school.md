@@ -15,6 +15,8 @@ expenses module. Migration: `supabase/migrations/20261021000019_school.sql`. Dem
 | Attendance | Per class and date; no future days, non-school days or holidays; corrections are audited; teachers only their own classes |
 | Results | Class-work and exam marks validated against the school's maximums; draft, submitted, approved, published; report cards print; remarks and promotion decision |
 | Fees | Fee items, bills per student and term (re-running skips existing bills), discounts and extra charges, partial payments capped at the balance, receipts, reversals with a reason |
+| Teachers | **My Classes** (their own page): the classes and subjects assigned to them, with today's register status and results status per subject. Open a class for its pupils (today's mark, attendance rate this term, parent name and phone) and a printable class list. Row-level security already limits every row to their own classes |
+| Parents | The **Parent Portal** has six tabs: Overview (attendance rate, absences, fees owing, latest notices), Attendance (a month calendar), Results (report card with printing, plus the average for every term), Fees (each bill with items, payments and receipts, printable statement), Notices, and My details (keep their own phone and address up to date) |
 | Reports | Enrolment, attendance, results and fees, each exportable to CSV |
 | Announcements | By audience: everyone, parents, teachers, staff or one class |
 

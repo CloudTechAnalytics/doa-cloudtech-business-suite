@@ -404,6 +404,18 @@ export function demoLinkGuardian(biz: string, studentId: string, guardianId: str
   }).error
 }
 /** Links the signed-in parent or teacher to the guardian or staff record that carries their email address. */
+/** Mirrors school_update_my_contact(): a parent changes only the contact record that belongs to their own login. */
+export function demoUpdateMyContact(biz: string, phone: string, address: string): string | null {
+  return run(biz, 'school_my_contact', null, (s) => {
+    guard(biz, 'school-portal', 'school.portal')
+    if (trim(phone).length > 40) throw new Error('the phone number is too long')
+    if (trim(address).length > 300) throw new Error('the address is too long')
+    const mine = s.guardians.filter((g) => g.businessId === biz && g.userId === me())
+    if (!mine.length) throw new Error('no parent or guardian record is linked to your login yet')
+    for (const g of mine) { g.phone = nul(phone); g.address = nul(address) }
+    return null
+  }).error
+}
 export function demoClaimLinks(biz: string): number {
   ensureDemoSchool(biz)
   const email = myEmail(); if (!email || !me()) return 0

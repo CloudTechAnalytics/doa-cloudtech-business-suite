@@ -31,7 +31,7 @@ export function SchoolOverview() {
 /** Teachers and parents have no school-wide figures; they get a way into the pages they can use. */
 function Shortcuts() {
   const { can } = useSchool()
-  const links = [['school.attendance', '/app/school/attendance', 'Take attendance'], ['school.results.enter', '/app/school/results', 'Enter results'], ['school.portal', '/app/school/portal', 'Open the parent portal']] as const
+  const links = [['school.teach', '/app/school/my-classes', 'My classes'], ['school.attendance', '/app/school/attendance', 'Take attendance'], ['school.results.enter', '/app/school/results', 'Enter results'], ['school.portal', '/app/school/portal', 'Open the parent portal']] as const
   return <Card><h3 className="mb-2 text-sm font-semibold">Your school</h3><ul className="space-y-1 text-sm">{links.filter(([p]) => can(p)).map(([, to, text]) => <li key={to}><Link className="font-semibold underline" to={to}>{text}</Link></li>)}<li><Link className="font-semibold underline" to="/app/school/announcements">Announcements</Link></li></ul></Card>
 }
 

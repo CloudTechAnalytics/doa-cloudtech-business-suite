@@ -150,6 +150,11 @@ export async function reportCard(b: string, studentId: string, termId: string): 
   const x = data as { student: { name: string; admission_no: string; class: string | null }; term: string; session: string | null; subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: SScore['status'] }[]; average: number | null; attendance: ReportCard['attendance']; remarks: { teacher_remark: string | null; principal_remark: string | null; promotion: string | null } | null; position: number | null; class_size: number | null }
   return { student: { name: x.student.name, admissionNo: x.student.admission_no, class: x.student.class }, term: x.term, session: x.session, subjects: x.subjects.map((s) => ({ ...s, ca: nn(s.ca), exam: nn(s.exam), total: n(s.total) })), average: nn(x.average), attendance: x.attendance, remarks: x.remarks ? { teacherRemark: x.remarks.teacher_remark, principalRemark: x.remarks.principal_remark, promotion: x.remarks.promotion } : null, position: x.position, classSize: x.class_size }
 }
+/** A parent keeping their own phone and address up to date. Returns an error message or null. */
+export async function updateMyContact(b: string, phone: string, address: string) {
+  if (isDemoMode) return sc.demoUpdateMyContact(b, phone, address)
+  return msg((await db().rpc('school_update_my_contact', { p_business: b, p_phone: phone, p_address: address })).error)
+}
 export async function claimLinks(b: string): Promise<void> {
   if (isDemoMode) { sc.demoClaimLinks(b); return }
   await db().rpc('school_claim_links', { p_business: b })

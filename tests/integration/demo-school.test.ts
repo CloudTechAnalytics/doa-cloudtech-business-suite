@@ -155,4 +155,13 @@ describe('demo school follows the database rules', () => {
     expect(sc.demoSaveClass(B, { id: null, name: 'SS 4', levelOrder: 15, arm: '', active: true, stage: 'secondary' })).toBeNull()
     expect(settings('combined')).toBeNull()
   })
+
+  it('lets a parent update only their own contact details', () => {
+    as('parent@demo.test'); sc.demoClaimLinks(B)
+    expect(sc.demoUpdateMyContact(B, '0803 111 2222', '12 Palm Street')).toBeNull()
+    expect(sc.demoGuardians(B).find((g) => g.email === 'parent@demo.test')).toMatchObject({ phone: '0803 111 2222', address: '12 Palm Street' })
+    expect(sc.demoUpdateMyContact(B, 'x'.repeat(41), '')).toMatch(/too long/)
+    as('teacher@demo.test'); sc.demoClaimLinks(B)
+    expect(sc.demoUpdateMyContact(B, '1', '1')).toMatch(/permission denied/)
+  })
 })

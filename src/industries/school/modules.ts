@@ -1,10 +1,11 @@
-import { Banknote, BarChart3, BookOpen, CalendarCheck, ClipboardList, GraduationCap, HeartHandshake, Megaphone, Receipt, Settings2, UserCog, Users } from 'lucide-react'
+import { Banknote, BarChart3, BookOpen, CalendarCheck, ClipboardList, GraduationCap, HeartHandshake, LayoutList, Megaphone, Receipt, Settings2, UserCog, Users } from 'lucide-react'
 import type { ModuleDefinition } from '@/shared/types/domain'
 
 const base = { navGroup: 'School', owner: 'school' as const }
 
 /** Modules the school industry owns. Expenses reuse the shared module. */
 export const schoolModules: ModuleDefinition[] = [
+  { ...base, code: 'school-my-classes', name: 'My Classes', description: 'The classes and subjects a teacher is responsible for: pupils, attendance and results at a glance.', path: 'school/my-classes', permission: 'school.teach', icon: LayoutList },
   { ...base, code: 'school-students', name: 'Students', description: 'Student records, profiles, promotion, transfers and withdrawals.', path: 'school/students', permission: 'school.read', icon: GraduationCap },
   { ...base, code: 'school-admissions', name: 'Admissions', description: 'Applications, decisions and admission numbers.', path: 'school/admissions', permission: 'school.students', icon: ClipboardList },
   { ...base, code: 'school-guardians', name: 'Parents & Guardians', description: 'Parents and guardians linked to students.', path: 'school/guardians', permission: 'school.read', icon: HeartHandshake },

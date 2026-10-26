@@ -113,7 +113,7 @@ export async function loadOverview(b: string, from: string, to: string): Promise
 /** Active members, for assigning a production batch. Field staff see only themselves (the database decides). */
 export async function listAssignees(b: string): Promise<{ id: string; name: string }[]> {
   if (isDemoMode) return getDemoState().members.filter((m) => m.businessId === b && m.status === 'active' && m.userId).map((m) => ({ id: m.userId!, name: m.name }))
-  const r = await db().from('business_members').select('user_id, profiles(display_name)').eq('business_id', b).eq('status', 'active')
+  const r = await db().from('business_members').select('user_id, profiles!business_members_user_id_fkey(display_name)').eq('business_id', b).eq('status', 'active')
   if (r.error) return []
   return (r.data ?? []).map((m) => ({ id: m.user_id, name: ((m.profiles as { display_name?: string } | null)?.display_name) ?? 'Member' }))
 }
