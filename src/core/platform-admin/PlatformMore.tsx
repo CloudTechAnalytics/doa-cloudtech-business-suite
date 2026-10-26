@@ -8,7 +8,7 @@ import { Menu } from '@/shared/components/menu'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
-import { addAdmin, loadAudit, loadHealth, loadPlans, loadTeam, loadUsage, loadUsers, probeServices, removeAdmin, setMemberStatus } from './platformApi'
+import { addAdmin, deleteUser, loadAudit, loadHealth, loadPlans, loadTeam, loadUsage, loadUsers, probeServices, removeAdmin, setMemberStatus } from './platformApi'
 import type { ServiceCheck } from './platformApi'
 import type { PlatformRole } from './platformApi'
 import { Kpi, day, usePlatform, when } from './platformUi'
@@ -17,7 +17,8 @@ type MemberRow = { key: string; userId: string; name: string; email: string; pla
 
 /** One row per person per business, like the people lists inside a business, with what the platform team can do to each membership. */
 export function PlatformUsers() {
-  const { canWrite } = usePlatform()
+  const { canWrite, isOwner } = usePlatform()
+  const [deleting, setDeleting] = useState<MemberRow | null>(null)
   const [q, setQ] = useState('')
   const [bizFilter, setBizFilter] = useState('')
   const list = useAsync(() => loadUsers(q), [q])
@@ -47,20 +48,39 @@ export function PlatformUsers() {
                 <td className="p-3">{r.role ? label(r.role) : '–'}</td>
                 <td className="p-3">{r.status ? <Badge tone={r.status === 'active' ? 'success' : r.status === 'invited' ? 'info' : 'neutral'}>{label(r.status)}</Badge> : '–'}</td>
                 <td className="p-3 text-ink/70">{r.lastSignIn ? when(r.lastSignIn) : '–'}</td>
-                <td className="p-3 text-right">{r.businessId && r.status !== 'invited' && canWrite && <Menu label={`Actions for ${r.name || r.email}`}
+                <td className="p-3 text-right">{((r.businessId && r.status !== 'invited' && canWrite) || (isOwner && !r.platformRole)) && <Menu label={`Actions for ${r.name || r.email}`}
                   trigger={({ toggle }) => <button type="button" onClick={toggle} aria-haspopup="menu" aria-label={`Actions for ${r.name || r.email}`} className="grid size-8 place-items-center rounded-md text-ink/60 hover:bg-surface hover:text-ink"><MoreHorizontal className="size-5" aria-hidden /></button>}
                   items={[
                     { label: r.name || r.email, heading: true },
-                    { label: 'View business', to: `/platform/businesses/${r.businessId}`, icon: <Eye className="size-4" /> },
-                    ...(r.status === 'active' ? [{ label: 'Set inactive', icon: <Ban className="size-4" />, onSelect: () => setActing({ row: r, status: 'suspended' }), divider: true }] : []),
-                    ...(r.status === 'suspended' ? [{ label: 'Set active again', icon: <UserCheck className="size-4" />, onSelect: () => setActing({ row: r, status: 'active' }), divider: true }] : []),
-                    ...(r.status !== 'revoked' ? [{ label: 'Remove from business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setActing({ row: r, status: 'revoked' }) }] : []),
+                    ...(r.businessId ? [{ label: 'View business', to: `/platform/businesses/${r.businessId}`, icon: <Eye className="size-4" /> }] : []),
+                    ...(r.businessId && canWrite && r.status === 'active' ? [{ label: 'Set inactive', icon: <Ban className="size-4" />, onSelect: () => setActing({ row: r, status: 'suspended' }), divider: true }] : []),
+                    ...(r.businessId && canWrite && r.status === 'suspended' ? [{ label: 'Set active again', icon: <UserCheck className="size-4" />, onSelect: () => setActing({ row: r, status: 'active' }), divider: true }] : []),
+                    ...(r.businessId && canWrite && r.status !== 'revoked' ? [{ label: 'Remove from business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setActing({ row: r, status: 'revoked' }) }] : []),
+                    ...(isOwner && !r.platformRole ? [{ label: 'Delete user', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setDeleting(r), divider: true }] : []),
                   ]} />}</td>
               </tr>))}</tbody></table>
         </Card>
       )}
+      {deleting && <DeleteUserDialog row={deleting} onClose={() => setDeleting(null)} onDone={async () => { setDeleting(null); await list.refresh() }} />}
       {acting && <MemberDialog row={acting.row} status={acting.status} onClose={() => setActing(null)} onDone={async () => { setActing(null); await list.refresh() }} />}
     </>
+  )
+}
+
+function DeleteUserDialog({ row, onClose, onDone }: { row: MemberRow; onClose: () => void; onDone: () => Promise<void> }) {
+  const runner = useFormRunner(onDone)
+  const [why, setWhy] = useState(''); const [typed, setTyped] = useState('')
+  const ready = why.trim().length >= 3 && typed.trim().toLowerCase() === row.email.toLowerCase()
+  return (
+    <Dialog title={`Delete user: ${row.name || row.email}`} onClose={onClose}>
+      <div className="space-y-3">
+        <div role="alert" className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"><b>This cannot be undone.</b> The account is erased: they can no longer sign in, and they are taken out of every business they belong to. Records they made in a business are not erased, and an account that has recorded sales, payments or stock movements cannot be deleted at all (remove them from the business instead). Someone who owns a business, or is on the platform team, cannot be deleted until that is dealt with.</div>
+        <TextField label={`Type "${row.email}" to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
+        <TextField label="Reason (kept in the audit log)" value={why} onChange={(e) => setWhy(e.target.value)} />
+        {runner.error && <ErrorState title="Not deleted" message={runner.error} />}
+        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!ready} loading={runner.busy} onClick={() => void runner.run(async () => deleteUser(row.userId, typed, why), 'User deleted.')}>Delete user for good</Button></div>
+      </div>
+    </Dialog>
   )
 }
 

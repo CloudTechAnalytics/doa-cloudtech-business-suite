@@ -218,6 +218,20 @@ export function demoPlatformPurgeBusiness(businessId: string, confirmName: strin
     demoPlatformRemoveUsers(doomed)
   })
 }
+/** Mirrors platform_delete_user(): platform owner only, type the email, never yourself, the platform team, or someone who still owns a business. */
+export function demoPlatformDeleteUser(userId: string, confirmEmail: string, why: string): string | null {
+  return run((s) => {
+    need('owner'); reason(why)
+    const st = getDemoState(); const u = st.users.find((x) => x.id === userId); if (!u) throw new Error('user not found')
+    if (userId === st.userId) throw new Error('you cannot delete your own account')
+    if (confirmEmail.trim().toLowerCase() !== u.email.toLowerCase()) throw new Error('type the email address exactly to confirm')
+    if (s.admins.some((a) => a.userId === userId)) throw new Error('this person is on the platform team; remove them from the team first')
+    const owned = st.members.filter((m) => m.userId === userId && m.role === 'owner').map((m) => st.businesses.find((b) => b.id === m.businessId)?.name).filter(Boolean)
+    if (owned.length) throw new Error(`this person owns ${owned.join(', ')}. Transfer the ownership or delete the business first`)
+    log(s, 'user.delete', null, why, { email: u.email, name: u.name, memberships_removed: st.members.filter((m) => m.userId === userId).length })
+    demoPlatformRemoveUsers([userId])
+  })
+}
 export function demoPlatformUpdateBusiness(businessId: string, v: { name: string; legalName: string; timezone: string; reason: string }): string | null {
   return run((s) => {
     need('write'); reason(v.reason)

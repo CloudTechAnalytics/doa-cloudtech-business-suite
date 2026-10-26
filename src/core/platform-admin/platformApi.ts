@@ -110,6 +110,11 @@ export async function setMemberStatus(businessId: string, userId: string, status
   if (isDemoMode) return pl.demoPlatformSetMemberStatus(businessId, userId, status, reason)
   return msg('platform_set_member_status', { p_business: businessId, p_user: userId, p_status: status, p_reason: reason })
 }
+/** Deletes a user account for good (and their memberships). Platform owners only; refused for yourself, the platform team and anyone who owns a business. */
+export async function deleteUser(userId: string, confirmEmail: string, reason: string): Promise<string | null> {
+  if (isDemoMode) return pl.demoPlatformDeleteUser(userId, confirmEmail, reason)
+  return msg('platform_delete_user', { p_user: userId, p_confirm_email: confirmEmail, p_reason: reason })
+}
 /** Erases a business and all of its records for good. Platform owners only. */
 export async function purgeBusiness(businessId: string, confirmName: string, reason: string): Promise<string | null> {
   if (isDemoMode) return pl.demoPlatformPurgeBusiness(businessId, confirmName, reason)

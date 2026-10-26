@@ -46,3 +46,7 @@ Every business row has a menu: View, Edit, Suspend or Reactivate, Transfer owner
 
 Billing and revenue analytics beyond MRR/ARR, support tickets, error logs, platform-wide settings, and "start a support session" (impersonating a business user, deliberately left out because it needs its own consent, time limit and audit design).
 "Signed in today" uses `auth.users.last_sign_in_at` and shows a dash in demo mode.
+
+## Deleting a user
+
+On **Users**, the platform owner has **Delete user** in each row's menu. They type the account's email and give a reason (kept in the audit log). The account is erased and the person is taken out of every business. It is refused for yourself, for anyone on the platform team (remove them from the team first) and for anyone who still owns a business (transfer ownership or delete the business first). An account that has recorded sales, payments or stock movements cannot be erased; the deletion is refused and nothing changes, so use **Remove from business** instead, which keeps those records.
