@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Building2, Check, ChevronDown, LayoutGrid, LogOut, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
+import { Building2, Check, ChevronDown, LayoutGrid, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ACCOUNT_MODULES, appPath, buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
 import type { ModuleDefinition } from '@/shared/types/domain'
-import { useAuth } from '@/core/auth/AuthProvider'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { useModules } from '@/core/module-registry/ModulesProvider'
 import { usePlatformRole } from '@/core/platform-admin/platformUi'
@@ -17,6 +16,8 @@ import { resetDemoSchool } from '@/demo/demoSchool'
 import { demoReset } from '@/demo/demoStore'
 import { applyTheme, themeByKey } from '@/core/theme/themes'
 import { ViewMenu } from '@/shared/view/ViewMenu'
+import { AccountMenu, AttentionBell, RefreshButton } from '@/shared/topbar/TopBar'
+import { useWorkspaceAttention } from './useWorkspaceAttention'
 import { useGridLabels } from '@/shared/view/useGridLabels'
 import { useViewPrefs } from '@/shared/view/viewPrefs'
 import { resetDemoTrade } from '@/demo/demoTrade'
@@ -30,7 +31,6 @@ import { Sidebar } from './Sidebar'
 const COLLAPSE_KEY = 'doa.sidebar.collapsed'
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1' } catch { return false } }
 
-const initialsOf = (name: string) => name.split(/[\s@.]+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join('').toUpperCase()
 function BusinessSwitcher() {
   const { businesses, active, select } = useBusiness()
   if (!active) return null
@@ -55,21 +55,14 @@ function BusinessSwitcher() {
   )
 }
 
-function UserMenu({ modules }: { modules: ModuleDefinition[] }) {
-  const { email, signOut } = useAuth()
-  const name = email ?? 'Account'
+function UserMenu({ modules, roleLabel }: { modules: ModuleDefinition[]; roleLabel: string }) {
   const platform = usePlatformRole()
   return (
-    <Menu
-      label="Account menu"
-      trigger={({ toggle }) => (
-        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Account menu" className={`grid size-8 place-items-center rounded-full text-xs font-bold text-ink bg-amber hover:bg-amber-dark`}>{initialsOf(name)}</button>
-      )}
-      items={[
-        { label: name, heading: true },
+    <AccountMenu
+      roleLabel={roleLabel}
+      extra={[
         ...modules.map((m) => ({ label: m.name, to: appPath(m), icon: <m.icon className="size-4" /> })),
-        ...(platform.data ? [{ label: 'Platform console', to: '/platform', icon: <ShieldCheck className="size-4" />, divider: modules.length > 0 }] : []),
-        { label: 'Sign out', icon: <LogOut className="size-4" />, onSelect: signOut, divider: modules.length > 0 || !!platform.data },
+        ...(platform.data ? [{ label: 'Platform console', to: '/platform', icon: <ShieldCheck className="size-4" /> }] : []),
       ]}
     />
   )
@@ -94,8 +87,10 @@ export function AppShell() {
   const { statuses } = useModules()
   // The business's chosen colour theme paints the whole workspace, and the website's default comes back when leaving it.
   useEffect(() => applyTheme(themeByKey(active?.theme)), [active?.theme])
+  const [refreshKey, setRefreshKey] = useState(0)
   const view = useViewPrefs()
   const mainRef = useRef<HTMLElement>(null)
+  const attention = useWorkspaceAttention(active?.id ?? null, !!active?.isOwner, statuses.some((s) => s.usable && (s.code === 'inventory' || s.code === 'retail-products' || s.code === 'pharmacy-medicines')))
   useGridLabels(view.list === 'grid', mainRef)
   const panel = view.detail === 'panel'
   const [collapsed, setCollapsed] = useState(readCollapsed)
@@ -140,16 +135,18 @@ export function AppShell() {
           <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface"><LayoutGrid className="size-5" aria-hidden /></NavLink>
           <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA'}</span>
           <div className="ml-auto flex items-center gap-2">
+            <RefreshButton onRefresh={() => { setRefreshKey((k) => k + 1); return attention.refresh() }} />
+            <AttentionBell items={attention.items} loading={attention.loading} />
             <ViewMenu />
             <RecordMenu items={quick} />
             <BusinessSwitcher />
-            <UserMenu modules={[...new Map(apps.flatMap((a) => a.modules).filter((m) => ACCOUNT_MODULES.includes(m.code)).map((m) => [m.code, m])).values()]} />
+            <UserMenu modules={[...new Map(apps.flatMap((a) => a.modules).filter((m) => ACCOUNT_MODULES.includes(m.code)).map((m) => [m.code, m])).values()]} roleLabel={active.isOwner ? 'Owner' : active.role ? active.role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : 'Member'} />
           </div>
         </div>
       </header>
 
       <CrumbContext.Provider value={current?.label ?? null}>
-        {isHome ? <Outlet key={active.id} /> : (
+        {isHome ? <Outlet key={`${active.id}-${refreshKey}`} /> : (
           <div className="flex">
             <aside className={`no-print sticky top-12 hidden h-[calc(100dvh-3rem)] shrink-0 self-start border-r border-line bg-white transition-[width] lg:block ${collapsed ? 'w-16' : 'w-60'}`}>
               <Sidebar apps={apps} collapsed={collapsed} onToggle={toggleCollapsed} />
@@ -158,7 +155,7 @@ export function AppShell() {
               <DetailSlotContext.Provider value={detailSlot}>
                 <div className={panel ? 'flex items-start gap-4' : 'max-w-[1400px]'}>
                   {/* Keyed by business so no view state or data leaks across a business switch. */}
-                  <div hidden={detailOpen > 0 && !panel} className={panel ? 'min-w-0 flex-1' : undefined}><Outlet key={active.id} /></div>
+                  <div hidden={detailOpen > 0 && !panel} className={panel ? 'min-w-0 flex-1' : undefined}><Outlet key={`${active.id}-${refreshKey}`} /></div>
                   {/* Full page: the record replaces the list. Side panel: it sits beside the list and the list stays in view. */}
                   <div ref={setDetailNode} className={panel ? (detailOpen > 0 ? 'sticky top-14 max-h-[calc(100dvh-4.5rem)] w-full max-w-[46%] shrink-0 basis-[46%] overflow-y-auto' : 'hidden') : undefined} />
                 </div>

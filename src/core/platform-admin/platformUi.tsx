@@ -5,7 +5,8 @@ import { useAuth } from '@/core/auth/AuthProvider'
 import { Badge, Card } from '@/shared/components'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { label } from '@/shared/utilities/format'
-import { platformRole } from './platformApi'
+import { loadHealth, loadOverview, platformRole } from './platformApi'
+import type { Attention } from '@/shared/topbar/TopBar'
 import type { BusinessState, PlatformRole, SubStatus } from './platformApi'
 
 export interface PlatformCtx { role: PlatformRole; canWrite: boolean; isOwner: boolean }
@@ -37,4 +38,17 @@ export function Kpi({ title, value, note, to, tone }: { title: string; value: st
     </Card>
   )
   return to ? <Link to={to} className="block h-full">{body}</Link> : body
+}
+
+/** What needs the platform team's attention, from real records: trials about to end, payments overdue, and any failing data check. */
+export function usePlatformAttention() {
+  const r = useAsync(async (): Promise<Attention[]> => {
+    const [o, h] = await Promise.all([loadOverview(), loadHealth()])
+    const items: Attention[] = []
+    if (o.trialsEnding.length) items.push({ key: 'trials', label: `${o.trialsEnding.length} trial${o.trialsEnding.length === 1 ? '' : 's'} ending within 7 days`, detail: o.trialsEnding.map((t) => t.name).slice(0, 3).join(', '), to: '/platform/subscriptions', tone: 'warn' })
+    if (o.pastDue) items.push({ key: 'due', label: `${o.pastDue} subscription${o.pastDue === 1 ? '' : 's'} past due`, to: '/platform/subscriptions', tone: 'bad' })
+    for (const c of h.checks.filter((x) => !x.ok)) items.push({ key: c.name, label: c.name, detail: c.detail, to: '/platform/health', tone: 'warn' })
+    return items
+  }, [])
+  return { items: r.data ?? [], loading: r.loading, refresh: r.refresh }
 }

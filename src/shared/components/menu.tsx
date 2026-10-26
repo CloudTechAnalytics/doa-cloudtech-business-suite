@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 
-export interface MenuItem { label: string; to?: string; onSelect?: () => void; icon?: ReactNode; /** A non-interactive label row. */ heading?: boolean; /** Draws a divider above the item. */ divider?: boolean }
+export interface MenuItem { label: string; to?: string; onSelect?: () => void; icon?: ReactNode; /** A non-interactive label row. */ heading?: boolean; /** Draws a divider above the item. */ divider?: boolean; /** Replaces the plain label with richer content (a name and an email, say). */ custom?: ReactNode }
 
 /**
  * Small popover menu: closes on outside click, Escape, scrolling and selection. The popover is drawn on the page itself (not inside the
@@ -58,11 +58,11 @@ export function Menu({ trigger, items, align = 'end', side = 'bottom', label }: 
           {items.map((it) => (
             <div key={it.label} className={it.divider ? 'mt-1 border-t border-line pt-1' : undefined}>
               {it.heading ? (
-                <div className="truncate px-3 py-2 text-xs text-ink/60">{it.label}</div>
+                <div className={it.custom ? 'px-3 py-2' : 'truncate px-3 py-2 text-xs text-ink/60'}>{it.custom ?? it.label}</div>
               ) : it.to ? (
-                <Link role="menuitem" to={it.to} className={cls} onClick={() => setOpen(false)}>{it.icon}{it.label}</Link>
+                <Link role="menuitem" to={it.to} className={cls} onClick={() => setOpen(false)}>{it.icon}{it.custom ?? it.label}</Link>
               ) : (
-                <button role="menuitem" className={cls} onClick={() => { setOpen(false); it.onSelect?.() }}>{it.icon}{it.label}</button>
+                <button role="menuitem" className={cls} onClick={() => { setOpen(false); it.onSelect?.() }}>{it.icon}{it.custom ?? it.label}</button>
               )}
             </div>
           ))}

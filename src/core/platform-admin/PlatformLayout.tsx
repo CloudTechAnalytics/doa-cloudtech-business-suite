@@ -1,12 +1,12 @@
-import { Activity, Building2, CreditCard, HeartPulse, LayoutDashboard, LogOut, Menu as MenuIcon, ScrollText, ShieldCheck, Tag, Users, X } from 'lucide-react'
+import { Activity, Building2, CreditCard, HeartPulse, LayoutDashboard, LayoutGrid, Menu as MenuIcon, ScrollText, ShieldCheck, Tag, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, Navigate, Outlet } from 'react-router-dom'
 import { Wordmark } from '@/app/layouts/Brand'
-import { useAuth } from '@/core/auth/AuthProvider'
-import { Badge, Notice, Spinner } from '@/shared/components'
+import { Notice, Spinner } from '@/shared/components'
+import { AccountMenu, AttentionBell, RefreshButton } from '@/shared/topbar/TopBar'
 import { isDemoMode } from '@/shared/utilities/env'
 import { resetDemoPlatform } from '@/demo/demoPlatform'
-import { PlatformContext, usePlatformRole } from './platformUi'
+import { PlatformContext, usePlatformAttention, usePlatformRole } from './platformUi'
 
 const NAV = [
   { heading: 'Overview', items: [{ to: '/platform', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
@@ -17,9 +17,10 @@ const NAV = [
 
 /** The platform console shell. Only people on the platform team get past it; everyone else is sent back to their own businesses. */
 export function PlatformLayout() {
-  const { email, signOut } = useAuth()
   const role = usePlatformRole()
+  const attention = usePlatformAttention()
   const [open, setOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   if (role.loading) return <Spinner />
   if (!role.data) return <Navigate to="/businesses" replace />
   const ctx = { role: role.data, canWrite: role.data !== 'support', isOwner: role.data === 'owner' }
@@ -55,15 +56,15 @@ export function PlatformLayout() {
               <button type="button" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen(!open)} className="grid size-9 place-items-center rounded-md hover:bg-surface lg:hidden">{open ? <X className="size-5" aria-hidden /> : <MenuIcon className="size-5" aria-hidden />}</button>
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink/70"><Activity className="size-4 text-amber-dark" aria-hidden />Platform console</span>
             </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Link to="/businesses" className="hidden text-ink/70 hover:text-ink sm:inline">My businesses</Link>
-              <span className="hidden text-ink/60 sm:inline">{email}</span><Badge tone={role.data === 'support' ? 'neutral' : 'info'}>{role.data}</Badge>
-              <button type="button" onClick={signOut} aria-label="Sign out" className="grid size-9 place-items-center rounded-md text-ink/70 hover:bg-surface hover:text-ink"><LogOut className="size-[18px]" aria-hidden /></button>
+            <div className="flex items-center gap-1">
+              <RefreshButton onRefresh={() => { setRefreshKey((k) => k + 1); return attention.refresh() }} />
+              <AttentionBell items={attention.items} loading={attention.loading} />
+              <AccountMenu roleLabel={`Platform ${role.data}`} emailSubtitle extra={[{ label: 'My businesses', to: '/businesses', icon: <LayoutGrid className="size-4" /> }, { label: 'Platform team', to: '/platform/team', icon: <ShieldCheck className="size-4" /> }]} />
             </div>
           </header>
           <main className="px-4 py-6 sm:px-6">
             {role.data === 'support' && <div className="mb-4"><Notice>You have read-only access. Ask a platform engineer or owner to make changes.</Notice></div>}
-            <Outlet />
+            <Outlet key={refreshKey} />
           </main>
         </div>
       </div>
