@@ -122,7 +122,22 @@ function StaffDialog({ ctx, v, onClose, onSaved }: { ctx: ReturnType<typeof useS
 function Assign({ ctx, staff, access, onAccess, assignments, manage, onClose, onEdit, onChanged }: { ctx: ReturnType<typeof useSchool>; staff: SStaff; access: StaffAccess | null; onAccess: () => Promise<void>; assignments: { classId: string; subjectId: string | null; classTeacher: boolean }[]; manage: boolean; onClose: () => void; onEdit: () => void; onChanged: () => Promise<void> }) {
   const runner = useFormRunner(onChanged)
   const [rows, setRows] = useState(assignments.map((a) => ({ ...a })))
-  const [cls, setCls] = useState(''); const [sub, setSub] = useState('')
+  const [selClasses, setSelClasses] = useState<string[]>([]); const [selSubjects, setSelSubjects] = useState<string[]>([]); const [alsoClassTeacher, setAlsoClassTeacher] = useState(false)
+  const toggle = (list: string[], set: (v: string[]) => void, id: string) => set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id])
+  const classSubjects = ctx.s?.classSubjects ?? []
+  // Only subjects that at least one of the chosen classes studies can be picked; each is added to the chosen classes that study it.
+  const subjectChoices = ctx.visibleSubjects.filter((x) => classSubjects.some((cs) => cs.subjectId === x.id && selClasses.includes(cs.classId)))
+  const additions = (): { classId: string; subjectId: string | null; classTeacher: boolean }[] => {
+    const have = (c: string, s: string | null) => rows.some((r) => r.classId === c && r.subjectId === s)
+    const out: { classId: string; subjectId: string | null; classTeacher: boolean }[] = []
+    for (const c of selClasses) {
+      const subs = selSubjects.filter((s) => classSubjects.some((cs) => cs.classId === c && cs.subjectId === s))
+      for (const s of subs) if (!have(c, s)) out.push({ classId: c, subjectId: s, classTeacher: alsoClassTeacher })
+      if (!subs.length && !have(c, null)) out.push({ classId: c, subjectId: null, classTeacher: true })
+    }
+    return out
+  }
+  const toAdd = additions()
   return (
     <DetailPage title={staff.name} onClose={onClose} actions={manage ? <Button variant="secondary" onClick={onEdit}>Edit</Button> : undefined}>
       <p className="mb-3 text-sm text-ink/70">{staff.staffNo} · {staff.jobTitle ?? 'Staff'} · {[staff.phone, staff.email].filter(Boolean).join(' · ') || 'No contact'}</p>
@@ -130,10 +145,17 @@ function Assign({ ctx, staff, access, onAccess, assignments, manage, onClose, on
       <h3 className="mb-1 text-sm font-semibold">Classes and subjects</h3>
       {rows.length ? <ul className="divide-y divide-ink/10 text-sm">{rows.map((r, i) => <li key={i} className="flex items-center justify-between py-1.5"><span>{ctx.className(r.classId)} · {r.subjectId ? ctx.subjectName(r.subjectId) : 'Class teacher only'}{r.classTeacher && <> <Badge tone="info">Class teacher</Badge></>}</span>{manage && <Button variant="secondary" onClick={() => setRows(rows.filter((_, j) => j !== i))}>Remove</Button>}</li>)}</ul> : <p className="text-sm text-ink/60">Nothing assigned. This person cannot reach any class records.</p>}
       {manage && (
-        <div className="mt-4 space-y-3 border-t border-line pt-3">
-          <div className="grid gap-3 sm:grid-cols-2"><SelectField label="Class" value={cls} onChange={(e) => { setCls(e.target.value); setSub('') }}><option value="">Select…</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField>
-            <SelectField label="Subject" value={sub} onChange={(e) => setSub(e.target.value)}><option value="">None (class teacher only)</option>{(ctx.s?.classSubjects ?? []).filter((x) => x.classId === cls).map((x) => <option key={x.subjectId} value={x.subjectId}>{ctx.subjectName(x.subjectId)}</option>)}</SelectField></div>
-          <div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={!cls} onClick={() => { setRows([...rows, { classId: cls, subjectId: sub || null, classTeacher: !sub }]); setSub('') }}><Plus className="size-4" aria-hidden /> Add</Button></div>
+        <div className="mt-4 space-y-4 border-t border-line pt-3">
+          <fieldset><legend className="mb-1 flex w-full items-center justify-between text-sm font-medium"><span>Classes</span><span className="text-xs font-normal"><button type="button" className="underline" onClick={() => setSelClasses(ctx.classes.map((c) => c.id))}>Select all</button> · <button type="button" className="underline" onClick={() => { setSelClasses([]); setSelSubjects([]) }}>Clear</button></span></legend>
+            <div className="flex max-h-44 flex-wrap gap-2 overflow-auto">{ctx.classes.map((c) => <label key={c.id} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${selClasses.includes(c.id) ? 'border-amber bg-accent-soft font-medium' : 'border-line hover:bg-surface'}`}><input type="checkbox" className="sr-only" checked={selClasses.includes(c.id)} onChange={() => toggle(selClasses, setSelClasses, c.id)} />{c.name}</label>)}</div></fieldset>
+          {selClasses.length > 0 && (
+            <fieldset><legend className="mb-1 flex w-full items-center justify-between text-sm font-medium"><span>Subjects</span><span className="text-xs font-normal"><button type="button" className="underline" onClick={() => setSelSubjects(subjectChoices.map((x) => x.id))}>Select all</button> · <button type="button" className="underline" onClick={() => setSelSubjects([])}>Clear</button></span></legend>
+              {subjectChoices.length ? <div className="flex flex-wrap gap-2">{subjectChoices.map((x) => <label key={x.id} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${selSubjects.includes(x.id) ? 'border-amber bg-accent-soft font-medium' : 'border-line hover:bg-surface'}`}><input type="checkbox" className="sr-only" checked={selSubjects.includes(x.id)} onChange={() => toggle(selSubjects, setSelSubjects, x.id)} />{x.name}</label>)}</div> : <p className="text-sm text-ink/60">The chosen classes have no subjects yet. Open the class under Classes &amp; Subjects to tick its subjects. You can still add the teacher as class teacher.</p>}
+              <p className="mt-1 text-xs text-ink/60">Pick as many classes and subjects as you need. Each subject is added to the chosen classes that study it.</p>
+            </fieldset>
+          )}
+          {selClasses.length > 0 && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={alsoClassTeacher} onChange={(e) => setAlsoClassTeacher(e.target.checked)} /> Also make them class teacher of the chosen classes{selSubjects.length === 0 ? ' (chosen classes with no subject picked are added as class teacher anyway)' : ''}</label>}
+          <div className="flex flex-wrap items-center gap-3"><Button variant="secondary" disabled={!toAdd.length} onClick={() => { setRows([...rows, ...toAdd]); setSelSubjects([]); setSelClasses([]); setAlsoClassTeacher(false) }}><Plus className="size-4" aria-hidden /> Add {toAdd.length ? toAdd.length + (toAdd.length === 1 ? ' assignment' : ' assignments') : 'to the list'}</Button><span className="text-xs text-ink/60">Then press Save assignments below.</span></div>
           {runner.error && <ErrorState title="Not saved" message={runner.error} />}{runner.ok && <Notice>{runner.ok}</Notice>}
           <Button loading={runner.busy} onClick={() => void runner.run(async () => setAssignments(ctx.businessId, staff.id, rows), 'Assignments saved.')}>Save assignments</Button>
         </div>

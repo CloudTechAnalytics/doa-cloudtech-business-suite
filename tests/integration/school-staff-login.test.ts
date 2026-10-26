@@ -148,3 +148,16 @@ describe('the temporary password in the demo', () => {
     expect(sc.demoCreateLogin(B, sc.demoStaff(B).find((x) => x.name === 'Dup')!.id, 'teacher', 'Sunrise2026x')).toMatch(/already has an account/)
   })
 })
+
+describe('the staff list tells the truth about sign-in', () => {
+  it('shows someone as signed in once their login belongs to the school, even before they opened the school pages', async () => {
+    const heal = await createUser(db, 'heal@example.com')
+    await addStaff(principal, 'Mr Heal', 'Heal@Example.com')
+    const id = await staffId('Mr Heal')
+    await as(owner, () => q('select public.invite_member($1,$2,$3)', [biz, 'heal@example.com', 'teacher']))
+    await as(heal, () => q('select public.accept_my_invitations()'))
+    expect((await q<{ user_id: string | null }>('select user_id from public.school_staff where id=$1', [id]))[0].user_id).toBeNull()
+    expect((await access(principal)).find((a) => a.staff_id === id)).toMatchObject({ state: 'signed_in', role: 'teacher' })
+    expect((await q<{ user_id: string | null }>('select user_id from public.school_staff where id=$1', [id]))[0].user_id).toBe(heal)
+  })
+})

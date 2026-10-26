@@ -518,7 +518,7 @@ export function demoStaffAccess(biz: string): StaffAccess[] {
   return state.staff.filter((x) => x.businessId === biz).map((x) => {
     const e = (x.email ?? '').toLowerCase()
     const m = g.members.find((y) => y.businessId === biz && e && y.email === e && y.status !== 'revoked')
-    if (x.userId) return { staffId: x.id, state: 'signed_in' as const, role: m?.role ?? null }
+    if (x.userId || m?.status === 'active') return { staffId: x.id, state: 'signed_in' as const, role: m?.role ?? null }
     return m?.status === 'invited' ? { staffId: x.id, state: 'invited' as const, role: m.role } : { staffId: x.id, state: 'none' as const, role: null }
   })
 }
