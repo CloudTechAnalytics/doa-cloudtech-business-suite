@@ -41,7 +41,7 @@ export function SchoolTimetablePage() {
       {s && !s.classes.length && <NoSetup />}
       {(data.error || staff.error) && <ErrorState message={(data.error ?? staff.error)!} />}
       {problem && <div className="mb-3"><ErrorState title="Not saved" message={problem} /></div>}
-      <div className="no-print mb-3 w-56"><SelectField label="Class" value={cls} onChange={(e) => setCls(e.target.value)}>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
+      <div className="no-print mb-3 w-56"><SelectField label={ctx.classWord} value={cls} onChange={(e) => setCls(e.target.value)}>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
       {data.loading && !data.data ? <Spinner /> : !periods.length ? (
         <Card><EmptyState title="The school day is not set up yet" description={manage ? 'Add the periods and breaks of the school day first.' : 'Ask the school office to set up the periods.'} action={manage ? <Button onClick={() => setEditing(true)}>Set up the school day</Button> : undefined} /></Card>
       ) : !cls ? null : (

@@ -7,6 +7,7 @@ import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
+import { printReceipt, receiptData } from '../components/ReceiptSheet'
 import { NoSetup, downloadCsv, useSchool } from '../components/schoolUi'
 import { adjustBill, generateBills, loadBills, loadFeeItems, loadPayments, saveFeeItem } from '../services/schoolApi'
 import type { BillRow, SFeeItem } from '../services/schoolApi'
@@ -47,7 +48,7 @@ export function SchoolFeesPage() {
         <>
           <div className="mb-3 flex flex-wrap items-end gap-3">
             <div className="w-48"><SelectField label="Term" value={t} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField></div>
-            <div className="w-44"><SelectField label="Class" value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
+            <div className="w-44"><SelectField label={ctx.classWord} value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
             <div className="w-44"><SelectField label="Status" value={state} onChange={(e) => setState(e.target.value)}><option value="">All</option>{Object.keys(TONE).map((x) => <option key={x} value={x}>{label(x)}</option>)}</SelectField></div>
             <div className="w-56"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Student or bill number" /></div>
           </div>
@@ -130,7 +131,7 @@ function BillPage({ ctx, bill: b, onClose, onChanged }: { ctx: ReturnType<typeof
         <tr className="font-semibold"><td className="py-1.5">Balance</td><td className="tabular py-1.5 text-right">{naira(b.balance)}</td></tr>
       </tbody></table>
       <h3 className="mb-1 text-sm font-semibold">Payments</h3>
-      {mine.length ? <ul className="divide-y divide-ink/10 text-sm">{mine.map((p) => <li key={p.id} className="flex justify-between py-1.5"><span>{p.receipt} · {p.paidOn} · {label(p.method)}{p.status === 'reversed' && <Badge tone="danger">Reversed</Badge>}</span><b className="tabular">{naira(p.amount)}</b></li>)}</ul> : <p className="text-sm text-ink/60">No payments yet.</p>}
+      {mine.length ? <ul className="divide-y divide-ink/10 text-sm">{mine.map((p) => <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5"><span>{p.receipt} · {p.paidOn} · {label(p.method)}{p.status === 'reversed' && <Badge tone="danger">Reversed</Badge>}</span><span className="flex items-center gap-3"><b className="tabular">{naira(p.amount)}</b><button type="button" className="no-print text-xs font-medium underline" onClick={() => printReceipt(receiptData(ctx, p, b))}>Print</button></span></li>)}</ul> : <p className="text-sm text-ink/60">No payments yet.</p>}
       {can('school.fees.manage') && <div className="no-print mt-4 border-t border-line pt-3"><Button variant="secondary" onClick={() => setAdjusting(!adjusting)}>{adjusting ? 'Hide adjustments' : 'Discount or extra charge'}</Button>
         {adjusting && <div className="mt-3 space-y-3"><div className="grid gap-3 sm:grid-cols-2"><TextField label="Discount (₦)" type="number" min={0} value={disc} onChange={(e) => setDisc(e.target.value)} /><TextField label="Reason for discount" value={reason} onChange={(e) => setReason(e.target.value)} /><TextField label="Extra charge name" value={cn} onChange={(e) => setCn(e.target.value)} /><TextField label="Extra charge amount (₦)" type="number" min={0} value={ca} onChange={(e) => setCa(e.target.value)} /></div>
           {runner.error && <ErrorState title="Not saved" message={runner.error} />}{runner.ok && <Notice>{runner.ok}</Notice>}

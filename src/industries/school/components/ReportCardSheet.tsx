@@ -1,4 +1,4 @@
-import { createRoot } from 'react-dom/client'
+import { printSheets } from '@/shared/print/printSheets'
 import type { ReportCard } from '../services/schoolApi'
 
 const fmt = (n: number | null | undefined) => (n === null || n === undefined ? '–' : String(n))
@@ -86,19 +86,8 @@ export function ReportCardSheet({ card }: { card: ReportCard }) {
   )
 }
 
-/**
- * Prints one or more report cards, one per A4 page, without anything else from the screen. The cards are drawn into a temporary area that only exists while
- * printing (the rest of the page is hidden by the print styles), then removed.
- */
+/** Prints one or more report cards, one per A4 page, without anything else from the screen. */
 export function printReportCards(cards: ReportCard[]) {
   if (!cards.length) return
-  const host = document.createElement('div')
-  host.id = 'print-root'
-  document.body.appendChild(host)
-  const root = createRoot(host)
-  root.render(<>{cards.map((c, i) => <ReportCardSheet key={i} card={c} />)}</>)
-  const cleanup = () => { window.removeEventListener('afterprint', cleanup); root.unmount(); host.remove() }
-  window.addEventListener('afterprint', cleanup)
-  // Let React draw the cards before the print dialog opens.
-  requestAnimationFrame(() => requestAnimationFrame(() => window.print()))
+  printSheets(cards.map((c, n) => <ReportCardSheet key={n} card={c} />))
 }

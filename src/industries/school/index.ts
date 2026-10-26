@@ -25,7 +25,7 @@ export const school = defineIndustry({
   afterCreate: async (businessId, answers) => {
     const { setupSchool } = await import('./services/schoolApi')
     const picked = String(answers.school_type ?? '')
-    const type = (['nursery', 'primary', 'secondary', 'combined'] as const).find((x) => x === picked) ?? 'combined'
+    const type = (['nursery', 'primary', 'secondary', 'combined', 'online'] as const).find((x) => x === picked) ?? 'combined'
     const y = new Date().getFullYear()
     const session = String(answers.session_name ?? '').trim() || `${y}/${y + 1}`
     const err = await setupSchool(businessId, type, session, new Date().toISOString().slice(0, 10))

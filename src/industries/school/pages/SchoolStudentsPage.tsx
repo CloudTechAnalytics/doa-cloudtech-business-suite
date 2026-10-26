@@ -63,7 +63,7 @@ export function SchoolStudentsPage() {
       {s && !s.classes.length && <NoSetup />}
       <div className="my-3 flex flex-wrap items-end gap-3">
         <div className="w-64"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or admission number" /></div>
-        <div className="w-44"><SelectField label="Class" value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
+        <div className="w-44"><SelectField label={ctx.classWord} value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
         <div className="w-44"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All</option>{['active', 'transferred', 'withdrawn', 'graduated'].map((x) => <option key={x} value={x}>{label(x)}</option>)}</SelectField></div>
       </div>
       {students.loading ? <Spinner /> : !list.length ? <Card><EmptyState title={students.data?.length ? 'No students match' : 'No students yet'} description={students.data?.length ? 'Try a different search or filter.' : 'Register a student, or accept an application under Admissions.'} /></Card> : (

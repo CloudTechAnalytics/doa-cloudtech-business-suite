@@ -56,7 +56,7 @@ export function SchoolReportsPage() {
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <div className="flex gap-1">{reports.map(([id, x]) => <Button key={id} variant={rep === id ? 'primary' : 'secondary'} onClick={() => setRep(id)}>{x}</Button>)}</div>
         {rep !== 'enrolment' && <div className="w-48"><SelectField label="Term" value={t} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField></div>}
-        <div className="w-44"><SelectField label="Class" value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
+        <div className="w-44"><SelectField label={ctx.classWord} value={cls} onChange={(e) => setCls(e.target.value)}><option value="">All classes</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
       </div>
       {(students.error || att.error || scores.error) && <ErrorState message={(students.error ?? att.error ?? scores.error)!} />}
       {loading ? <Spinner /> : !table.rows.length ? <Card><EmptyState title="Nothing to report" description="There are no records for these choices yet." /></Card> : (

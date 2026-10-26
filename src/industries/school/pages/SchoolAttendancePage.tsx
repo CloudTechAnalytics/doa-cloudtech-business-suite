@@ -12,7 +12,7 @@ const TONE = { present: 'success', absent: 'danger', late: 'warning', excused: '
 
 /** Daily register: pick a class and a date, mark each pupil, save once. Teachers only see the classes they are assigned to. */
 export function SchoolAttendancePage() {
-  const { businessId, s, can, classes, className, active } = useSchool()
+  const { businessId, s, can, classes, className, active, classWord } = useSchool()
   const students = useAsync(() => loadStudents(businessId), [businessId])
   const [cls, setCls] = useState(''); const [date, setDate] = useState(today())
   const existing = useAsync(() => (cls ? loadAttendance(businessId, cls) : Promise.resolve([])), [businessId, cls])
@@ -39,7 +39,7 @@ export function SchoolAttendancePage() {
       <PageHeader title="Attendance" description="Take the daily register for a class. You can correct a day by saving it again; every change is kept in the audit trail." />
       {s && !s.classes.length && <NoSetup />}
       <div className="mb-3 flex flex-wrap items-end gap-3">
-        <div className="w-52"><SelectField label="Class" value={cls} onChange={(e) => setCls(e.target.value)}>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
+        <div className="w-52"><SelectField label={classWord} value={cls} onChange={(e) => setCls(e.target.value)}>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
         <div className="w-44"><TextField label="Date" type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} /></div>
         {canMark && <Button variant="secondary" onClick={() => setMarks((m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, { ...v, status: 'present' as const }])))}>Mark everyone present</Button>}
       </div>

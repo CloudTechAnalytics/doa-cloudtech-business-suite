@@ -64,7 +64,7 @@ export function SchoolResultsPage() {
       {s && !s.classes.length && <NoSetup />}
       <div className="no-print mb-3 flex flex-wrap items-end gap-3">
         <div className="w-48"><SelectField label="Term" value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>
-        <div className="w-48"><SelectField label="Class" value={cls} onChange={(e) => setCls(e.target.value)}>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
+        <div className="w-48"><SelectField label={ctx.classWord} value={cls} onChange={(e) => setCls(e.target.value)}>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
         {tab === 'scores' && <div className="w-48"><SelectField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)}>{subjects.map((id) => <option key={id} value={id}>{subjectName(id)}</option>)}</SelectField></div>}
         <div className="ml-auto flex gap-1">{([['scores', 'Enter scores'], ['cards', 'Report cards']] as const).map(([id, t]) => <Button key={id} variant={tab === id ? 'primary' : 'secondary'} onClick={() => setTab(id)}>{t}</Button>)}</div>
       </div>

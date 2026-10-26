@@ -41,7 +41,7 @@ function Compose({ ctx, onClose, onSaved }: { ctx: ReturnType<typeof useSchool>;
         <TextField label="Title" name="title" autoFocus />
         <label className="block text-sm font-medium">Message<textarea name="body" rows={5} className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm font-normal" /></label>
         <div className="grid gap-3 sm:grid-cols-2"><SelectField label="Who is it for?" value={aud} onChange={(e) => setAud(e.target.value as SAnnouncement['audience'])}>{(Object.keys(WHO) as SAnnouncement['audience'][]).map((x) => <option key={x} value={x}>{label(WHO[x])}</option>)}</SelectField>
-          {aud === 'class' ? <SelectField label="Class" name="class"><option value="">Select…</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField> : <div />}
+          {aud === 'class' ? <SelectField label={ctx.classWord} name="class"><option value="">Select…</option>{ctx.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField> : <div />}
           <TextField label="Show from" name="date" type="date" defaultValue={today()} /></div>
         {runner.error && <ErrorState title="Not published" message={runner.error} />}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Publish</Button></div>

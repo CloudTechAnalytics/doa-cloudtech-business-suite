@@ -43,7 +43,7 @@ export async function loadStructure(b: string): Promise<Structure> {
     bands: must<Row[]>(bands).map((r) => ({ min: n(r.min_score), grade: String(r.grade), remark: r.remark as string | null })),
     sessions: must<Row[]>(ses).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), startsOn: d(r.starts_on)!, endsOn: d(r.ends_on)!, current: !!r.is_current })),
     terms: must<Row[]>(trm).map((r) => ({ id: String(r.id), businessId: b, sessionId: String(r.session_id), name: String(r.name), startsOn: d(r.starts_on)!, endsOn: d(r.ends_on)!, current: !!r.is_current })),
-    classes: must<Row[]>(cls).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), levelOrder: n(r.level_order), arm: r.arm as string | null, active: !!r.active, stage: (r.stage as Stage) ?? 'primary', departmentId: r.department_id as string | null })),
+    classes: must<Row[]>(cls).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), levelOrder: n(r.level_order), arm: r.arm as string | null, active: !!r.active, stage: (r.stage as Stage) ?? 'primary', departmentId: r.department_id as string | null, description: r.description as string | null, duration: r.duration as string | null })),
     subjects: must<Row[]>(sub).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), code: r.code as string | null, levels: ((r.levels as SubjectLevel[]) ?? []), departmentId: r.department_id as string | null })),
     classSubjects: must<Row[]>(cs).map((r) => ({ classId: String(r.class_id), subjectId: String(r.subject_id) })),
     departments: must<Row[]>(dep).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name) })),
@@ -182,7 +182,7 @@ export async function saveTerm(b: string, v: Parameters<typeof sc.demoSaveTerm>[
 }
 export async function saveClass(b: string, v: Parameters<typeof sc.demoSaveClass>[1]) {
   if (isDemoMode) return sc.demoSaveClass(b, v)
-  return msg((await db().rpc('school_save_class', { p_business: b, p_id: v.id, p_name: v.name, p_level: v.levelOrder, p_arm: v.arm, p_active: v.active, p_stage: v.stage, p_department: v.departmentId ?? null })).error)
+  return msg((await db().rpc('school_save_class', { p_business: b, p_id: v.id, p_name: v.name, p_level: v.levelOrder, p_arm: v.arm, p_active: v.active, p_stage: v.stage, p_department: v.departmentId ?? null, p_description: v.description ?? null, p_duration: v.duration ?? null })).error)
 }
 export async function saveSubject(b: string, v: Parameters<typeof sc.demoSaveSubject>[1]) {
   if (isDemoMode) return sc.demoSaveSubject(b, v)

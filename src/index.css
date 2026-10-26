@@ -77,12 +77,6 @@ input[type="number"] {
   .print-full { margin: 0 !important; padding: 0 !important; width: 100% !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
 }
 
-/* Receipt printing: only the receipt is visible on paper. */
-@media print {
-  body * { visibility: hidden; }
-  .receipt-print, .receipt-print * { visibility: visible; }
-  .receipt-print { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; font-size: 11px; color: #000; }
-}
 
 @keyframes menu-in {
   from { opacity: 0; transform: translateY(-6px); }
@@ -196,11 +190,14 @@ html.classic-palette {
 #print-root { display: none; }
 @page { size: A4; margin: 12mm; }
 @media print {
-  body > *:not(#print-root) { display: none !important; }
+  /* Only while a designed sheet is being printed: every other page prints itself, with the .no-print parts left out. */
+  body:has(#print-root) > *:not(#print-root) { display: none !important; }
   #print-root { display: block; }
-  #print-root .report-sheet { border: 0; box-shadow: none; padding: 0; max-width: none; border-radius: 0; break-after: page; page-break-after: always; }
-  #print-root .report-sheet:last-child { break-after: auto; page-break-after: auto; }
-  #print-root .report-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #print-root .report-sheet, #print-root .receipt-sheet { border: 0; box-shadow: none; padding: 0; border-radius: 0; break-after: page; page-break-after: always; }
+  #print-root .report-sheet { max-width: none; }
+  #print-root .receipt-sheet { max-width: 150mm; margin: 0; }
+  #print-root .report-sheet:last-child, #print-root .receipt-sheet:last-child { break-after: auto; page-break-after: auto; }
+  #print-root .report-sheet *, #print-root .receipt-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
 /* Loader: two arcs turning in opposite directions around a pulsing core, in the theme's accent colour. */

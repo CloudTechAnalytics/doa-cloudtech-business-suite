@@ -42,6 +42,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0038_school_reshape` | changing the kind of school reshapes it: classes of the stages left out are deleted when unused (kept as not in use when they hold records), departments are removed when there is no senior secondary, subjects of the new levels are added and given to classes that take none; widening adds what is missing |
 | `…0039_delete_staff_blocked_access` | `delete_member` (owner or admin removes a person from the business; not the owner or yourself, and only the owner may remove an admin; account kept), `school_delete_staff` (owner or admin, with a reason: record and assignments erased, access removed), `my_blocked_memberships` (so a suspended person is told, not sent to create a business), staff access state `suspended` |
 | `…0040_platform_delete_user` | `platform_delete_user` (platform owner only; type the email, give a reason): erases the account and its memberships. Refused for yourself, the platform team and anyone who still owns a business; refused as a whole, changing nothing, when the account has recorded things that must be kept |
+| `…0041_school_online` | a fifth kind of school, `online`: its classes are courses (stage `online`, with a description and duration) and its subjects are course units (level `online`); nothing is created automatically; "all" never includes online; a change of kind reshapes even a school with no classes yet; `school_save_class` takes the description and duration |
 
 ## Tables named in the architecture brief
 

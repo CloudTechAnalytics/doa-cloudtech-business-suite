@@ -6,6 +6,7 @@ import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
+import { ReceiptSheet, printReceipt, receiptData } from '../components/ReceiptSheet'
 import { downloadCsv, useSchool } from '../components/schoolUi'
 import { PAY_METHODS, loadBills, loadPayments, recordPayment, reversePayment } from '../services/schoolApi'
 import type { BillRow } from '../services/schoolApi'
@@ -52,7 +53,7 @@ export function SchoolPaymentsPage() {
           <tbody className="divide-y divide-ink/10">{list.map((p) => <tr key={p.id} onClick={() => setOpenId(p.id)} className="cursor-pointer hover:bg-surface"><td className="p-3">{p.receipt}</td><td className="p-3">{p.paidOn}</td><td className="p-3 font-medium">{p.studentName}</td><td className="p-3">{label(p.method)}</td><td className="tabular p-3 text-right">{naira(p.amount)}</td><td className="p-3"><Badge tone={p.status === 'posted' ? 'success' : 'danger'}>{p.status === 'posted' ? 'Received' : 'Reversed'}</Badge></td></tr>)}</tbody></table></Card>
       )}
       {paying && <PickBill ctx={ctx} bills={(bills.data ?? []).filter((b) => b.balance > 0)} onClose={() => setPaying(false)} onSaved={async () => { setPaying(false); await refresh() }} />}
-      {open && <Receipt ctx={ctx} payment={open} onClose={() => setOpenId(null)} onChanged={refresh} />}
+      {open && <Receipt ctx={ctx} payment={open} bill={(bills.data ?? []).find((b) => b.id === open.billId)} onClose={() => setOpenId(null)} onChanged={refresh} />}
     </>
   )
 }
@@ -69,16 +70,12 @@ function PickBill({ ctx, bills, onClose, onSaved }: { ctx: ReturnType<typeof use
   )
 }
 
-function Receipt({ ctx, payment: p, onClose, onChanged }: { ctx: ReturnType<typeof useSchool>; payment: Awaited<ReturnType<typeof loadPayments>>[number]; onClose: () => void; onChanged: () => Promise<void> }) {
+function Receipt({ ctx, payment: p, bill, onClose, onChanged }: { ctx: ReturnType<typeof useSchool>; payment: Awaited<ReturnType<typeof loadPayments>>[number]; bill: BillRow | undefined; onClose: () => void; onChanged: () => Promise<void> }) {
   const runner = useFormRunner(onChanged)
   const [reversing, setReversing] = useState(false); const [reason, setReason] = useState('')
   return (
-    <DetailPage title={`Receipt ${p.receipt}`} onClose={onClose} actions={<Button variant="secondary" className="no-print" onClick={() => window.print()}><Printer className="size-4" aria-hidden /> Print receipt</Button>}>
-      <div className="space-y-2 text-sm">
-        <h2 className="text-center text-lg font-semibold">{ctx.active?.name}</h2><p className="text-center text-ink/70">Fee payment receipt</p>
-        <dl className="grid gap-3 sm:grid-cols-2">{([['Receipt', p.receipt], ['Date', p.paidOn], ['Student', p.studentName], ['Bill', p.billNumber], ['Method', label(p.method)], ['Reference', p.reference ?? '–']] as const).map(([k, v]) => <div key={k}><dt className="text-xs text-ink/60">{k}</dt><dd>{v}</dd></div>)}</dl>
-        <p className="text-xl font-semibold">Amount: <span className="tabular">{naira(p.amount)}</span> {p.status === 'reversed' && <Badge tone="danger">Reversed: {p.reversalReason}</Badge>}</p>
-      </div>
+    <DetailPage title={`Receipt ${p.receipt}`} onClose={onClose} actions={<Button variant="secondary" className="no-print" onClick={() => printReceipt(receiptData(ctx, p, bill))}><Printer className="size-4" aria-hidden /> Print receipt</Button>}>
+      <ReceiptSheet r={receiptData(ctx, p, bill)} />
       {ctx.can('school.fees.manage') && p.status === 'posted' && <div className="no-print mt-4 border-t border-line pt-3">{reversing ? <div className="space-y-3"><Notice>Reversing keeps this receipt on record and puts the amount back on the bill as owed.</Notice><TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />{runner.error && <ErrorState title="Not reversed" message={runner.error} />}<div className="flex gap-2"><Button variant="secondary" onClick={() => setReversing(false)}>Cancel</Button><Button variant="secondary" disabled={reason.trim().length < 3} loading={runner.busy} onClick={() => void runner.run(async () => reversePayment(ctx.businessId, p.id, reason), 'Reversed.', () => setReversing(false))}>Reverse payment</Button></div></div> : <Button variant="secondary" onClick={() => setReversing(true)}>Reverse this payment</Button>}</div>}
     </DetailPage>
   )

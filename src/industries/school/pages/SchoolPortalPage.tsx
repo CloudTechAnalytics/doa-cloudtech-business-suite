@@ -12,6 +12,7 @@ import { TimetableGrid } from '../components/TimetableGrid'
 import { claimLinks, loadAnnouncements, loadAttendance, loadBills, loadGuardians, loadPayments, loadStudents, loadTimetable, reportCard, updateMyContact } from '../services/schoolApi'
 import type { SAttendance, SStudent } from '../services/schoolApi'
 import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
+import { printReceipt, receiptData } from '../components/ReceiptSheet'
 
 type Tab = 'overview' | 'attendance' | 'timetable' | 'results' | 'fees' | 'notices' | 'details'
 const TABS: [Tab, string][] = [['overview', 'Overview'], ['attendance', 'Attendance'], ['timetable', 'Timetable'], ['results', 'Results'], ['fees', 'Fees'], ['notices', 'Notices'], ['details', 'My details']]
@@ -85,7 +86,7 @@ export function SchoolPortalPage() {
                 <tr className="font-semibold"><td className="py-1">To pay</td><td className="tabular py-1 text-right">{naira(b.payable)}</td></tr>
                 <tr><td className="py-1">Paid so far</td><td className="tabular py-1 text-right">{naira(b.paid)}</td></tr>
                 <tr className="font-semibold"><td className="py-1">Still owing</td><td className={clsx('tabular py-1 text-right', b.balance > 0 && 'text-warning')}>{naira(b.balance)}</td></tr></tbody></table>
-              {(pays.data ?? []).filter((p) => p.billId === b.id).length > 0 && <ul className="mt-3 divide-y divide-ink/10 border-t border-line pt-1 text-sm">{(pays.data ?? []).filter((p) => p.billId === b.id).map((p) => <li key={p.id} className="flex justify-between py-1.5"><span>Receipt {p.receipt} · {p.paidOn} · {label(p.method)} {p.status === 'reversed' && <Badge tone="danger">Reversed</Badge>}</span><b className="tabular">{naira(p.amount)}</b></li>)}</ul>}
+              {(pays.data ?? []).filter((p) => p.billId === b.id).length > 0 && <ul className="mt-3 divide-y divide-ink/10 border-t border-line pt-1 text-sm">{(pays.data ?? []).filter((p) => p.billId === b.id).map((p) => <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5"><span>Receipt {p.receipt} · {p.paidOn} · {label(p.method)} {p.status === 'reversed' && <Badge tone="danger">Reversed</Badge>}</span><span className="flex items-center gap-3"><b className="tabular">{naira(p.amount)}</b><button type="button" className="no-print text-xs font-medium underline" onClick={() => printReceipt(receiptData(ctx, { ...p, studentName: fullName(child) }, b))}>Print</button></span></li>)}</ul>}
             </Card>
           )) : <Card><EmptyState title="No fee bills yet" /></Card>}
           {myBills.length > 0 && <Notice>To pay, see the school bursar. The school records every payment and it shows here with a receipt number.</Notice>}

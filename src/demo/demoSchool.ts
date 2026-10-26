@@ -13,17 +13,17 @@ export type ScoreStatus = 'draft' | 'submitted' | 'approved' | 'published'
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
 export const PAY_METHODS = ['cash', 'bank_transfer', 'card', 'pos', 'other'] as const
 
-export interface SSettings { schoolType: 'nursery' | 'primary' | 'secondary' | 'combined'; address: string | null; phone: string | null; email: string | null; caMax: number; examMax: number; showPosition: boolean; workingDays: number[] }
+export interface SSettings { schoolType: 'nursery' | 'primary' | 'secondary' | 'combined' | 'online'; address: string | null; phone: string | null; email: string | null; caMax: number; examMax: number; showPosition: boolean; workingDays: number[] }
 export interface SBand { min: number; grade: string; remark: string | null }
 export interface SSession { id: string; businessId: string; name: string; startsOn: string; endsOn: string; current: boolean }
 export interface STerm { id: string; businessId: string; sessionId: string; name: string; startsOn: string; endsOn: string; current: boolean }
-export type Stage = 'nursery' | 'primary' | 'secondary'
-export const STAGES: Stage[] = ['nursery', 'primary', 'secondary']
-/** A nursery school has nursery classes only, and so on; a combined school has all three. */
-export const stageOk = (type: string | null | undefined, stage: Stage) => !type || type === 'combined' || type === stage
-export interface SClass { id: string; businessId: string; name: string; levelOrder: number; arm: string | null; active: boolean; stage: Stage; departmentId: string | null }
-export type SubjectLevel = 'nursery' | 'primary' | 'jss' | 'sss'
-export const SUBJECT_LEVELS: SubjectLevel[] = ['nursery', 'primary', 'jss', 'sss']
+export type Stage = 'nursery' | 'primary' | 'secondary' | 'online'
+export const STAGES: Stage[] = ['nursery', 'primary', 'secondary', 'online']
+/** A nursery school has nursery classes only, and so on; a combined school has the three physical stages, and an online school has courses only. */
+export const stageOk = (type: string | null | undefined, stage: Stage) => (!type || type === 'combined' ? stage !== 'online' : type === stage)
+export interface SClass { id: string; businessId: string; name: string; levelOrder: number; arm: string | null; active: boolean; stage: Stage; departmentId: string | null; description?: string | null; duration?: string | null }
+export type SubjectLevel = 'nursery' | 'primary' | 'jss' | 'sss' | 'online'
+export const SUBJECT_LEVELS: SubjectLevel[] = ['nursery', 'primary', 'jss', 'sss', 'online']
 export interface SSubject { id: string; businessId: string; name: string; code: string | null; levels: SubjectLevel[]; departmentId: string | null }
 export interface SDepartment { id: string; businessId: string; name: string }
 export interface SStudent { id: string; businessId: string; admissionNo: string; first: string; middle: string | null; last: string; dob: string | null; gender: string | null; admittedOn: string; sessionId: string | null; classId: string | null; status: StudentStatus; statusReason: string | null; statusOn: string | null; emergencyName: string | null; emergencyPhone: string | null; notes: string | null }
@@ -172,14 +172,14 @@ export function demoAnnouncements(biz: string): SAnnouncement[] {
 export function demoSaveSettings(biz: string, v: { schoolType: SSettings['schoolType']; address: string; phone: string; email: string; caMax: number; examMax: number; showPosition: boolean; workingDays: number[] }): string | null {
   return run(biz, 'school_settings', null, (s) => {
     guard(biz, 'school-settings', 'school.manage')
-    if (!['nursery', 'primary', 'secondary', 'combined'].includes(v.schoolType)) throw new Error('choose the type of school')
+    if (!['nursery', 'primary', 'secondary', 'combined', 'online'].includes(v.schoolType)) throw new Error('choose the type of school')
     if (!(v.caMax >= 0) || !(v.examMax >= 0) || v.caMax + v.examMax <= 0 || v.caMax + v.examMax > 1000) throw new Error('the continuous assessment and exam marks must be zero or more and add up to more than zero')
     if (!v.workingDays.length || v.workingDays.some((d) => d < 1 || d > 7)) throw new Error('choose the days the school is open (1 = Monday ... 7 = Sunday)')
     const full = s.classes.filter((c) => c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage) && s.students.some((x) => x.classId === c.id && x.status === 'active'))
     if (full.length) throw new Error(`these classes still have active students: ${full.map((c) => c.name).join(', ')}. Move or withdraw them before changing the kind of school`)
     const old = s.settings[biz]?.schoolType ?? null
     s.settings[biz] = { schoolType: v.schoolType, address: nul(v.address), phone: nul(v.phone), email: nul(v.email), caMax: v.caMax, examMax: v.examMax, showPosition: v.showPosition, workingDays: v.workingDays }
-    if (old && old !== v.schoolType && s.classes.some((c) => c.businessId === biz)) reshape(s, biz, old, v.schoolType)
+    if (old && old !== v.schoolType) reshape(s, biz, old, v.schoolType)
     else for (const c of s.classes) if (c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage)) c.active = false
     return null
   }).error
@@ -218,21 +218,23 @@ export function demoSaveTerm(biz: string, v: { id: string | null; sessionId: str
     return null
   }).error
 }
-export function demoSaveClass(biz: string, v: { id: string | null; name: string; levelOrder: number; arm: string; active: boolean; stage: Stage; departmentId?: string | null }): string | null {
+export function demoSaveClass(biz: string, v: { id: string | null; name: string; levelOrder: number; arm: string; active: boolean; stage: Stage; departmentId?: string | null; description?: string; duration?: string }): string | null {
   return run(biz, 'school_class', null, (s) => {
     guard(biz, 'school-classes', 'school.manage')
-    if (!trim(v.name)) throw new Error('enter the class name')
-    if (!STAGES.includes(v.stage)) throw new Error('choose the stage of the class (nursery, primary or secondary)')
     const type = s.settings[biz]?.schoolType
-    if (v.active && !stageOk(type, v.stage)) throw new Error(`this is a ${type} school, so it cannot have ${v.stage} classes. Change the kind of school in Settings first`)
+    const word = v.stage === 'online' ? 'course' : 'class'
+    if (!trim(v.name)) throw new Error(`enter the ${type === 'online' ? 'course' : 'class'} name`)
+    if (!STAGES.includes(v.stage)) throw new Error('choose the stage of the class (nursery, primary, secondary or online)')
+    if (v.active && !stageOk(type, v.stage)) throw new Error(`this is a ${type} school, so it cannot have ${v.stage} ${word === 'course' ? 'courses' : 'classes'}. Change the kind of school in Settings first`)
+    if (trim(v.description).length > 600 || trim(v.duration).length > 60) throw new Error('the description or duration is too long')
     const dept = v.departmentId ?? null
     if (dept) {
       if (v.stage !== 'secondary') throw new Error('only secondary classes can sit in a department')
       if (!s.departments.some((d) => d.id === dept && d.businessId === biz)) throw new Error('department not found')
     }
-    if (s.classes.some((x) => x.businessId === biz && x.id !== v.id && x.name === trim(v.name))) throw new Error('duplicate key: a class with this name already exists')
-    if (v.id === null) s.classes.push({ id: newId('cls'), businessId: biz, name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage, departmentId: dept })
-    else { const x = s.classes.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('class not found'); Object.assign(x, { name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage, departmentId: dept }) }
+    if (s.classes.some((x) => x.businessId === biz && x.id !== v.id && x.name === trim(v.name))) throw new Error(`duplicate key: a ${word} with this name already exists`)
+    if (v.id === null) s.classes.push({ id: newId('cls'), businessId: biz, name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage, departmentId: dept, description: nul(v.description), duration: nul(v.duration) })
+    else { const x = s.classes.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error(`${word} not found`); Object.assign(x, { name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage, departmentId: dept, description: nul(v.description), duration: nul(v.duration) }) }
     return null
   }).error
 }
@@ -312,8 +314,8 @@ export function demoSaveHoliday(biz: string, on: string, name: string, remove = 
 
 const DEFAULT_BANDS: SBand[] = [{ min: 70, grade: 'A', remark: 'Excellent' }, { min: 60, grade: 'B', remark: 'Very good' }, { min: 50, grade: 'C', remark: 'Good' }, { min: 45, grade: 'D', remark: 'Fair' }, { min: 40, grade: 'E', remark: 'Pass' }, { min: 0, grade: 'F', remark: 'Fail' }]
 const STRUCTURE: [string, number, 'nursery' | 'primary' | 'secondary'][] = [['Nursery 1', 1, 'nursery'], ['Nursery 2', 2, 'nursery'], ['Primary 1', 3, 'primary'], ['Primary 2', 4, 'primary'], ['Primary 3', 5, 'primary'], ['Primary 4', 6, 'primary'], ['Primary 5', 7, 'primary'], ['Primary 6', 8, 'primary'], ['JSS 1', 9, 'secondary'], ['JSS 2', 10, 'secondary'], ['JSS 3', 11, 'secondary']]
-type Group = 'nursery' | 'primary' | 'jss' | 'sss'
-const groupOf = (stage: Stage, order: number): Group => (stage === 'nursery' ? 'nursery' : stage === 'primary' ? 'primary' : order <= 11 ? 'jss' : 'sss')
+type Group = 'nursery' | 'primary' | 'jss' | 'sss' | 'online'
+const groupOf = (stage: Stage, order: number): Group => (stage === 'online' ? 'online' : stage === 'nursery' ? 'nursery' : stage === 'primary' ? 'primary' : order <= 11 ? 'jss' : 'sss')
 /** The standard subjects by level, and for senior secondary by department (null = every department). The same as the database's catalogue. */
 const CATALOGUE: [string, string, Group, string | null][] = [
   ['Literacy', 'LIT', 'nursery', null], ['Numeracy', 'NUM', 'nursery', null], ['Social and Health Habits', 'SHH', 'nursery', null], ['Creative Arts', 'ART', 'nursery', null], ['Rhymes and Music', 'MUS', 'nursery', null],
