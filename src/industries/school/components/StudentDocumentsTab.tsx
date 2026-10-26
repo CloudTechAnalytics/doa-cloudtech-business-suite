@@ -7,7 +7,7 @@ import { fileToDataUrl, openDataUrl, resizeImage } from '@/shared/utilities/file
 import { label } from '@/shared/utilities/format'
 import { fullName, today } from './schoolUi'
 import type { SchoolCtx } from './schoolUi'
-import { printAdmissionLetter, printCertificate, printIdCards, printTranscript } from './StudentSheets'
+import { IdCardBack, IdCardFront, printAdmissionLetter, printCertificate, printIdCards, printTranscript } from './StudentSheets'
 import type { SchoolHead } from './StudentSheets'
 import { DOCUMENT_KINDS, addDocument, annualCard, deleteDocument, loadBills, loadDocumentData, loadDocuments, loadGuardians, loadPhotos, setPhoto } from '../services/schoolApi'
 import type { DocumentKind, SStudent } from '../services/schoolApi'
@@ -89,6 +89,12 @@ export function StudentDocumentsTab({ ctx, student: st, onPhoto }: { ctx: School
 
       {error && <ErrorState title="Not done" message={error} />}
       {ok && <Notice>{ok}</Notice>}
+
+      <section className="no-print">
+        <h3 className="mb-2 text-sm font-semibold">ID card</h3>
+        <div className="flex flex-wrap gap-4 overflow-x-auto pb-1"><IdCardFront d={idCardData(ctx, st, photo.data ?? null)} /><IdCardBack d={idCardData(ctx, st, photo.data ?? null)} /></div>
+        <p className="mt-1 text-xs text-ink/60">Front and back as they print (credit-card size). The QR code carries the admission number.</p>
+      </section>
 
       <section>
         <h3 className="mb-1 text-sm font-semibold">Documents on file</h3>

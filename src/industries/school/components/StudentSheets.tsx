@@ -1,4 +1,5 @@
 import { printSheets } from '@/shared/print/printSheets'
+import { QrCode } from '@/shared/components/QrCode'
 import { naira } from '@/shared/utilities/format'
 import type { AnnualCard } from '../services/schoolApi'
 
@@ -55,28 +56,63 @@ export function printAnnualCards(cards: AnnualCard[], photos: (string | null | u
 
 // ---------------------------------------------------------------------------------------------------------------- ID card
 export interface IdCardData { school: SchoolHead; name: string; admissionNo: string; className: string | null; gender: string | null; session: string | null; photo: string | null; emergency: string | null }
-/** A student ID card (credit-card size). Printed ten to a page. */
-export function IdCard({ d }: { d: IdCardData }) {
+const CARD = 'id-card relative h-[54mm] w-[86mm] shrink-0 overflow-hidden rounded-[3.2mm] border border-ink/30 bg-white text-ink shadow-card'
+
+/** The front of a student ID card (credit-card size): the school's colour band and name, a large passport photo, the name, class, admission number and session. */
+export function IdCardFront({ d }: { d: IdCardData }) {
   return (
-    <div className="id-card relative h-[54mm] w-[86mm] overflow-hidden rounded-lg border border-ink/40 bg-white text-ink shadow-card" aria-label={`ID card for ${d.name}`}>
-      <div className="flex h-[12mm] items-center justify-center bg-ink px-2 text-center text-white"><p className="line-clamp-2 text-[10px] font-extrabold uppercase leading-tight tracking-wide">{d.school.name}</p></div>
-      <div className="flex gap-3 p-2.5">
-        <div className="h-[28mm] w-[22mm] shrink-0 overflow-hidden rounded border border-ink/40 bg-surface">{d.photo ? <img src={d.photo} alt="" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-[8px] uppercase text-ink/40">Photo</div>}</div>
-        <div className="min-w-0 flex-1 text-[10px] leading-snug">
-          <p className="text-[13px] font-extrabold leading-tight">{d.name}</p>
-          <p className="mt-1"><span className="text-ink/55">Admission no.</span> <b className="tabular">{d.admissionNo}</b></p>
-          <p><span className="text-ink/55">Class</span> <b>{d.className ?? '–'}</b></p>
-          {d.gender && <p><span className="text-ink/55">Gender</span> <b>{upper(d.gender)}</b></p>}
-          {d.session && <p><span className="text-ink/55">Session</span> <b>{d.session}</b></p>}
-          {d.emergency && <p className="mt-0.5"><span className="text-ink/55">Emergency</span> <b>{d.emergency}</b></p>}
-        </div>
+    <div className={CARD} aria-label={`ID card front for ${d.name}`}>
+      <div className="absolute inset-x-0 top-0 flex h-[13mm] items-center gap-2 bg-brand px-3 text-white">
+        <span className="grid size-[8mm] shrink-0 place-items-center rounded-full bg-amber text-[11px] font-black text-ink">{d.school.name.trim().charAt(0).toUpperCase()}</span>
+        <div className="min-w-0"><p className="line-clamp-2 text-[9.5px] font-extrabold uppercase leading-tight tracking-wide">{d.school.name}</p><p className="text-[6.5px] font-semibold uppercase tracking-[0.25em] text-white/70">Student identity card</p></div>
       </div>
-      <p className="absolute inset-x-0 bottom-0 bg-ink/[0.06] px-2 py-0.5 text-center text-[7.5px] text-ink/70">If found, please return to the school{d.school.phone ? ` · ${d.school.phone}` : ''}</p>
+      <div className="absolute left-3 top-[16mm] h-[28mm] w-[22mm] overflow-hidden rounded-md border-[1.5px] border-brand bg-surface">
+        {d.photo ? <img src={d.photo} alt="" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-center text-[7px] font-semibold uppercase leading-tight text-ink/40">Paste<br />photo<br />here</div>}
+      </div>
+      <div className="absolute inset-y-[16mm] left-[29mm] right-3 flex flex-col justify-between">
+        <div>
+          <p className="text-[12.5px] font-extrabold uppercase leading-[1.1] tracking-tight">{d.name}</p>
+          <p className="mt-1 inline-block rounded-full bg-amber px-2 py-px text-[8px] font-extrabold uppercase tracking-wide text-ink">{d.className ?? 'Student'}</p>
+        </div>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-px text-[8px] leading-snug">
+          <dt className="text-ink/55">Admission no.</dt><dd className="tabular font-bold">{d.admissionNo}</dd>
+          {d.gender && <><dt className="text-ink/55">Gender</dt><dd className="font-bold">{upper(d.gender)}</dd></>}
+          {d.session && <><dt className="text-ink/55">Session</dt><dd className="font-bold">{d.session}</dd></>}
+        </dl>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-[3.2mm] bg-amber" />
     </div>
   )
 }
+
+/** The back: who to return it to, the emergency contact, a QR code carrying the admission number, and the signature line. */
+export function IdCardBack({ d }: { d: IdCardData }) {
+  return (
+    <div className={CARD} aria-label={`ID card back for ${d.name}`}>
+      <div className="absolute inset-x-0 top-0 h-[3.2mm] bg-amber" />
+      <div className="absolute inset-x-3 top-[6mm] flex items-start justify-between gap-3">
+        <div className="min-w-0 text-[7.5px] leading-snug">
+          <p className="text-[8.5px] font-extrabold uppercase tracking-wide text-brand">If found, please return to</p>
+          <p className="mt-0.5 text-[9px] font-bold">{d.school.name}</p>
+          {d.school.address && <p>{d.school.address}</p>}
+          {(d.school.phone || d.school.email) && <p>{[d.school.phone, d.school.email].filter(Boolean).join(' · ')}</p>}
+          <div className="mt-2 rounded border border-ink/25 px-2 py-1"><p className="text-[6.5px] font-semibold uppercase tracking-wide text-ink/55">In an emergency call</p><p className="text-[8.5px] font-bold">{d.emergency ?? 'See the school office'}</p></div>
+        </div>
+        <div className="shrink-0 text-center"><QrCode value={d.admissionNo} label={`Admission number ${d.admissionNo}`} className="size-[19mm]" /><p className="tabular mt-0.5 text-[6.5px] font-semibold">{d.admissionNo}</p></div>
+      </div>
+      <div className="absolute inset-x-3 bottom-[6mm] flex items-end justify-between gap-3 text-[6.5px] text-ink/65">
+        <p className="max-w-[48mm] leading-snug">This card belongs to the school. It must be shown on request and returned when the student leaves.</p>
+        <div className="w-[26mm] border-t border-ink/60 pt-0.5 text-center">Principal</div>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-[3.2mm] bg-brand" />
+    </div>
+  )
+}
+export const IdCard = IdCardFront
+
+/** Front and back side by side, one student to a row: cut along the edges and fold or laminate back to back. Four students to a page. */
 export function printIdCards(items: IdCardData[]) {
-  if (items.length) printSheets(<div className="id-grid">{items.map((d, n) => <IdCard key={n} d={d} />)}</div>)
+  if (items.length) printSheets(<div className="id-grid">{items.map((d, n) => <div key={n} className="id-pair"><IdCardFront d={d} /><IdCardBack d={d} /></div>)}</div>)
 }
 
 // ---------------------------------------------------------------------------------------------------------------- admission letter
