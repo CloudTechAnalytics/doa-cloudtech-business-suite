@@ -121,7 +121,7 @@ export function AppShell() {
   const quick = buildQuickActions(active.industry, usable).map((a) => ({ label: a.label, to: a.to }))
 
   return (
-    <div className="min-h-dvh bg-surface">
+    <div className="min-h-dvh bg-surface" style={{ ['--side-w' as string]: isHome ? '0px' : collapsed ? '4rem' : '15rem' }}>
       {isDemoMode && (
         <div className="no-print flex flex-wrap items-center justify-center gap-3 border-b border-amber/40 bg-amber/20 px-4 py-1 text-xs font-medium text-ink">
           DEMO MODE: browser-only data, not a real backend.

@@ -77,14 +77,17 @@ export function Notice({ children }: { children: ReactNode }) {
   return <div role="status" className="rounded-lg border border-amber/50 bg-amber/10 p-3 text-sm text-ink">{children}</div>
 }
 
-/** Page and panel loader: centred in the space it fills, in the colours of the current theme. */
+/**
+ * Page and panel loader, in the colours of the current theme. It is pinned to the middle of the working area (below the top bar, beside the sidebar), so it
+ * stays put while the page around it changes, instead of sliding about with the headings. The in-flow box only keeps the page from collapsing.
+ */
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
-    <div role="status" aria-live="polite" className="grid min-h-[45vh] w-full place-items-center px-4 py-10">
-      <div className="flex flex-col items-center gap-5">
+    <div role="status" aria-live="polite" className="min-h-[45vh] w-full">
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 top-12 z-30 grid place-items-center lg:left-[var(--side-w,0px)]"><div className="flex flex-col items-center gap-5">
         <div className="loader" aria-hidden><span className="loader-ring" /><span className="loader-ring loader-ring-2" /><span className="loader-core" /></div>
         <p className="flex items-baseline text-sm font-medium tracking-wide text-ink/70">{label}<span className="loader-dots" aria-hidden><i>.</i><i>.</i><i>.</i></span></p>
-      </div>
+      </div></div>
     </div>
   )
 }
