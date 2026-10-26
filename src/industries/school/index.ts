@@ -21,6 +21,16 @@ export const school = defineIndustry({
   navigation: schoolNavigation,
   routes: schoolRoutes,
   onboarding: { questions: schoolSetupQuestions },
+  // A new school is configured straight away for the kind of school chosen: its classes, departments, subjects, grading and terms.
+  afterCreate: async (businessId, answers) => {
+    const { setupSchool } = await import('./services/schoolApi')
+    const picked = String(answers.school_type ?? '')
+    const type = (['nursery', 'primary', 'secondary', 'combined'] as const).find((x) => x === picked) ?? 'combined'
+    const y = new Date().getFullYear()
+    const session = String(answers.session_name ?? '').trim() || `${y}/${y + 1}`
+    const err = await setupSchool(businessId, type, session, new Date().toISOString().slice(0, 10))
+    return err ? `The school was created, but its classes and subjects could not be set up (${err}). Open School Settings and use "Start from the standard structure".` : null
+  },
   dashboardWidgets: [{ id: 'school-kpis', title: 'School overview', component: SchoolDashboardWidget }],
   workflows: [
     { id: 'take-attendance', label: 'Take attendance', module: 'school-attendance', description: 'Mark attendance for a class.' },

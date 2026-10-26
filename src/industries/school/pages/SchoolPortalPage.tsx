@@ -11,7 +11,7 @@ import { Stat, WEEKDAYS, fullName, useSchool } from '../components/schoolUi'
 import { TimetableGrid } from '../components/TimetableGrid'
 import { claimLinks, loadAnnouncements, loadAttendance, loadBills, loadGuardians, loadPayments, loadStudents, loadTimetable, reportCard, updateMyContact } from '../services/schoolApi'
 import type { SAttendance, SStudent } from '../services/schoolApi'
-import { ReportCardView } from './SchoolResultsPage'
+import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
 
 type Tab = 'overview' | 'attendance' | 'timetable' | 'results' | 'fees' | 'notices' | 'details'
 const TABS: [Tab, string][] = [['overview', 'Overview'], ['attendance', 'Attendance'], ['timetable', 'Timetable'], ['results', 'Results'], ['fees', 'Fees'], ['notices', 'Notices'], ['details', 'My details']]
@@ -134,8 +134,8 @@ function ResultsTab({ ctx, child, term }: { ctx: ReturnType<typeof useSchool>; c
     <div className="space-y-4">
       {past.length > 1 && <Card><h3 className="mb-2 text-sm font-semibold">Average by term</h3><ul className="divide-y divide-ink/10 text-sm">{past.map(({ t, card: c }) => <li key={t.id} className="flex justify-between py-1.5"><span>{t.name}</span><b className="tabular">{c!.average ?? '–'}</b></li>)}</ul></Card>}
       <Card>
-        <div className="no-print mb-2 flex justify-end">{card.data?.subjects.length ? <Button variant="secondary" onClick={() => window.print()}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
-        {card.loading ? <Spinner /> : card.data?.subjects.length ? <ReportCardView card={card.data} /> : <p className="text-sm text-ink/60">No published results for this term yet. The school publishes them when they are ready.</p>}
+        <div className="no-print mb-2 flex justify-end">{card.data?.subjects.length ? <Button variant="secondary" onClick={() => printReportCards([card.data!])}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
+        {card.loading ? <Spinner /> : card.data?.subjects.length ? <ReportCardSheet card={card.data} /> : <p className="text-sm text-ink/60">No published results for this term yet. The school publishes them when they are ready.</p>}
       </Card>
     </div>
   )

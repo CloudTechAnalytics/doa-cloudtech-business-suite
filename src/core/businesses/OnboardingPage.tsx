@@ -90,6 +90,10 @@ export function OnboardingPage() {
         if (upd.error) notes.push(`setup answers were not saved (${upd.error.message})`)
       }
     }
+    if (d.afterCreate) {
+      const err = await d.afterCreate(id, answers[d.id] ?? {})
+      if (err) notes.push(err)
+    }
     for (const code of addons[d.id] ?? []) {
       const err = await enableModule(id, code)
       if (err) notes.push(`could not add ${MODULES[code]?.name ?? code} (${err})`)

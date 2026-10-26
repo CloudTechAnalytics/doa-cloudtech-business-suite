@@ -6,8 +6,9 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label } from '@/shared/utilities/format'
 import { NoSetup, fullName, useSchool } from '../components/schoolUi'
+import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
 import { loadRemarks, loadScores, loadStudents, reportCard, reviewScores, saveRemarks, saveScores } from '../services/schoolApi'
-import type { ReportCard, SRemark } from '../services/schoolApi'
+import type { SRemark } from '../services/schoolApi'
 
 const TONE = { draft: 'neutral', submitted: 'warning', approved: 'info', published: 'success' } as const
 
@@ -23,6 +24,16 @@ export function SchoolResultsPage() {
   const [grid, setGrid] = useState<Record<string, { ca: string; exam: string }>>({})
   const [ask, setAsk] = useState<null | 'reject' | 'unpublish'>(null); const [note, setNote] = useState('')
   const [cardFor, setCardFor] = useState<string | null>(null)
+  const [printing, setPrinting] = useState(false); const [printError, setPrintError] = useState<string | null>(null)
+  async function printAll() {
+    setPrinting(true); setPrintError(null)
+    try {
+      const cards = (await Promise.all(roster.map((x) => reportCard(businessId, x.id, term).catch(() => null)))).filter((c): c is NonNullable<typeof c> => !!c && c.subjects.length > 0)
+      if (!cards.length) setPrintError('No pupil in this class has results for this term yet.')
+      else printReportCards(cards)
+    } catch (e) { setPrintError((e as Error).message) }
+    setPrinting(false)
+  }
   const runner = useFormRunner(async () => { await scores.refresh() })
 
   // teachers can only see their own pupils, so start on a class that has some
@@ -86,7 +97,10 @@ export function SchoolResultsPage() {
       ))}
 
       {tab === 'cards' && (students.loading ? <Spinner /> : !roster.length ? <Card><EmptyState title="No students in this class" /></Card> : (
-        <Card className="p-0"><ul className="divide-y divide-ink/10 text-sm">{roster.map((x) => <li key={x.id} className="flex items-center justify-between p-3"><span>{fullName(x)} <span className="text-xs text-ink/60">{x.admissionNo}</span></span><Button variant="secondary" onClick={() => setCardFor(x.id)}>View report card</Button></li>)}</ul></Card>
+        <Card className="p-0">
+          <div className="no-print flex flex-wrap items-center justify-between gap-2 border-b border-line p-3"><p className="text-sm text-ink/70">{roster.length} pupil{roster.length === 1 ? '' : 's'} in {className(cls)}. Pupils with no results yet are left out of the printout.</p><Button loading={printing} onClick={() => void printAll()}><Printer className="size-4" aria-hidden /> Print all report cards</Button></div>
+          {printError && <div className="p-3"><ErrorState title="Not printed" message={printError} /></div>}
+          <ul className="divide-y divide-ink/10 text-sm">{roster.map((x) => <li key={x.id} className="flex items-center justify-between p-3"><span>{fullName(x)} <span className="text-xs text-ink/60">{x.admissionNo}</span></span><Button variant="secondary" onClick={() => setCardFor(x.id)}>View report card</Button></li>)}</ul></Card>
       ))}
 
       {ask && <Dialog title={ask === 'reject' ? 'Send results back' : 'Unpublish results'} onClose={() => setAsk(null)}><div className="space-y-4"><TextField label={ask === 'reject' ? 'What should the teacher fix?' : 'Why are these being unpublished?'} value={note} onChange={(e) => setNote(e.target.value)} autoFocus />{runner.error && <ErrorState title="Not sent" message={runner.error} />}<div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setAsk(null)}>Cancel</Button><Button disabled={note.trim().length < 3} loading={runner.busy} onClick={() => review(ask, note)}>{ask === 'reject' ? 'Send back' : 'Unpublish'}</Button></div></div></Dialog>}
@@ -95,23 +109,8 @@ export function SchoolResultsPage() {
   )
 }
 
-/** The printable report card. Remarks are edited here by the people allowed to write them. */
-export function ReportCardView({ card }: { card: ReportCard }) {
-  const a = card.attendance
-  return (
-    <div className="space-y-3 text-sm">
-      <div className="text-center"><h2 className="text-lg font-semibold">Report Card</h2><p>{card.term}{card.session ? ` · ${card.session} session` : ''}</p></div>
-      <p><b>{card.student.name}</b> · {card.student.admissionNo} · {card.student.class ?? '–'}</p>
-      <table className="w-full border border-line"><thead className="bg-surface text-left text-xs font-semibold"><tr><th className="p-2">Subject</th><th className="p-2 text-right">Class work</th><th className="p-2 text-right">Exam</th><th className="p-2 text-right">Total</th><th className="p-2">Grade</th><th className="p-2">Remark</th></tr></thead>
-        <tbody className="divide-y divide-ink/10">{card.subjects.map((x) => <tr key={x.subject}><td className="p-2">{x.subject}</td><td className="tabular p-2 text-right">{x.ca ?? '–'}</td><td className="tabular p-2 text-right">{x.exam ?? '–'}</td><td className="tabular p-2 text-right font-medium">{x.total}</td><td className="p-2 font-semibold">{x.grade}</td><td className="p-2">{x.remark}</td></tr>)}</tbody></table>
-      <p>Average: <b className="tabular">{card.average ?? '–'}</b>{card.position ? <> · Position: <b>{card.position}</b> of {card.classSize}</> : null}</p>
-      <p>Attendance: present {a.present}, late {a.late}, absent {a.absent}, excused {a.excused} of {a.marked} days marked.</p>
-      {card.remarks?.teacherRemark && <p><b>Class teacher:</b> {card.remarks.teacherRemark}</p>}
-      {card.remarks?.principalRemark && <p><b>Principal:</b> {card.remarks.principalRemark}</p>}
-      {card.remarks?.promotion && <p><b>Decision:</b> {label(card.remarks.promotion)}</p>}
-    </div>
-  )
-}
+/** The designed, printable report card (see ReportCardSheet). Kept under this name for the pages that already import it. */
+export const ReportCardView = ReportCardSheet
 
 function CardDialog({ ctx, studentId, termId, remarks, onClose, onSaved }: { ctx: ReturnType<typeof useSchool>; studentId: string; termId: string; remarks: SRemark[]; onClose: () => void; onSaved: () => Promise<void> }) {
   const { businessId, can } = ctx
@@ -124,7 +123,7 @@ function CardDialog({ ctx, studentId, termId, remarks, onClose, onSaved }: { ctx
     <Dialog title="Report card" onClose={onClose} wide>
       {card.loading ? <Spinner /> : card.error ? <ErrorState message={card.error} /> : card.data && (
         <div className="space-y-4">
-          <ReportCardView card={card.data} />
+          <ReportCardSheet card={card.data} />
           {writer && (
             <div className="no-print space-y-3 border-t border-line pt-3">
               <TextField label="Class teacher's remark" value={teacher} onChange={(e) => setTeacher(e.target.value)} />
@@ -135,7 +134,7 @@ function CardDialog({ ctx, studentId, termId, remarks, onClose, onSaved }: { ctx
               <Button variant="secondary" loading={runner.busy} onClick={() => void runner.run(async () => saveRemarks(businessId, studentId, termId, teacher, principal, (promo || null) as SRemark['promotion']), 'Remarks saved.')}>Save remarks</Button>
             </div>
           )}
-          <div className="no-print flex justify-end gap-2"><Button variant="secondary" onClick={() => window.print()}><Printer className="size-4" aria-hidden /> Print</Button><Button onClick={onClose}>Close</Button></div>
+          <div className="no-print flex justify-end gap-2"><Button variant="secondary" onClick={() => printReportCards([card.data!])}><Printer className="size-4" aria-hidden /> Print</Button><Button onClick={onClose}>Close</Button></div>
         </div>
       )}
     </Dialog>

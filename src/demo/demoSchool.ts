@@ -21,8 +21,11 @@ export type Stage = 'nursery' | 'primary' | 'secondary'
 export const STAGES: Stage[] = ['nursery', 'primary', 'secondary']
 /** A nursery school has nursery classes only, and so on; a combined school has all three. */
 export const stageOk = (type: string | null | undefined, stage: Stage) => !type || type === 'combined' || type === stage
-export interface SClass { id: string; businessId: string; name: string; levelOrder: number; arm: string | null; active: boolean; stage: Stage }
-export interface SSubject { id: string; businessId: string; name: string; code: string | null }
+export interface SClass { id: string; businessId: string; name: string; levelOrder: number; arm: string | null; active: boolean; stage: Stage; departmentId: string | null }
+export type SubjectLevel = 'nursery' | 'primary' | 'jss' | 'sss'
+export const SUBJECT_LEVELS: SubjectLevel[] = ['nursery', 'primary', 'jss', 'sss']
+export interface SSubject { id: string; businessId: string; name: string; code: string | null; levels: SubjectLevel[]; departmentId: string | null }
+export interface SDepartment { id: string; businessId: string; name: string }
 export interface SStudent { id: string; businessId: string; admissionNo: string; first: string; middle: string | null; last: string; dob: string | null; gender: string | null; admittedOn: string; sessionId: string | null; classId: string | null; status: StudentStatus; statusReason: string | null; statusOn: string | null; emergencyName: string | null; emergencyPhone: string | null; notes: string | null }
 export interface SEnrollment { id: string; businessId: string; studentId: string; classId: string; sessionId: string | null; startedOn: string; endedOn: string | null; reason: string | null }
 export interface SGuardian { id: string; businessId: string; name: string; phone: string | null; email: string | null; address: string | null; userId: string | null }
@@ -43,7 +46,7 @@ export interface SPeriod { id: string; businessId: string; label: string; starts
 export interface SSlot { id: string; businessId: string; classId: string; day: number; periodId: string; subjectId: string; staffId: string | null; room: string | null }
 
 interface School {
-  periods: SPeriod[]; timetable: SSlot[]; ttSeeded: string[]
+  periods: SPeriod[]; timetable: SSlot[]; ttSeeded: string[]; departments: SDepartment[]
   settings: Record<string, SSettings>; bands: Record<string, SBand[]>; sessions: SSession[]; terms: STerm[]; classes: SClass[]; subjects: SSubject[]; classSubjects: { classId: string; subjectId: string }[]
   students: SStudent[]; enrollments: SEnrollment[]; guardians: SGuardian[]; links: SLink[]; admissions: SAdmission[]; staff: SStaff[]; assignments: SAssignment[]; holidays: SHoliday[]
   attendance: SAttendance[]; scores: SScore[]; remarks: SRemark[]; feeItems: SFeeItem[]; bills: SBill[]; payments: SPayment[]; announcements: SAnnouncement[]
@@ -51,13 +54,14 @@ interface School {
 }
 
 const KEY = 'doa.demo.school.v1'
-const empty = (): School => ({ periods: [], timetable: [], ttSeeded: [], settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
+const empty = (): School => ({ departments: [], periods: [], timetable: [], ttSeeded: [], settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
 function load(): School {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const saved = { ...empty(), ...(JSON.parse(raw) as School) }
-      for (const c of saved.classes) c.stage ??= c.levelOrder <= 2 ? 'nursery' : c.levelOrder <= 8 ? 'primary' : 'secondary'
+      for (const c of saved.classes) { c.stage ??= c.levelOrder <= 2 ? 'nursery' : c.levelOrder <= 8 ? 'primary' : 'secondary'; c.departmentId ??= null }
+      for (const x of saved.subjects) { x.levels ??= []; x.departmentId ??= null }
       return saved
     }
   } catch { /* fresh */ }
@@ -112,7 +116,7 @@ export function demoStructure(biz: string) {
   return {
     settings: state.settings[biz] ?? null, bands: state.bands[biz] ?? [], sessions: state.sessions.filter((x) => x.businessId === biz), terms: state.terms.filter((x) => x.businessId === biz),
     classes: state.classes.filter((x) => x.businessId === biz).sort((a, b) => a.levelOrder - b.levelOrder || a.name.localeCompare(b.name)), subjects: state.subjects.filter((x) => x.businessId === biz).sort((a, b) => a.name.localeCompare(b.name)),
-    classSubjects: state.classSubjects.filter((x) => state.classes.some((c) => c.id === x.classId && c.businessId === biz)), holidays: state.holidays.filter((x) => x.businessId === biz),
+    classSubjects: state.classSubjects.filter((x) => state.classes.some((c) => c.id === x.classId && c.businessId === biz)), holidays: state.holidays.filter((x) => x.businessId === biz), departments: state.departments.filter((x) => x.businessId === biz).sort((a, b) => a.name.localeCompare(b.name)),
   }
 }
 export const demoStudents = (biz: string) => { ensureDemoSchool(biz); return state.students.filter((x) => x.businessId === biz && canSee(state, biz, x)).sort((a, b) => a.admissionNo.localeCompare(b.admissionNo)) }
@@ -212,26 +216,53 @@ export function demoSaveTerm(biz: string, v: { id: string | null; sessionId: str
     return null
   }).error
 }
-export function demoSaveClass(biz: string, v: { id: string | null; name: string; levelOrder: number; arm: string; active: boolean; stage: Stage }): string | null {
+export function demoSaveClass(biz: string, v: { id: string | null; name: string; levelOrder: number; arm: string; active: boolean; stage: Stage; departmentId?: string | null }): string | null {
   return run(biz, 'school_class', null, (s) => {
     guard(biz, 'school-classes', 'school.manage')
     if (!trim(v.name)) throw new Error('enter the class name')
     if (!STAGES.includes(v.stage)) throw new Error('choose the stage of the class (nursery, primary or secondary)')
     const type = s.settings[biz]?.schoolType
     if (v.active && !stageOk(type, v.stage)) throw new Error(`this is a ${type} school, so it cannot have ${v.stage} classes. Change the kind of school in Settings first`)
+    const dept = v.departmentId ?? null
+    if (dept) {
+      if (v.stage !== 'secondary') throw new Error('only secondary classes can sit in a department')
+      if (!s.departments.some((d) => d.id === dept && d.businessId === biz)) throw new Error('department not found')
+    }
     if (s.classes.some((x) => x.businessId === biz && x.id !== v.id && x.name === trim(v.name))) throw new Error('duplicate key: a class with this name already exists')
-    if (v.id === null) s.classes.push({ id: newId('cls'), businessId: biz, name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage })
-    else { const x = s.classes.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('class not found'); Object.assign(x, { name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage }) }
+    if (v.id === null) s.classes.push({ id: newId('cls'), businessId: biz, name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage, departmentId: dept })
+    else { const x = s.classes.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('class not found'); Object.assign(x, { name: trim(v.name), levelOrder: v.levelOrder, arm: nul(v.arm), active: v.active, stage: v.stage, departmentId: dept }) }
     return null
   }).error
 }
-export function demoSaveSubject(biz: string, v: { id: string | null; name: string; code: string }): string | null {
+export function demoSaveDepartment(biz: string, v: { id: string | null; name: string }): string | null {
+  return run(biz, 'school_department', null, (s) => {
+    guard(biz, 'school-classes', 'school.manage')
+    if (trim(v.name).length < 2) throw new Error('enter the department name')
+    if (s.departments.some((d) => d.businessId === biz && d.id !== v.id && d.name === trim(v.name))) throw new Error('duplicate key: a department with this name already exists')
+    if (v.id === null) s.departments.push({ id: newId('dep'), businessId: biz, name: trim(v.name) })
+    else { const d = s.departments.find((x) => x.id === v.id && x.businessId === biz); if (!d) throw new Error('department not found'); d.name = trim(v.name) }
+    return null
+  }).error
+}
+export function demoDeleteDepartment(biz: string, id: string): string | null {
+  return run(biz, 'school_department_delete', null, (s) => {
+    guard(biz, 'school-classes', 'school.manage')
+    if (!s.departments.some((d) => d.id === id && d.businessId === biz)) throw new Error('department not found')
+    if (s.classes.some((c) => c.departmentId === id) || s.subjects.some((x) => x.departmentId === id)) throw new Error('this department still has classes or subjects; move them first')
+    s.departments = s.departments.filter((d) => d.id !== id)
+    return null
+  }).error
+}
+export function demoSaveSubject(biz: string, v: { id: string | null; name: string; code: string; levels?: SubjectLevel[]; departmentId?: string | null }): string | null {
   return run(biz, 'school_subject', null, (s) => {
     guard(biz, 'school-classes', 'school.manage')
     if (!trim(v.name)) throw new Error('enter the subject name')
     if (s.subjects.some((x) => x.businessId === biz && x.id !== v.id && x.name === trim(v.name))) throw new Error('duplicate key: a subject with this name already exists')
-    if (v.id === null) s.subjects.push({ id: newId('sub'), businessId: biz, name: trim(v.name), code: nul(v.code) })
-    else { const x = s.subjects.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('subject not found'); Object.assign(x, { name: trim(v.name), code: nul(v.code) }) }
+    const levels = v.levels ?? []; const dept = v.departmentId ?? null
+    if (levels.some((l) => !SUBJECT_LEVELS.includes(l))) throw new Error('choose levels from nursery, primary, junior secondary and senior secondary')
+    if (dept && !s.departments.some((d) => d.id === dept && d.businessId === biz)) throw new Error('department not found')
+    if (v.id === null) s.subjects.push({ id: newId('sub'), businessId: biz, name: trim(v.name), code: nul(v.code), levels, departmentId: dept })
+    else { const x = s.subjects.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('subject not found'); Object.assign(x, { name: trim(v.name), code: nul(v.code), levels, departmentId: dept }) }
     return null
   }).error
 }
@@ -255,24 +286,40 @@ export function demoSaveHoliday(biz: string, on: string, name: string, remove = 
 }
 
 const DEFAULT_BANDS: SBand[] = [{ min: 70, grade: 'A', remark: 'Excellent' }, { min: 60, grade: 'B', remark: 'Very good' }, { min: 50, grade: 'C', remark: 'Good' }, { min: 45, grade: 'D', remark: 'Fair' }, { min: 40, grade: 'E', remark: 'Pass' }, { min: 0, grade: 'F', remark: 'Fail' }]
-const STRUCTURE: [string, number, 'nursery' | 'primary' | 'secondary'][] = [['Nursery 1', 1, 'nursery'], ['Nursery 2', 2, 'nursery'], ['Primary 1', 3, 'primary'], ['Primary 2', 4, 'primary'], ['Primary 3', 5, 'primary'], ['Primary 4', 6, 'primary'], ['Primary 5', 7, 'primary'], ['Primary 6', 8, 'primary'], ['JSS 1', 9, 'secondary'], ['JSS 2', 10, 'secondary'], ['JSS 3', 11, 'secondary'], ['SS 1', 12, 'secondary'], ['SS 2', 13, 'secondary'], ['SS 3', 14, 'secondary']]
+const STRUCTURE: [string, number, 'nursery' | 'primary' | 'secondary'][] = [['Nursery 1', 1, 'nursery'], ['Nursery 2', 2, 'nursery'], ['Primary 1', 3, 'primary'], ['Primary 2', 4, 'primary'], ['Primary 3', 5, 'primary'], ['Primary 4', 6, 'primary'], ['Primary 5', 7, 'primary'], ['Primary 6', 8, 'primary'], ['JSS 1', 9, 'secondary'], ['JSS 2', 10, 'secondary'], ['JSS 3', 11, 'secondary']]
 type Group = 'nursery' | 'primary' | 'jss' | 'sss'
 const groupOf = (stage: Stage, order: number): Group => (stage === 'nursery' ? 'nursery' : stage === 'primary' ? 'primary' : order <= 11 ? 'jss' : 'sss')
-/** The standard subjects for each group of classes, the same as the database's catalogue. */
-const CATALOGUE: Record<Group, [string, string][]> = {
-  nursery: [['Literacy', 'LIT'], ['Numeracy', 'NUM'], ['Social and Health Habits', 'SHH'], ['Creative Arts', 'ART'], ['Rhymes and Music', 'MUS']],
-  primary: [['English Language', 'ENG'], ['Mathematics', 'MTH'], ['Basic Science', 'SCI'], ['Social Studies', 'SOS'], ['Civic Education', 'CVE'], ['Computer Studies', 'ICT'], ['Christian/Islamic Studies', 'CRS'], ['Creative Arts', 'ART'], ['Physical and Health Education', 'PHE']],
-  jss: [['English Language', 'ENG'], ['Mathematics', 'MTH'], ['Basic Science', 'SCI'], ['Basic Technology', 'BTE'], ['Social Studies', 'SOS'], ['Civic Education', 'CVE'], ['Computer Studies', 'ICT'], ['Christian/Islamic Studies', 'CRS'], ['Business Studies', 'BUS'], ['Agricultural Science', 'AGR'], ['Physical and Health Education', 'PHE']],
-  sss: [['English Language', 'ENG'], ['Mathematics', 'MTH'], ['Civic Education', 'CVE'], ['Computer Studies', 'ICT'], ['Biology', 'BIO'], ['Chemistry', 'CHM'], ['Physics', 'PHY'], ['Economics', 'ECO'], ['Government', 'GOV'], ['Literature in English', 'LIT'], ['Agricultural Science', 'AGR']],
-}
+/** The standard subjects by level, and for senior secondary by department (null = every department). The same as the database's catalogue. */
+const CATALOGUE: [string, string, Group, string | null][] = [
+  ['Literacy', 'LIT', 'nursery', null], ['Numeracy', 'NUM', 'nursery', null], ['Social and Health Habits', 'SHH', 'nursery', null], ['Creative Arts', 'ART', 'nursery', null], ['Rhymes and Music', 'MUS', 'nursery', null],
+  ['English Language', 'ENG', 'primary', null], ['Mathematics', 'MTH', 'primary', null], ['Basic Science', 'SCI', 'primary', null], ['Social Studies', 'SOS', 'primary', null], ['Civic Education', 'CVE', 'primary', null],
+  ['Computer Studies', 'ICT', 'primary', null], ['Christian/Islamic Studies', 'CRS', 'primary', null], ['Physical and Health Education', 'PHE', 'primary', null],
+  ['English Language', 'ENG', 'jss', null], ['Mathematics', 'MTH', 'jss', null], ['Basic Science', 'SCI', 'jss', null], ['Basic Technology', 'BTE', 'jss', null], ['Social Studies', 'SOS', 'jss', null], ['Civic Education', 'CVE', 'jss', null],
+  ['Computer Studies', 'ICT', 'jss', null], ['Christian/Islamic Studies', 'CRS', 'jss', null], ['Business Studies', 'BUS', 'jss', null], ['Agricultural Science', 'AGR', 'jss', null], ['Physical and Health Education', 'PHE', 'jss', null],
+  ['English Language', 'ENG', 'sss', null], ['Mathematics', 'MTH', 'sss', null], ['Civic Education', 'CVE', 'sss', null], ['Computer Studies', 'ICT', 'sss', null], ['Agricultural Science', 'AGR', 'sss', null],
+  ['Biology', 'BIO', 'sss', 'Science'], ['Chemistry', 'CHM', 'sss', 'Science'], ['Physics', 'PHY', 'sss', 'Science'], ['Further Mathematics', 'FMT', 'sss', 'Science'], ['Geography', 'GEO', 'sss', 'Science'],
+  ['Literature in English', 'LIT', 'sss', 'Art'], ['Government', 'GOV', 'sss', 'Art'], ['History', 'HIS', 'sss', 'Art'], ['Visual Art', 'VAR', 'sss', 'Art'],
+  ['Economics', 'ECO', 'sss', 'Commercial'], ['Financial Accounting', 'ACC', 'sss', 'Commercial'], ['Commerce', 'COM', 'sss', 'Commercial'], ['Marketing', 'MKT', 'sss', 'Commercial'],
+]
 function buildStructure(s: School, biz: string, type: SSettings['schoolType'], sessionName: string, start: string) {
   s.settings[biz] = { schoolType: type, address: null, phone: null, email: null, caMax: 40, examMax: 60, showPosition: false, workingDays: [1, 2, 3, 4, 5] }
-  for (const [name, order, kind] of STRUCTURE) if (stageOk(type, kind)) s.classes.push({ id: newId('cls'), businessId: biz, name, levelOrder: order, arm: null, active: true, stage: kind })
-  for (const c of s.classes.filter((x) => x.businessId === biz)) {
-    for (const [name, code] of CATALOGUE[groupOf(c.stage, c.levelOrder)]) {
-      let sub = s.subjects.find((x) => x.businessId === biz && x.name === name)
-      if (!sub) { sub = { id: newId('sub'), businessId: biz, name, code }; s.subjects.push(sub) }
-      s.classSubjects.push({ classId: c.id, subjectId: sub.id })
+  if (stageOk(type, 'secondary')) for (const name of ['Science', 'Art', 'Commercial']) s.departments.push({ id: newId('dep'), businessId: biz, name })
+  for (const [name, order, kind] of STRUCTURE) if (stageOk(type, kind)) s.classes.push({ id: newId('cls'), businessId: biz, name, levelOrder: order, arm: null, active: true, stage: kind, departmentId: null })
+  if (stageOk(type, 'secondary')) for (let year = 1; year <= 3; year++) for (const d of s.departments.filter((x) => x.businessId === biz).sort((a, b) => a.name.localeCompare(b.name))) s.classes.push({ id: newId('cls'), businessId: biz, name: `SS ${year} ${d.name}`, levelOrder: 11 + year, arm: null, active: true, stage: 'secondary', departmentId: d.id })
+  const classes = s.classes.filter((x) => x.businessId === biz)
+  const used = new Set(classes.map((c) => groupOf(c.stage, c.levelOrder)))
+  // The subjects that exist for this kind of school (with their levels and department)...
+  for (const name of [...new Set(CATALOGUE.filter((x) => used.has(x[2])).map((x) => x[0]))]) {
+    const rows = CATALOGUE.filter((x) => x[0] === name && used.has(x[2]))
+    const dept = rows.find((x) => x[3])?.[3] ?? null
+    s.subjects.push({ id: newId('sub'), businessId: biz, name, code: rows[0][1], levels: [...new Set(rows.map((x) => x[2]))].sort() as SubjectLevel[], departmentId: dept ? s.departments.find((d) => d.businessId === biz && d.name === dept)?.id ?? null : null })
+  }
+  // ...and a starting pick for every class, to be adjusted class by class.
+  for (const c of classes) {
+    const deptName = s.departments.find((d) => d.id === c.departmentId)?.name ?? null
+    for (const [name, , grp, dept] of CATALOGUE) {
+      if (grp !== groupOf(c.stage, c.levelOrder) || (dept && dept !== deptName)) continue
+      const sub = s.subjects.find((x) => x.businessId === biz && x.name === name); if (sub) s.classSubjects.push({ classId: c.id, subjectId: sub.id })
     }
   }
   s.bands[biz] = DEFAULT_BANDS.map((b) => ({ ...b }))
@@ -533,8 +580,9 @@ export function demoSaveRemarks(biz: string, studentId: string, termId: string, 
   }).error
 }
 export interface ReportCard {
-  student: { name: string; admissionNo: string; class: string | null }; term: string; session: string | null
-  subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: ScoreStatus }[]
+  student: { name: string; admissionNo: string; class: string | null; gender?: string | null; dob?: string | null }; term: string; session: string | null
+  subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: ScoreStatus; classAvg?: number | null; highest?: number | null; lowest?: number | null }[]
+  school?: { name: string; address: string | null; phone: string | null; email: string | null; caMax: number; examMax: number }; bands?: SBand[]; nextTerm?: { name: string; startsOn: string } | null
   average: number | null; attendance: { present: number; absent: number; late: number; excused: number; marked: number }
   remarks: { teacherRemark: string | null; principalRemark: string | null; promotion: string | null } | null; position: number | null; classSize: number | null
 }
@@ -544,7 +592,8 @@ export function demoReportCard(biz: string, studentId: string, termId: string): 
   const t = state.terms.find((x) => x.id === termId && x.businessId === biz); if (!t) throw new Error('term not found')
   const staff = can(biz, 'school.read') || can(biz, 'school.teach')
   const mine = state.scores.filter((x) => x.studentId === studentId && x.termId === termId && (x.status === 'published' || staff))
-  const subjects = mine.map((x) => { const total = r2((x.ca ?? 0) + (x.exam ?? 0)); return { subject: state.subjects.find((y) => y.id === x.subjectId)?.name ?? '', ca: x.ca, exam: x.exam, total, grade: gradeOf(state, biz, total), remark: x.remark, status: x.status } }).sort((a, b) => a.subject.localeCompare(b.subject))
+  const figures = (subjectId: string) => state.scores.filter((y) => y.businessId === biz && y.classId === st.classId && y.subjectId === subjectId && y.termId === termId && y.status === 'published').map((y) => (y.ca ?? 0) + (y.exam ?? 0))
+  const subjects = mine.map((x) => { const total = r2((x.ca ?? 0) + (x.exam ?? 0)); const fig = figures(x.subjectId); return { subject: state.subjects.find((y) => y.id === x.subjectId)?.name ?? '', ca: x.ca, exam: x.exam, total, grade: gradeOf(state, biz, total), remark: x.remark, status: x.status, classAvg: fig.length ? Math.round((fig.reduce((a, b) => a + b, 0) / fig.length) * 10) / 10 : null, highest: fig.length ? Math.max(...fig) : null, lowest: fig.length ? Math.min(...fig) : null } }).sort((a, b) => a.subject.localeCompare(b.subject))
   const average = subjects.length ? r2(subjects.reduce((a, x) => a + x.total, 0) / subjects.length) : null
   const att = state.attendance.filter((a) => a.studentId === studentId && a.on >= t.startsOn && a.on <= t.endsOn)
   const rem = state.remarks.find((r) => r.studentId === studentId && r.termId === termId)
@@ -555,7 +604,10 @@ export function demoReportCard(biz: string, studentId: string, termId: string): 
     const avgs = [...by.values()].map((v) => v.reduce((a, b) => a + b, 0) / v.length)
     position = avgs.filter((a) => a > average).length + 1; classSize = avgs.length
   }
-  return { student: { name: studentName(st), admissionNo: st.admissionNo, class: state.classes.find((c) => c.id === st.classId)?.name ?? null }, term: t.name, session: state.sessions.find((x) => x.id === t.sessionId)?.name ?? null, subjects, average,
+  const set = state.settings[biz]
+  const next = state.terms.filter((x) => x.businessId === biz && x.startsOn > t.endsOn).sort((a, b) => a.startsOn.localeCompare(b.startsOn))[0]
+  return { school: { name: getDemoState().businesses.find((b) => b.id === biz)?.name ?? 'School', address: set?.address ?? null, phone: set?.phone ?? null, email: set?.email ?? null, caMax: set?.caMax ?? 40, examMax: set?.examMax ?? 60 }, bands: [...(state.bands[biz] ?? [])], nextTerm: next ? { name: next.name, startsOn: next.startsOn } : null,
+    student: { name: studentName(st), admissionNo: st.admissionNo, class: state.classes.find((c) => c.id === st.classId)?.name ?? null, gender: st.gender, dob: st.dob }, term: t.name, session: state.sessions.find((x) => x.id === t.sessionId)?.name ?? null, subjects, average,
     attendance: { present: att.filter((a) => a.status === 'present').length, absent: att.filter((a) => a.status === 'absent').length, late: att.filter((a) => a.status === 'late').length, excused: att.filter((a) => a.status === 'excused').length, marked: att.length },
     remarks: rem ? { teacherRemark: rem.teacherRemark, principalRemark: rem.principalRemark, promotion: rem.promotion } : null, position, classSize }
 }
@@ -671,6 +723,8 @@ export function demoSchoolOverview(biz: string, termId: string | null): SchoolOv
 /** Seeds a demo school once: the standard structure, a teacher, ten students with parents, a week of attendance, some results, fees and notices. Clearly demo data. */
 export function ensureDemoSchool(biz: string) {
   if (state.seeded.includes(biz)) return
+  // Only the built-in sample school gets sample data. A school someone creates starts empty and is set up from the kind of school they choose.
+  if (biz !== 'b-school') return
   const business = getDemoState().businesses.find((x) => x.id === biz)
   if (business?.industry !== 'school') return
   const s: School = JSON.parse(JSON.stringify(state)) as School
@@ -705,7 +759,7 @@ export function ensureDemoSchool(biz: string) {
 // ------------------------------------------------------------------- timetable
 /** The first time a demo school's timetable is looked at it gets a normal school day and a week of lessons for Primary 1, so there is something to see. */
 function seedTimetable(biz: string) {
-  if (state.ttSeeded.includes(biz) || !state.classes.some((c) => c.businessId === biz)) return
+  if (biz !== 'b-school' || state.ttSeeded.includes(biz) || !state.classes.some((c) => c.businessId === biz)) return
   const s: School = JSON.parse(JSON.stringify(state)) as School
   s.ttSeeded.push(biz)
   const times: [string, string, string, boolean][] = [['Period 1', '08:00', '08:40', false], ['Period 2', '08:40', '09:20', false], ['Period 3', '09:20', '10:00', false], ['Break', '10:00', '10:20', true], ['Period 4', '10:20', '11:00', false], ['Period 5', '11:00', '11:40', false], ['Period 6', '11:40', '12:20', false]]
@@ -775,6 +829,35 @@ export function demoSetSlot(biz: string, classId: string, day: number, periodId:
       if (rest.some((x) => x.businessId === biz && x.staffId === staffId && x.day === day && x.periodId === periodId)) throw new Error('that teacher already has a lesson at this time in another class')
     }
     s.timetable = [...rest, { id: newId('slt'), businessId: biz, classId, day, periodId, subjectId, staffId, room: nul(room) }]
+    return null
+  }).error
+}
+
+// ---------------------------------------------------------------------- deleting
+/** Mirrors school_delete_student(): owners and business admins only; a student with fee payments on record is refused. */
+export function demoDeleteStudent(biz: string, studentId: string, reason: string): string | null {
+  return run(biz, 'school_delete_student', null, (s) => {
+    const st = s.students.find((x) => x.id === studentId && x.businessId === biz); if (!st) throw new Error('permission denied')
+    guard(biz, 'school-students', 'school.delete')
+    if (trim(reason).length < 3) throw new Error('say why (it is kept in the audit trail)')
+    if (s.payments.some((p) => p.studentId === studentId)) throw new Error('this student has fee payments on record. Records of money are never erased; mark the student as withdrawn instead')
+    s.scores = s.scores.filter((x) => x.studentId !== studentId); s.attendance = s.attendance.filter((x) => x.studentId !== studentId); s.remarks = s.remarks.filter((x) => x.studentId !== studentId)
+    s.bills = s.bills.filter((x) => x.studentId !== studentId); s.enrollments = s.enrollments.filter((x) => x.studentId !== studentId); s.links = s.links.filter((x) => x.studentId !== studentId)
+    s.admissions.forEach((a) => { if (a.studentId === studentId) a.studentId = null })
+    s.students = s.students.filter((x) => x.id !== studentId)
+    s.audit.push({ at: new Date().toISOString(), action: 'school_student.delete', entity: studentId, detail: `${studentName(st)} (${st.admissionNo}): ${trim(reason)}` })
+    return null
+  }).error
+}
+/** Mirrors school_delete_guardian(): the record and its links go; the person's login does not. */
+export function demoDeleteGuardian(biz: string, guardianId: string, reason: string): string | null {
+  return run(biz, 'school_delete_guardian', null, (s) => {
+    const g = s.guardians.find((x) => x.id === guardianId && x.businessId === biz); if (!g) throw new Error('permission denied')
+    guard(biz, 'school-guardians', 'school.delete')
+    if (trim(reason).length < 3) throw new Error('say why (it is kept in the audit trail)')
+    s.links = s.links.filter((x) => x.guardianId !== guardianId)
+    s.guardians = s.guardians.filter((x) => x.id !== guardianId)
+    s.audit.push({ at: new Date().toISOString(), action: 'school_guardian.delete', entity: guardianId, detail: `${g.name}: ${trim(reason)}` })
     return null
   }).error
 }

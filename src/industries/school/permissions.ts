@@ -12,4 +12,5 @@ export const schoolPermissions: PermissionDefinition[] = [
   { code: 'school.fees.manage', description: 'Set fees, generate bills, give discounts and reverse payments' },
   { code: 'school.fees.record', description: 'Record fee payments and print receipts' },
   { code: 'school.portal', description: 'Parent portal: see only the children linked to this account' },
+  { code: 'school.delete', description: 'Permanently delete a student or a parent or guardian record' },
 ]

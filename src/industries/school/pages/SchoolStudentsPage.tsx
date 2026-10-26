@@ -8,10 +8,12 @@ import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
+import { ConfirmDelete } from '../components/ConfirmDelete'
+import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
 import { NoSetup, downloadCsv, fullName, useSchool } from '../components/schoolUi'
 import { SchoolAdmissionsPage } from './SchoolAdmissionsPage'
 import type { SchoolCtx } from '../components/schoolUi'
-import { loadAdmissions, loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, registerStudent, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
+import { deleteStudent, loadAdmissions, loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, registerStudent, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
 import type { GuardianInput, SStudent, StudentInput, StudentStatus } from '../services/schoolApi'
 
 const TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = { active: 'success', transferred: 'warning', withdrawn: 'danger', graduated: 'neutral' }
@@ -172,7 +174,7 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
   async function save(e: FormEvent<HTMLFormElement>) { e.preventDefault(); await runner.run(async () => updateStudent(businessId, st.id, readStudent(new FormData(e.currentTarget), st.classId, st.admittedOn)), 'Saved.', () => setEditing(false)) }
 
   return (
-    <DetailPage title={`${fullName(st)}`} onClose={onClose} wide actions={<Button variant="secondary" onClick={() => window.print()} className="no-print"><Printer className="size-4" aria-hidden /> Print</Button>}>
+    <DetailPage title={`${fullName(st)}`} onClose={onClose} wide actions={<div className="flex gap-2"><Button variant="secondary" onClick={() => window.print()} className="no-print"><Printer className="size-4" aria-hidden /> Print</Button>{ctx.can('school.delete') && <ConfirmDelete label={fullName(st)} noun="student" warning="Their attendance, results, remarks and class history are erased with them. A student who has fee payments on record cannot be deleted, because records of money are never erased; mark them as withdrawn instead." withReason onConfirm={(reason) => deleteStudent(businessId, st.id, reason)} onDeleted={async () => { onClose(); await onChanged() }} />}</div>}>
       <p className="mb-3 text-sm text-ink/70">{st.admissionNo} · {className(st.classId)} · <Badge tone={TONE[st.status]}>{label(st.status)}</Badge>{st.statusReason ? ` · ${st.statusReason}` : ''}</p>
       <div role="tablist" aria-label="Student sections" className="no-print mb-4 flex flex-wrap gap-1 border-b border-ink/10">
         {tabs.map(([id, t]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === id ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>)}
@@ -211,15 +213,8 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
 
       {tab === 'results' && (
         <div className="space-y-3">
-          <div className="no-print max-w-xs"><SelectField label="Term" value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>
-          {card.loading ? <Spinner /> : !card.data || !card.data.subjects.length ? <p className="text-sm text-ink/60">No results for this term yet.</p> : (
-            <>
-              <table className="w-full text-sm"><thead className="text-left text-xs font-semibold text-ink/70"><tr><th className="py-1">Subject</th><th className="py-1 text-right">CA</th><th className="py-1 text-right">Exam</th><th className="py-1 text-right">Total</th><th className="py-1">Grade</th><th className="py-1">State</th></tr></thead>
-                <tbody className="divide-y divide-ink/10">{card.data.subjects.map((x) => <tr key={x.subject}><td className="py-1.5">{x.subject}</td><td className="tabular py-1.5 text-right">{x.ca ?? '–'}</td><td className="tabular py-1.5 text-right">{x.exam ?? '–'}</td><td className="tabular py-1.5 text-right font-medium">{x.total}</td><td className="py-1.5"><b>{x.grade}</b></td><td className="py-1.5"><Badge tone={x.status === 'published' ? 'success' : 'neutral'}>{label(x.status)}</Badge></td></tr>)}</tbody></table>
-              <p className="text-sm">Average: <b className="tabular">{card.data.average}</b></p>
-            </>
-          )}
-          <p className="no-print text-xs text-ink/60">Printable report cards are under Results &amp; Report Cards.</p>
+          <div className="no-print flex flex-wrap items-end justify-between gap-3"><div className="max-w-xs"><SelectField label="Term" value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>{card.data?.subjects.length ? <Button variant="secondary" onClick={() => printReportCards([card.data!])}><Printer className="size-4" aria-hidden /> Print report card</Button> : null}</div>
+          {card.loading ? <Spinner /> : !card.data || !card.data.subjects.length ? <p className="text-sm text-ink/60">No results for this term yet.</p> : <ReportCardSheet card={card.data} />}
         </div>
       )}
 

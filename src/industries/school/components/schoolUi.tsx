@@ -4,7 +4,7 @@ import { Card } from '@/shared/components'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { toCsv } from '@/industries/retail/csv'
 import { loadStructure, stageOk } from '../services/schoolApi'
-import type { SClass, SStudent, STerm } from '../services/schoolApi'
+import type { SClass, SStudent, STerm, SubjectLevel } from '../services/schoolApi'
 
 /** The school's structure (sessions, terms, classes, subjects, grades) plus what the signed-in person may do. */
 export function useSchool() {
@@ -17,7 +17,9 @@ export function useSchool() {
   // A secondary school never shows nursery or primary classes or their subjects, and so on for the other kinds.
   const visibleClasses = (s?.classes ?? []).filter((c) => stageOk(kind, c.stage))
   const visibleIds = new Set(visibleClasses.map((c) => c.id))
-  const visibleSubjects = (s?.subjects ?? []).filter((sub) => { const used = (s?.classSubjects ?? []).filter((cs) => cs.subjectId === sub.id); return !used.length || used.some((cs) => visibleIds.has(cs.classId)) })
+  // Subjects offered at this kind of school: those taught at its levels, or (for a subject with no level set) those that a visible class takes or that nobody takes yet.
+  const allowed = levelsOf(kind)
+  const visibleSubjects = (s?.subjects ?? []).filter((sub) => { if (sub.levels.length) return sub.levels.some((l) => allowed.includes(l)); const used = (s?.classSubjects ?? []).filter((cs) => cs.subjectId === sub.id); return !used.length || used.some((cs) => visibleIds.has(cs.classId)) })
   const currentTerm: STerm | null = s?.terms.find((t) => t.current) ?? s?.terms[0] ?? null
   return {
     active, businessId, structure, s, can, currentTerm, kind, visibleClasses, visibleSubjects,
@@ -28,6 +30,12 @@ export function useSchool() {
   }
 }
 export type SchoolCtx = ReturnType<typeof useSchool>
+
+/** The levels of teaching a kind of school has: a secondary school has junior and senior secondary and nothing below. */
+export const levelsOf = (kind: string | null): SubjectLevel[] => (kind === 'nursery' ? ['nursery'] : kind === 'primary' ? ['primary'] : kind === 'secondary' ? ['jss', 'sss'] : ['nursery', 'primary', 'jss', 'sss'])
+export const LEVEL_NAMES: Record<SubjectLevel, string> = { nursery: 'Nursery', primary: 'Primary', jss: 'Junior secondary', sss: 'Senior secondary' }
+/** Which level of teaching a class is at. Senior secondary starts at level 12 (SS 1). */
+export const classLevel = (c: Pick<SClass, 'stage' | 'levelOrder'>): SubjectLevel => (c.stage === 'nursery' ? 'nursery' : c.stage === 'primary' ? 'primary' : c.levelOrder <= 11 ? 'jss' : 'sss')
 
 export const fullName = (st: Pick<SStudent, 'first' | 'middle' | 'last'>) => `${st.first} ${st.middle ? `${st.middle} ` : ''}${st.last}`
 export const classLabel = (classes: SClass[], id: string | null) => classes.find((c) => c.id === id)?.name ?? '–'

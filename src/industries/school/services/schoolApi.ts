@@ -1,12 +1,12 @@
 import * as sc from '@/demo/demoSchool'
-import type { ApplicationInput, AttendanceStatus, SPeriod, SSlot, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
+import type { ApplicationInput, AttendanceStatus, SPeriod, SSlot, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, SDepartment, Stage, SubjectLevel, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 
 /** School data access. Live mode reads row-level-secured tables and calls database functions; demo mode runs the browser mirror.
  *  Mutations return an error message or null. */
-export type { SPeriod, SSlot, ApplicationInput, AttendanceStatus, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus }
-export { PAY_METHODS, STAGES, stageOk } from '@/demo/demoSchool'
+export type { SDepartment, SubjectLevel, SPeriod, SSlot, ApplicationInput, AttendanceStatus, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus }
+export { PAY_METHODS, STAGES, SUBJECT_LEVELS, stageOk } from '@/demo/demoSchool'
 
 const n = (v: unknown) => Number(v ?? 0)
 const nn = (v: unknown) => (v === null || v === undefined ? null : Number(v))
@@ -24,17 +24,17 @@ function ready(b: string): Promise<void> {
   return claims.get(b)!
 }
 
-export interface Structure { settings: SSettings | null; bands: SBand[]; sessions: SSession[]; terms: STerm[]; classes: SClass[]; subjects: SSubject[]; classSubjects: { classId: string; subjectId: string }[]; holidays: SHoliday[] }
+export interface Structure { departments: SDepartment[]; settings: SSettings | null; bands: SBand[]; sessions: SSession[]; terms: STerm[]; classes: SClass[]; subjects: SSubject[]; classSubjects: { classId: string; subjectId: string }[]; holidays: SHoliday[] }
 
 // --------------------------------------------------------------------- reads
 export async function loadStructure(b: string): Promise<Structure> {
   await ready(b)
   if (isDemoMode) return sc.demoStructure(b)
-  const [set, bands, ses, trm, cls, sub, cs, hol] = await Promise.all([
+  const [set, bands, ses, trm, cls, sub, cs, hol, dep] = await Promise.all([
     db().from('school_settings').select('*').eq('business_id', b).maybeSingle(), db().from('school_grade_bands').select('*').eq('business_id', b).order('min_score', { ascending: false }),
     db().from('school_sessions').select('*').eq('business_id', b).order('starts_on', { ascending: false }), db().from('school_terms').select('*').eq('business_id', b).order('starts_on'),
     db().from('school_classes').select('*').eq('business_id', b).order('level_order').order('name'), db().from('school_subjects').select('*').eq('business_id', b).order('name'),
-    db().from('school_class_subjects').select('class_id, subject_id').eq('business_id', b), db().from('school_holidays').select('*').eq('business_id', b).order('on_date'),
+    db().from('school_class_subjects').select('class_id, subject_id').eq('business_id', b), db().from('school_holidays').select('*').eq('business_id', b).order('on_date'), db().from('school_departments').select('*').eq('business_id', b).order('name'),
   ])
   if (set.error) throw new Error(set.error.message)
   const x = set.data as Row | null
@@ -43,9 +43,10 @@ export async function loadStructure(b: string): Promise<Structure> {
     bands: must<Row[]>(bands).map((r) => ({ min: n(r.min_score), grade: String(r.grade), remark: r.remark as string | null })),
     sessions: must<Row[]>(ses).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), startsOn: d(r.starts_on)!, endsOn: d(r.ends_on)!, current: !!r.is_current })),
     terms: must<Row[]>(trm).map((r) => ({ id: String(r.id), businessId: b, sessionId: String(r.session_id), name: String(r.name), startsOn: d(r.starts_on)!, endsOn: d(r.ends_on)!, current: !!r.is_current })),
-    classes: must<Row[]>(cls).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), levelOrder: n(r.level_order), arm: r.arm as string | null, active: !!r.active, stage: (r.stage as Stage) ?? 'primary' })),
-    subjects: must<Row[]>(sub).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), code: r.code as string | null })),
+    classes: must<Row[]>(cls).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), levelOrder: n(r.level_order), arm: r.arm as string | null, active: !!r.active, stage: (r.stage as Stage) ?? 'primary', departmentId: r.department_id as string | null })),
+    subjects: must<Row[]>(sub).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name), code: r.code as string | null, levels: ((r.levels as SubjectLevel[]) ?? []), departmentId: r.department_id as string | null })),
     classSubjects: must<Row[]>(cs).map((r) => ({ classId: String(r.class_id), subjectId: String(r.subject_id) })),
+    departments: must<Row[]>(dep).map((r) => ({ id: String(r.id), businessId: b, name: String(r.name) })),
     holidays: must<Row[]>(hol).map((r) => ({ businessId: b, on: d(r.on_date)!, name: String(r.name) })),
   }
 }
@@ -147,8 +148,9 @@ export async function reportCard(b: string, studentId: string, termId: string): 
   if (isDemoMode) return sc.demoReportCard(b, studentId, termId)
   const { data, error } = await db().rpc('school_report_card', { p_student: studentId, p_term: termId })
   if (error) throw new Error(error.message)
-  const x = data as { student: { name: string; admission_no: string; class: string | null }; term: string; session: string | null; subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: SScore['status'] }[]; average: number | null; attendance: ReportCard['attendance']; remarks: { teacher_remark: string | null; principal_remark: string | null; promotion: string | null } | null; position: number | null; class_size: number | null }
-  return { student: { name: x.student.name, admissionNo: x.student.admission_no, class: x.student.class }, term: x.term, session: x.session, subjects: x.subjects.map((s) => ({ ...s, ca: nn(s.ca), exam: nn(s.exam), total: n(s.total) })), average: nn(x.average), attendance: x.attendance, remarks: x.remarks ? { teacherRemark: x.remarks.teacher_remark, principalRemark: x.remarks.principal_remark, promotion: x.remarks.promotion } : null, position: x.position, classSize: x.class_size }
+  const x = data as { student: { name: string; admission_no: string; class: string | null; gender: string | null; dob: string | null }; term: string; session: string | null; subjects: { subject: string; ca: number | null; exam: number | null; total: number; grade: string | null; remark: string | null; status: SScore['status']; class_avg: number | null; highest: number | null; lowest: number | null }[]; school: { name: string; address: string | null; phone: string | null; email: string | null; ca_max: number; exam_max: number }; bands: { min: number; grade: string; remark: string | null }[]; next_term: { name: string; starts_on: string } | null; average: number | null; attendance: ReportCard['attendance']; remarks: { teacher_remark: string | null; principal_remark: string | null; promotion: string | null } | null; position: number | null; class_size: number | null }
+  return { school: { name: x.school.name, address: x.school.address, phone: x.school.phone, email: x.school.email, caMax: n(x.school.ca_max), examMax: n(x.school.exam_max) }, bands: (x.bands ?? []).map((g) => ({ min: n(g.min), grade: g.grade, remark: g.remark })), nextTerm: x.next_term ? { name: x.next_term.name, startsOn: String(x.next_term.starts_on).slice(0, 10) } : null,
+    student: { name: x.student.name, admissionNo: x.student.admission_no, class: x.student.class, gender: x.student.gender, dob: x.student.dob ? String(x.student.dob).slice(0, 10) : null }, term: x.term, session: x.session, subjects: x.subjects.map((s) => ({ ...s, ca: nn(s.ca), exam: nn(s.exam), total: n(s.total), classAvg: nn(s.class_avg), highest: nn(s.highest), lowest: nn(s.lowest) })), average: nn(x.average), attendance: x.attendance, remarks: x.remarks ? { teacherRemark: x.remarks.teacher_remark, principalRemark: x.remarks.principal_remark, promotion: x.remarks.promotion } : null, position: x.position, classSize: x.class_size }
 }
 /** A parent keeping their own phone and address up to date. Returns an error message or null. */
 export async function updateMyContact(b: string, phone: string, address: string) {
@@ -180,11 +182,11 @@ export async function saveTerm(b: string, v: Parameters<typeof sc.demoSaveTerm>[
 }
 export async function saveClass(b: string, v: Parameters<typeof sc.demoSaveClass>[1]) {
   if (isDemoMode) return sc.demoSaveClass(b, v)
-  return msg((await db().rpc('school_save_class', { p_business: b, p_id: v.id, p_name: v.name, p_level: v.levelOrder, p_arm: v.arm, p_active: v.active, p_stage: v.stage })).error)
+  return msg((await db().rpc('school_save_class', { p_business: b, p_id: v.id, p_name: v.name, p_level: v.levelOrder, p_arm: v.arm, p_active: v.active, p_stage: v.stage, p_department: v.departmentId ?? null })).error)
 }
 export async function saveSubject(b: string, v: Parameters<typeof sc.demoSaveSubject>[1]) {
   if (isDemoMode) return sc.demoSaveSubject(b, v)
-  return msg((await db().rpc('school_save_subject', { p_business: b, p_id: v.id, p_name: v.name, p_code: v.code })).error)
+  return msg((await db().rpc('school_save_subject', { p_business: b, p_id: v.id, p_name: v.name, p_code: v.code, p_levels: v.levels ?? [], p_department: v.departmentId ?? null })).error)
 }
 export async function setClassSubjects(b: string, classId: string, subjectIds: string[]) {
   if (isDemoMode) return sc.demoSetClassSubjects(b, classId, subjectIds)
@@ -298,4 +300,23 @@ export async function savePeriods(b: string, list: { id?: string | null; label: 
 export async function setSlot(b: string, classId: string, day: number, periodId: string, subjectId: string | null, staffId: string | null, room: string) {
   if (isDemoMode) return sc.demoSetSlot(b, classId, day, periodId, subjectId, staffId, room)
   return msg((await db().rpc('school_set_slot', { p_business: b, p_class: classId, p_day: day, p_period: periodId, p_subject: subjectId, p_staff: staffId, p_room: room })).error)
+}
+
+// ---------------------------------------------------------- departments and deleting
+export async function saveDepartment(b: string, v: { id: string | null; name: string }) {
+  if (isDemoMode) return sc.demoSaveDepartment(b, v)
+  return msg((await db().rpc('school_save_department', { p_business: b, p_id: v.id, p_name: v.name })).error)
+}
+export async function deleteDepartment(b: string, id: string) {
+  if (isDemoMode) return sc.demoDeleteDepartment(b, id)
+  return msg((await db().rpc('school_delete_department', { p_business: b, p_id: id })).error)
+}
+/** Permanently deletes a student and their records. Owners and business admins only; a student with fee payments is refused. */
+export async function deleteStudent(b: string, studentId: string, reason: string) {
+  if (isDemoMode) return sc.demoDeleteStudent(b, studentId, reason)
+  return msg((await db().rpc('school_delete_student', { p_student: studentId, p_reason: reason })).error)
+}
+export async function deleteGuardian(b: string, guardianId: string, reason: string) {
+  if (isDemoMode) return sc.demoDeleteGuardian(b, guardianId, reason)
+  return msg((await db().rpc('school_delete_guardian', { p_guardian: guardianId, p_reason: reason })).error)
 }

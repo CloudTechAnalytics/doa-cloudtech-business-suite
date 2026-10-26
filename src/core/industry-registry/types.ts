@@ -96,6 +96,13 @@ export interface IndustryDefinition {
   /** Defaults that cannot be switched off while the business is in this industry. */
   requiredModules: ModuleCode[]
 
+  /**
+   * Runs once, right after a business of this industry is created, with the answers given while setting it up. An industry uses it to configure the
+   * new business from those answers (a school builds its classes, departments and subjects for the kind of school chosen). Returns a message when it fails,
+   * which is shown to the owner; the business itself is still created.
+   */
+  afterCreate?: (businessId: string, answers: Record<string, SetupAnswerValue>) => Promise<string | null>
+
   permissions: PermissionDefinition[]
   navigation: NavSection[]
   routes: IndustryRoute[]

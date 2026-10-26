@@ -7,7 +7,8 @@ import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { fullName, useSchool } from '../components/schoolUi'
-import { linkGuardian, loadGuardians, loadStudents, saveGuardian } from '../services/schoolApi'
+import { ConfirmDelete } from '../components/ConfirmDelete'
+import { deleteGuardian, linkGuardian, loadGuardians, loadStudents, saveGuardian } from '../services/schoolApi'
 import type { SGuardian } from '../services/schoolApi'
 
 /** Parents and guardians, and which children each one is linked to. A parent signs in with the email recorded here. */
@@ -58,7 +59,7 @@ function Profile({ ctx, g, links, students, onClose, onChanged, onEdit }: { ctx:
   const edit = ctx.can('school.students')
   const free = students.filter((x) => !links.some((l) => l.studentId === x.id))
   return (
-    <DetailPage title={g.name} onClose={onClose} actions={edit ? <Button variant="secondary" onClick={onEdit}>Edit</Button> : undefined}>
+    <DetailPage title={g.name} onClose={onClose} actions={<div className="flex gap-2">{edit && <Button variant="secondary" onClick={onEdit}>Edit</Button>}{ctx.can('school.delete') && <ConfirmDelete label={g.name} noun="parent or guardian" warning="Their record and links to children are erased. Their sign-in account, if they have one, is not deleted, but they will no longer see any child." withReason onConfirm={(reason) => deleteGuardian(ctx.businessId, g.id, reason)} onDeleted={async () => { onClose(); await onChanged() }} />}</div>}>
       <dl className="mb-4 grid gap-4 text-sm sm:grid-cols-3">{([['Phone', g.phone ?? '–'], ['Email', g.email ?? '–'], ['Address', g.address ?? '–']] as const).map(([k, v]) => <div key={k}><dt className="text-xs text-ink/60">{k}</dt><dd>{v}</dd></div>)}</dl>
       <h3 className="mb-1 text-sm font-semibold">Children</h3>
       {links.length ? <ul className="divide-y divide-ink/10 text-sm">{links.map((l) => { const st = students.find((x) => x.id === l.studentId); return <li key={l.studentId} className="flex items-center justify-between py-2"><span>{st ? fullName(st) : 'Student'} <Badge>{l.relationship}</Badge> {l.isPrimary && <Badge tone="info">Primary</Badge>} <span className="text-ink/60">{ctx.className(st?.classId ?? null)}</span></span>{edit && <Button variant="secondary" loading={runner.busy} onClick={() => void runner.run(async () => linkGuardian(ctx.businessId, l.studentId, g.id, l.relationship, l.isPrimary, true), 'Unlinked.')}>Unlink</Button>}</li> })}</ul> : <p className="text-sm text-ink/60">Not linked to any student yet.</p>}

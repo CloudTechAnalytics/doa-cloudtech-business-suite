@@ -191,3 +191,14 @@ html.classic-palette {
 [data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td:first-child { display: block; font-size: 0.95rem; font-weight: 600; }
 [data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td:first-child::before { display: none; }
 [data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td:empty { display: none; }
+
+/* Printing report cards: only the cards, one per A4 page. They are drawn into #print-root while printing; everything else on the page is hidden. */
+#print-root { display: none; }
+@page { size: A4; margin: 12mm; }
+@media print {
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block; }
+  #print-root .report-sheet { border: 0; box-shadow: none; padding: 0; max-width: none; border-radius: 0; break-after: page; page-break-after: always; }
+  #print-root .report-sheet:last-child { break-after: auto; page-break-after: auto; }
+  #print-root .report-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
