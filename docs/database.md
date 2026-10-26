@@ -44,6 +44,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0040_platform_delete_user` | `platform_delete_user` (platform owner only; type the email, give a reason): erases the account and its memberships. Refused for yourself, the platform team and anyone who still owns a business; refused as a whole, changing nothing, when the account has recorded things that must be kept |
 | `…0041_school_online` | a fifth kind of school, `online`: its classes are courses (stage `online`, with a description and duration) and its subjects are course units (level `online`); nothing is created automatically; "all" never includes online; a change of kind reshapes even a school with no classes yet; `school_save_class` takes the description and duration |
 | `…0042_school_cohorts` | online schools run in cohorts, not terms: `school_save_cohort` keeps a session and one same-named term together, and an online school's first-time setup creates one cohort; `school_delete_term` and `school_delete_session` remove unused ones and refuse those in use |
+| `…0043_school_tidy_cohorts` | `_school_tidy_cohorts`: for an online school, a session whose three standard terms have nothing recorded against them becomes one cohort period (the other two are removed); runs for existing online schools and whenever a school is switched to online |
 
 ## Tables named in the architecture brief
 

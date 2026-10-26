@@ -162,3 +162,36 @@ describe('cohorts in the demo', () => {
     expect(sc.demoDeleteTerm(id, sc.demoStructure(id).terms[0].id)).toBeNull()
   })
 })
+
+describe('a school switched to online loses its three standard terms', () => {
+  it('turns the untouched First, Second and Third Term into one cohort period', async () => {
+    const b = await fresh('primary')
+    expect(await names(b, 'school_terms')).toEqual(['First Term', 'Second Term', 'Third Term'])
+    await as(owner, () => q('select public.school_save_settings($1,$2,null,null,null,40,60,false,$3)', [b, 'online', '{1,2,3,4,5}']))
+    expect(await names(b, 'school_terms')).toEqual(['2026/2027'])
+    expect(await names(b, 'school_sessions')).toEqual(['2026/2027'])
+    const t = (await q<{ starts_on: string; s: string }>(`select t.starts_on::text, s.starts_on::text as s from public.school_terms t join public.school_sessions s on s.id = t.session_id where t.business_id=$1`, [b]))[0]
+    expect(t.starts_on).toBe(t.s)
+  })
+
+  it('leaves a session alone when anything was recorded against its terms', async () => {
+    const b = await fresh('primary')
+    const p1 = (await q<{ id: string }>(`select id from public.school_classes where business_id=$1 and name='Primary 1'`, [b]))[0].id
+    const term = (await q<{ id: string }>(`select id from public.school_terms where business_id=$1 and name='First Term'`, [b]))[0].id
+    await as(owner, () => q('select public.school_save_fee_item($1,null,$2,$3,null,$4,false,true)', [b, 'Tuition', 40000, term])).catch(async () => { await db.exec(`insert into public.school_fee_items (business_id, name, amount, term_id) values ('${b}', 'Tuition', 40000, '${term}')`) })
+    await db.exec(`update public.school_classes set active = active where id = '${p1}'`)
+    await as(owner, () => q('select public.school_delete_class($1,$2)', [b, p1])).catch(() => undefined)
+    for (const c of await q<{ id: string }>('select id from public.school_classes where business_id=$1', [b])) await as(owner, () => q('select public.school_delete_class($1,$2)', [b, c.id])).catch(() => undefined)
+    await as(owner, () => q('select public.school_save_settings($1,$2,null,null,null,40,60,false,$3)', [b, 'online', '{1,2,3,4,5}']))
+    expect(await names(b, 'school_terms')).toEqual(['First Term', 'Second Term', 'Third Term'])
+  })
+
+  it('does the same in the demo', async () => {
+    demoSignOut(); demoSignIn('owner@demo.test', 'demo1234')
+    const id = demoCreateBusiness('Tidy Academy', 'school')
+    await getIndustry('school').afterCreate!(id, { school_type: 'nursery', session_name: '2026/2027' })
+    expect(sc.demoStructure(id).terms.map((t) => t.name)).toEqual(['First Term', 'Second Term', 'Third Term'])
+    expect(sc.demoSaveSettings(id, { schoolType: 'online', address: '', phone: '', email: '', caMax: 40, examMax: 60, showPosition: false, workingDays: [1, 2, 3, 4, 5] })).toBeNull()
+    expect(sc.demoStructure(id).terms.map((t) => t.name)).toEqual(['2026/2027'])
+  })
+})

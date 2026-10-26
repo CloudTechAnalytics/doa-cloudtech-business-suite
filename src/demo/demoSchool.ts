@@ -395,7 +395,20 @@ function buildStructure(s: School, biz: string, type: SSettings['schoolType'], s
  * Mirrors _school_reshape(): changing the kind of school removes the classes (when unused), departments and subjects of the levels it no longer has, and adds
  * the classes and subjects of the levels it now has, with the standard subjects ticked for every class that takes none.
  */
+/** Mirrors _school_tidy_cohorts(): an online school's sessions that still carry the three untouched standard terms become one cohort with one period. */
+function tidyCohorts(s: School, biz: string) {
+  for (const sess of s.sessions.filter((x) => x.businessId === biz)) {
+    const terms = s.terms.filter((t) => t.sessionId === sess.id)
+    const named = ['First Term', 'Second Term', 'Third Term'].map((n) => terms.find((t) => t.name === n))
+    if (terms.length !== 3 || named.some((t) => !t)) continue
+    const ids = named.map((t) => t!.id)
+    if (s.scores.some((x) => ids.includes(x.termId)) || s.remarks.some((x) => ids.includes(x.termId)) || s.feeItems.some((x) => x.termId && ids.includes(x.termId)) || s.bills.some((x) => ids.includes(x.termId))) continue
+    s.terms = s.terms.filter((t) => t.id !== ids[1] && t.id !== ids[2])
+    Object.assign(named[0]!, { name: sess.name, startsOn: sess.startsOn, endsOn: sess.endsOn })
+  }
+}
 function reshape(s: School, biz: string, oldType: SSettings['schoolType'], type: SSettings['schoolType']) {
+  if (type === 'online') tidyCohorts(s, biz)
   const usedClass = (id: string) => s.students.some((x) => x.classId === id) || s.enrollments.some((x) => x.classId === id) || s.attendance.some((x) => x.classId === id) || s.scores.some((x) => x.classId === id)
     || s.feeItems.some((x) => x.classId === id) || s.admissions.some((x) => x.classId === id) || s.announcements.some((x) => x.classId === id)
   for (const c of s.classes.filter((x) => x.businessId === biz && !stageOk(type, x.stage))) {

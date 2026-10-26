@@ -23,7 +23,9 @@ export function SchoolSettingsPage() {
   if (structure.loading && !s) return <Spinner />
   const manage = can('school.manage')
   const total = Number(v.ca) + Number(v.exam)
-  const fresh = !!s && !s.classes.length
+  // The standard-structure box is for a school that has not been set up at all (an online school has no classes by design, but it does have a cohort).
+  const fresh = !!s && !s.classes.length && !s.sessions.length
+  const wizOnline = wiz.type === 'online'
 
   return (
     <>
@@ -35,9 +37,9 @@ export function SchoolSettingsPage() {
       {fresh && manage && (
         <Card className="mb-4">
           <h3 className="mb-1 text-sm font-semibold">Start from the standard structure</h3>
-          <p className="mb-3 text-sm text-ink/70">Creates the classes for your kind of school, three terms, the usual subjects, a grading scale and 40/60 marks. You can change everything afterwards.</p>
+          <p className="mb-3 text-sm text-ink/70">{wizOnline ? 'Creates your first cohort, a grading scale and 40/60 marks. You add the courses you offer yourself. You can change everything afterwards.' : 'Creates the classes for your kind of school, three terms, the usual subjects, a grading scale and 40/60 marks. You can change everything afterwards.'}</p>
           <div className="grid gap-3 sm:grid-cols-4"><SelectField label="Kind of school" value={wiz.type} onChange={(e) => setWiz({ ...wiz, type: e.target.value as SSettings['schoolType'] })}><option value="nursery">Nursery only</option><option value="primary">Primary only</option><option value="secondary">Secondary only</option><option value="combined">All: nursery, primary and secondary</option><option value="online">Online school: courses you offer</option></SelectField>
-            <TextField label="Session name" value={wiz.session} onChange={(e) => setWiz({ ...wiz, session: e.target.value })} placeholder="2026/2027" /><TextField label="First term starts" type="date" value={wiz.start} onChange={(e) => setWiz({ ...wiz, start: e.target.value })} />
+            <TextField label={wizOnline ? 'Cohort name' : 'Session name'} value={wiz.session} onChange={(e) => setWiz({ ...wiz, session: e.target.value })} placeholder={wizOnline ? 'January 2027 intake' : '2026/2027'} /><TextField label={wizOnline ? 'Cohort starts' : 'First term starts'} type="date" value={wiz.start} onChange={(e) => setWiz({ ...wiz, start: e.target.value })} />
             <div className="flex items-end"><Button loading={runner.busy} disabled={!wiz.session.trim()} onClick={() => void runner.run(async () => setupSchool(businessId, wiz.type, wiz.session.trim(), wiz.start), 'School structure created.')}>Create structure</Button></div></div>
         </Card>
       )}
