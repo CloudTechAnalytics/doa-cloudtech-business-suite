@@ -10,21 +10,23 @@ interface AuthState {
   userId: string | null
   email: string | null
   loading: boolean
+  /** True when the person signed in with a temporary password and has not yet chosen their own. */
+  mustChange: boolean
   signOut: () => void
 }
 
-const AuthContext = createContext<AuthState>({ userId: null, email: null, loading: true, signOut: () => {} })
+const AuthContext = createContext<AuthState>({ userId: null, email: null, loading: true, mustChange: false, signOut: () => {} })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const demo = useDemoState()
-  const [real, setReal] = useState<{ userId: string | null; email: string | null; loading: boolean }>({
-    userId: null, email: null, loading: !!supabase,
+  const [real, setReal] = useState<{ userId: string | null; email: string | null; loading: boolean; mustChange: boolean }>({
+    userId: null, email: null, loading: !!supabase, mustChange: false,
   })
 
   useEffect(() => {
     if (!supabase) return
-    const apply = (s: { user: { id: string; email?: string } } | null) =>
-      setReal({ userId: s?.user.id ?? null, email: s?.user.email ?? null, loading: false })
+    const apply = (s: { user: { id: string; email?: string; user_metadata?: Record<string, unknown> } } | null) =>
+      setReal({ userId: s?.user.id ?? null, email: s?.user.email ?? null, loading: false, mustChange: s?.user.user_metadata?.must_change_password === true })
     supabase.auth.getSession().then(({ data }) => apply(data.session))
     const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session))
     return () => data.subscription.unsubscribe()
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId: demo.userId,
         email: demo.users.find((u) => u.id === demo.userId)?.email ?? null,
         loading: false,
+        mustChange: demo.users.find((u) => u.id === demo.userId)?.mustChange === true,
         signOut: demoSignOut,
       }
     : { ...real, signOut: () => void supabase?.auth.signOut() }
@@ -46,9 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export const useAuth = () => useContext(AuthContext)
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { userId, loading } = useAuth()
+  const { userId, loading, mustChange } = useAuth()
   const location = useLocation()
   if (loading) return <Spinner />
   if (!userId) return <Navigate to="/sign-in" state={{ from: location.pathname }} replace />
+  if (mustChange && location.pathname !== '/set-password') return <Navigate to="/set-password" replace />
   return children
 }

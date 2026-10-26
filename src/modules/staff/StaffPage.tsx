@@ -5,12 +5,12 @@ import { canManageStaff, demoInvite, demoRoleIn, demoSetStatus, useDemoState } f
 import type { RoleName } from '@/shared/types/domain'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
+import { assignableRoles, roleName } from './assignableRoles'
 import { Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 
 interface Member { id: string; user_id: string; status: string; roles: { name: string } | null; profiles: { display_name: string } | null }
 interface Invite { id: string; email: string; roles: { name: string } | null }
 
-const ASSIGNABLE = ['business_admin', 'manager', 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'pharmacist', 'pharmacy_technician', 'principal', 'teacher', 'bursar', 'admissions_officer', 'parent', 'viewer']
 
 export function StaffPage() {
   return isDemoMode ? <DemoStaffPage /> : <LiveStaffPage />
@@ -21,6 +21,7 @@ function DemoStaffPage() {
   const demo = useDemoState()
   const [error, setError] = useState<string | null>(null)
   if (!active) return <EmptyState title="No business selected" />
+  const roles = assignableRoles(active.industry)
   const can = canManageStaff(demoRoleIn(active.id))
   const members = demo.members.filter((m) => m.businessId === active.id)
 
@@ -40,8 +41,8 @@ function DemoStaffPage() {
         <Card className="mb-4">
           <form onSubmit={invite} className="grid items-end gap-3 sm:grid-cols-[1fr_200px_auto]">
             <TextField label="Invite by email" name="email" type="email" required />
-            <SelectField label="Role" name="role" defaultValue="cashier">
-              {ASSIGNABLE.map((r) => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+            <SelectField label="Role" name="role" defaultValue={roles[0]}>
+              {roles.map((r) => <option key={r} value={r}>{roleName(r)}</option>)}
             </SelectField>
             <Button type="submit">Invite</Button>
           </form>
@@ -53,7 +54,7 @@ function DemoStaffPage() {
         <ul className="divide-y divide-ink/10">
           {members.map((m) => (
             <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
-              <span><b>{m.name}</b> · {m.role.replace('_', ' ')} · {m.status}</span>
+              <span><b>{m.name}</b> · {roleName(m.role)} · {m.status}</span>
               {can && m.role !== 'owner' && m.userId !== demo.userId && (
                 <span className="flex gap-2">
                   {m.status === 'active'
@@ -109,6 +110,7 @@ function LiveStaffPage() {
   }
 
   if (!active) return <EmptyState title="No business selected" />
+  const roles = assignableRoles(active.industry)
 
   return (
     <>
@@ -117,8 +119,8 @@ function LiveStaffPage() {
       <Card className="mb-4">
         <form onSubmit={invite} className="grid items-end gap-3 sm:grid-cols-[1fr_200px_auto]">
           <TextField label="Invite by email" name="email" type="email" required />
-          <SelectField label="Role" name="role" defaultValue="cashier">
-            {ASSIGNABLE.map((r) => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+          <SelectField label="Role" name="role" defaultValue={roles[0]}>
+            {roles.map((r) => <option key={r} value={r}>{roleName(r)}</option>)}
           </SelectField>
           <Button type="submit">Invite</Button>
         </form>
@@ -128,7 +130,7 @@ function LiveStaffPage() {
           <ul className="divide-y divide-ink/10">
             {members.map((m) => (
               <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
-                <span><b>{m.profiles?.display_name || 'Unnamed'}</b> · {m.roles?.name} · {m.status}</span>
+                <span><b>{m.profiles?.display_name || 'Unnamed'}</b> · {m.roles?.name ? roleName(m.roles.name) : ''} · {m.status}</span>
                 {m.roles?.name !== 'owner' && (
                   <span className="flex gap-2">
                     {m.status === 'active'
@@ -140,7 +142,7 @@ function LiveStaffPage() {
               </li>
             ))}
             {invites.map((i) => (
-              <li key={i.id} className="py-3 text-sm text-ink/70">{i.email} · {i.roles?.name} · invitation pending</li>
+              <li key={i.id} className="py-3 text-sm text-ink/70">{i.email} · {i.roles?.name ? roleName(i.roles.name) : ''} · invitation pending</li>
             ))}
           </ul>
         </Card>

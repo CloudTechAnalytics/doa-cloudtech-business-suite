@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, ErrorState, Notice } from '@/shared/components'
+import { demoSetOwnPassword } from '@/demo/demoStore'
+import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { useAuth } from './AuthProvider'
 import { AuthLayout, Field, passwordProblem } from './AuthPages'
@@ -75,6 +77,44 @@ export function ResetPasswordPage() {
           <Field label="Type it again" name="again" type="password" autoComplete="new-password" placeholder="Enter it again" />
           {error && <ErrorState title="Not saved" message={error} />}
           <Button type="submit" className="h-11 w-full text-sm font-semibold uppercase tracking-wide" loading={busy}>Save new password</Button>
+        </form>
+      )}
+    </AuthLayout>
+  )
+}
+
+/** Shown to someone whose login was created for them with a temporary password: they must choose their own before anything else. */
+export function SetPasswordPage() {
+  const { userId, loading, signOut } = useAuth()
+  const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    const password = String(f.get('password') ?? '')
+    const problem = passwordProblem(password)
+    if (problem) return setError(problem)
+    if (password !== String(f.get('again') ?? '')) return setError('The two passwords do not match.')
+    setBusy(true); setError(null)
+    if (isDemoMode) { const err = demoSetOwnPassword(password); setBusy(false); if (err) setError(err); else navigate('/businesses', { replace: true }); return }
+    if (!supabase) return
+    const { error: err } = await supabase.auth.updateUser({ password, data: { must_change_password: false } })
+    setBusy(false)
+    if (err) setError(err.message); else navigate('/businesses', { replace: true })
+  }
+
+  return (
+    <AuthLayout title="Choose your own password">
+      {loading ? <p className="text-sm text-ink/70">One moment…</p> : !userId ? <Link to="/sign-in" className={`block text-center text-sm ${linkClass}`}>Sign in</Link> : (
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
+          <p className="text-sm text-ink/75">You signed in with a temporary password. Choose a password only you know to continue.</p>
+          <Field label="New password" name="password" type="password" autoComplete="new-password" placeholder="Enter a new password" hint="At least 10 characters, with a lowercase letter, an uppercase letter and a number." />
+          <Field label="Type it again" name="again" type="password" autoComplete="new-password" placeholder="Enter it again" />
+          {error && <ErrorState title="Not saved" message={error} />}
+          <Button type="submit" className="h-11 w-full text-sm font-semibold uppercase tracking-wide" loading={busy}>Save and continue</Button>
+          <button type="button" onClick={signOut} className="block w-full text-center text-sm text-ink/60 underline">Sign out</button>
         </form>
       )}
     </AuthLayout>

@@ -92,3 +92,59 @@ describe('the same in the demo', () => {
     expect(sc.demoStaffAccess(B).find((a) => a.staffId === id)!.state).toBe('none')
   })
 })
+
+describe('creating a login with a temporary password', () => {
+  const make = (u: string, id: string, role: string, pw: string) => as(u, () => q('select public.school_create_login($1,$2,$3,$4)', [biz, id, role, pw]))
+
+  it('creates the account, joins the school, links the record and flags a password change', async () => {
+    await addStaff(principal, 'Miss Temp', 'temp@example.com')
+    const id = await staffId('Miss Temp')
+    await make(principal, id, 'teacher', 'Sunrise2026x')
+    const u = (await q<{ id: string; encrypted_password: string; raw_user_meta_data: { must_change_password?: boolean }; email_confirmed_at: string | null }>(`select id, encrypted_password, raw_user_meta_data, email_confirmed_at from auth.users where email='temp@example.com'`))[0]
+    expect(u.encrypted_password).not.toContain('Sunrise2026x'); expect(u.raw_user_meta_data.must_change_password).toBe(true); expect(u.email_confirmed_at).not.toBeNull()
+    expect(await q(`select 1 from public.business_members m join public.roles r on r.id=m.role_id where m.business_id=$1 and m.user_id=$2 and m.status='active' and r.name='teacher'`, [biz, u.id])).toHaveLength(1)
+    expect((await access(principal)).find((a) => a.staff_id === id)).toMatchObject({ state: 'signed_in', role: 'teacher' })
+    expect(await q('select 1 from auth.identities where user_id=$1 and provider=$2', [u.id, 'email'])).toHaveLength(1)
+  })
+
+  it('refuses weak passwords, missing emails, wrong roles and people without permission', async () => {
+    await addStaff(principal, 'Mr Weak', 'weak@example.com'); await addStaff(principal, 'No Mail', null)
+    const weak = await staffId('Mr Weak')
+    await expect(make(principal, weak, 'teacher', 'short1A')).rejects.toThrow(/at least 10 characters/)
+    await expect(make(principal, weak, 'teacher', 'alllowercase123')).rejects.toThrow(/at least 10 characters/)
+    await expect(make(principal, await staffId('No Mail'), 'teacher', 'Sunrise2026x')).rejects.toThrow(/email address first/)
+    await expect(make(principal, weak, 'owner', 'Sunrise2026x')).rejects.toThrow(/choose teacher/)
+    await expect(make(principal, weak, 'principal', 'Sunrise2026x')).rejects.toThrow(/owner or an admin/)
+    await expect(make(teacher, weak, 'teacher', 'Sunrise2026x')).rejects.toThrow(/permission denied/)
+    await expect(make(outsider, weak, 'teacher', 'Sunrise2026x')).rejects.toThrow(/permission denied/)
+    expect(await q(`select 1 from auth.users where email='weak@example.com'`)).toHaveLength(0)
+  })
+
+  it('never touches an account that already exists', async () => {
+    await addStaff(principal, 'Existing', 't@example.com')
+    await expect(make(principal, await staffId('Existing'), 'bursar', 'Sunrise2026x')).rejects.toThrow(/already has an account/)
+  })
+})
+
+describe('the temporary password in the demo', () => {
+  const B = 'b-school'
+  it('creates the account, signs in, must be replaced, and never overwrites an existing account', async () => {
+    const store = await import('@/demo/demoStore')
+    store.demoSignOut(); store.demoSignIn('owner@demo.test', 'demo1234')
+    expect(sc.demoSaveStaff(B, { id: null, name: 'Mrs Temp', phone: '', email: 'mrstemp@example.com', jobTitle: 'Teacher', department: '', active: true })).toBeNull()
+    const id = sc.demoStaff(B).find((x) => x.name === 'Mrs Temp')!.id
+    expect(sc.demoCreateLogin(B, id, 'teacher', 'weak')).toMatch(/at least 10 characters/)
+    expect(sc.demoCreateLogin(B, id, 'teacher', 'Sunrise2026x')).toBeNull()
+    expect(sc.demoStaffAccess(B).find((a) => a.staffId === id)).toMatchObject({ state: 'signed_in', role: 'teacher' })
+    store.demoSignOut()
+    expect(store.demoSignIn('mrstemp@example.com', 'wrong')).toMatch(/Invalid/)
+    expect(store.demoSignIn('mrstemp@example.com', 'Sunrise2026x')).toBeNull()
+    expect(store.getDemoState().users.find((u) => u.email === 'mrstemp@example.com')!.mustChange).toBe(true)
+    expect(store.demoSetOwnPassword('MyOwnPassw0rd')).toBeNull()
+    expect(store.getDemoState().users.find((u) => u.email === 'mrstemp@example.com')!.mustChange).toBe(false)
+    store.demoSignOut(); expect(store.demoSignIn('mrstemp@example.com', 'MyOwnPassw0rd')).toBeNull()
+    store.demoSignOut(); store.demoSignIn('owner@demo.test', 'demo1234')
+    expect(sc.demoSaveStaff(B, { id: null, name: 'Dup', phone: '', email: 'owner@demo.test', jobTitle: '', department: '', active: true })).toBeNull()
+    expect(sc.demoCreateLogin(B, sc.demoStaff(B).find((x) => x.name === 'Dup')!.id, 'teacher', 'Sunrise2026x')).toMatch(/already has an account/)
+  })
+})

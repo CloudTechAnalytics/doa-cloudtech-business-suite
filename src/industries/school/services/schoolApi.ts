@@ -248,6 +248,21 @@ export async function giveLogin(b: string, staffId: string, role: string) {
   if (isDemoMode) return sc.demoGiveLogin(b, staffId, role)
   return msg((await db().rpc('school_give_login', { p_business: b, p_staff: staffId, p_role: role })).error)
 }
+/** Creates the person's login with a temporary password; they must choose their own at first sign-in. */
+export async function createLogin(b: string, staffId: string, role: string, password: string) {
+  if (isDemoMode) return sc.demoCreateLogin(b, staffId, role, password)
+  return msg((await db().rpc('school_create_login', { p_business: b, p_staff: staffId, p_role: role, p_password: password })).error)
+}
+/** Saves a new staff member and, when asked, creates their login in the same step. Returns an error message, or null. */
+export async function addStaffWithLogin(b: string, v: Parameters<typeof sc.demoSaveStaff>[1], login: { role: string; password: string } | null) {
+  const err = await saveStaff(b, v)
+  if (err || !login) return err
+  const { staff } = await loadStaff(b)
+  const mine = staff.filter((x) => x.name === v.name && (x.email ?? '').toLowerCase() === v.email.trim().toLowerCase()).sort((a, c) => c.staffNo.localeCompare(a.staffNo))[0]
+  if (!mine) return 'The staff member was saved, but their login could not be created. Open them and try again.'
+  const e2 = await createLogin(b, mine.id, login.role, login.password)
+  return e2 ? 'The staff member was saved, but the login was not created: ' + e2 : null
+}
 export async function cancelLogin(b: string, staffId: string) {
   if (isDemoMode) return sc.demoCancelLogin(b, staffId)
   return msg((await db().rpc('school_cancel_login', { p_business: b, p_staff: staffId })).error)

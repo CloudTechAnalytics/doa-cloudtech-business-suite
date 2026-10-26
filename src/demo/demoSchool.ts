@@ -1,6 +1,6 @@
 import { addDays, r2, today } from '@/demo/demoBakery'
 import { newId } from '@/demo/demoInventory'
-import { demoCancelInvite, demoInviteUnchecked, getDemoState } from '@/demo/demoStore'
+import { demoCancelInvite, demoCreateLoginUser, demoInviteUnchecked, getDemoState } from '@/demo/demoStore'
 import { demoAllowed, demoCanTrade } from '@/demo/demoTrade'
 
 /**
@@ -535,6 +535,24 @@ export function demoGiveLogin(biz: string, staffId: string, role: string): strin
     if (g.members.some((m) => m.businessId === biz && m.email === email && m.status === 'active')) return 'this person already has a login for the school'
     demoCancelInvite(biz, email)
     return demoInviteUnchecked(biz, email, role as Parameters<typeof demoInviteUnchecked>[2])
+  } catch (e) { return (e as Error).message }
+}
+export const loginPasswordProblem = (p: string) => (p.length < 10 || !/[a-z]/.test(p) || !/[A-Z]/.test(p) || !/\d/.test(p) ? 'the temporary password needs at least 10 characters with a lowercase letter, an uppercase letter and a number' : null)
+export function demoCreateLogin(biz: string, staffId: string, role: string, password: string): string | null {
+  try {
+    guard(biz, 'school-staff', 'school.manage')
+    const x = state.staff.find((y) => y.id === staffId && y.businessId === biz)
+    if (!x) return 'staff member not found'
+    const email = trim(x.email).toLowerCase()
+    if (!email) return "add the staff member's email address first; it is how they sign in"
+    if (!LOGIN_ROLES.includes(role as (typeof LOGIN_ROLES)[number])) return 'choose teacher, bursar, admissions officer or principal'
+    if (role === 'principal' && !can(biz, 'staff.manage')) return 'only the owner or an admin can give the principal role'
+    const bad = loginPasswordProblem(password); if (bad) return bad
+    const userId = demoCreateLoginUser(biz, x.name, email, password, role as Parameters<typeof demoInviteUnchecked>[2])
+    if (!userId || userId.startsWith('this email')) return userId
+    x.userId = userId
+    commit({ ...state })
+    return null
   } catch (e) { return (e as Error).message }
 }
 export function demoCancelLogin(biz: string, staffId: string): string | null {

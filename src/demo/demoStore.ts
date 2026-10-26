@@ -12,7 +12,7 @@ import { INDUSTRY_TEMPLATES, compatibleModules, defaultModules } from '@/core/mo
  * Passwords are stored in plain text in localStorage: this is not security, just a demo.
  */
 
-export interface DemoUser { id: string; email: string; password: string; name: string }
+export interface DemoUser { id: string; email: string; password: string; name: string; mustChange?: boolean }
 export interface DemoSettings { tax_rate_percent?: number; theme?: string; setup?: Record<string, string | number | boolean> }
 export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean; suspended?: boolean; createdAt?: string }
 export interface DemoMember { id: string; businessId: string; userId: string | null; email: string; name: string; role: RoleName; status: 'active' | 'suspended' | 'revoked' | 'invited' }
@@ -135,6 +135,24 @@ export function demoSignIn(email: string, password: string): string | null {
   const u = state.users.find((x) => x.email === email.toLowerCase() && x.password === password)
   if (!u) return 'Invalid email or password.'
   commit({ ...state, userId: u.id })
+  return null
+}
+
+/** Mirrors school_create_login(): an account with a temporary password that the person must replace at first sign-in. Never for an email that already has an account. */
+export function demoCreateLoginUser(businessId: string, name: string, email: string, password: string, role: RoleName): string | null {
+  const e = email.trim().toLowerCase()
+  if (state.users.some((x) => x.email === e)) return 'this email already has an account; send an invitation instead and they sign in with their own password'
+  const user: DemoUser = { id: uid('u'), email: e, password, name, mustChange: true }
+  const old = state.members.find((m) => m.businessId === businessId && m.email === e && m.status === 'invited')
+  const m: DemoMember = { id: old?.id ?? uid('m'), businessId, userId: user.id, email: e, name, role, status: 'active' }
+  commit({ ...state, users: [...state.users, user], members: [...state.members.filter((x) => x !== old), m] })
+  return user.id
+}
+
+/** The signed-in person choosing their own password (clears the "must change" flag). */
+export function demoSetOwnPassword(password: string): string | null {
+  if (!state.userId) return 'Not signed in'
+  commit({ ...state, users: state.users.map((u) => (u.id === state.userId ? { ...u, password, mustChange: false } : u)) })
   return null
 }
 

@@ -11,8 +11,16 @@ const BOOTSTRAP = `
     id uuid primary key default gen_random_uuid(),
     email text,
     email_confirmed_at timestamptz,
-    raw_user_meta_data jsonb default '{}'::jsonb
+    raw_user_meta_data jsonb default '{}'::jsonb,
+    instance_id uuid, aud text, role text, encrypted_password text, confirmation_token text, recovery_token text, email_change_token_new text, email_change text,
+    email_change_token_current text, phone_change text, phone_change_token text, reauthentication_token text, raw_app_meta_data jsonb,
+    created_at timestamptz, updated_at timestamptz
   );
+  create table auth.identities (id uuid primary key, user_id uuid not null, provider_id text not null, identity_data jsonb not null, provider text not null, last_sign_in_at timestamptz, created_at timestamptz, updated_at timestamptz);
+  -- stand-ins for pgcrypto, which Supabase keeps in the extensions schema
+  create schema extensions;
+  create function extensions.gen_salt(text) returns text language sql as $$ select 'salt' $$;
+  create function extensions.crypt(pw text, salt text) returns text language sql as $$ select 'hash:' || md5(pw || salt) $$;
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(nullif(current_setting('request.jwt.claims', true), '')::json ->> 'sub', '')::uuid
   $$;
