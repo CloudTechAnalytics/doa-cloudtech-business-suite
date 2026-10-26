@@ -234,3 +234,10 @@ html { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   #print-root .id-card { box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
   #print-root .doc-sheet *, #print-root .id-card * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Landing page phones: they rise and settle against each other. */
+@keyframes phone-rise-a { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+@keyframes phone-rise-b { 0%, 100% { transform: translateY(-12px); } 50% { transform: translateY(8px); } }
+.phone-rise-a { animation: phone-rise-a 7s ease-in-out infinite; }
+.phone-rise-b { animation: phone-rise-b 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .phone-rise-a, .phone-rise-b { animation: none; } }
