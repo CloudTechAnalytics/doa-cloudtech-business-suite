@@ -1,6 +1,6 @@
 import { addDays, r2, today } from '@/demo/demoBakery'
 import { newId } from '@/demo/demoInventory'
-import { demoCancelInvite, demoCreateLoginUser, demoInviteUnchecked, getDemoState } from '@/demo/demoStore'
+import { demoCancelInvite, demoCreateLoginUser, demoDeleteMember, demoInviteUnchecked, getDemoState } from '@/demo/demoStore'
 import { demoAllowed, demoCanTrade } from '@/demo/demoTrade'
 
 /**
@@ -560,7 +560,7 @@ export function demoSaveStaff(biz: string, v: { id: string | null; name: string;
     return null
   }).error
 }
-export type StaffAccess = { staffId: string; state: 'none' | 'invited' | 'signed_in'; role: string | null }
+export type StaffAccess = { staffId: string; state: 'none' | 'invited' | 'signed_in' | 'suspended'; role: string | null }
 export const LOGIN_ROLES = ['teacher', 'bursar', 'admissions_officer', 'principal'] as const
 export function demoStaffAccess(biz: string): StaffAccess[] {
   ensureDemoSchool(biz)
@@ -569,6 +569,7 @@ export function demoStaffAccess(biz: string): StaffAccess[] {
   return state.staff.filter((x) => x.businessId === biz).map((x) => {
     const e = (x.email ?? '').toLowerCase()
     const m = g.members.find((y) => y.businessId === biz && e && y.email === e && y.status !== 'revoked')
+    if ((x.userId || m?.status === 'active') && (m?.status === 'suspended' || m?.status === 'revoked')) return { staffId: x.id, state: 'suspended' as const, role: m.role }
     if (x.userId || m?.status === 'active') return { staffId: x.id, state: 'signed_in' as const, role: m?.role ?? null }
     return m?.status === 'invited' ? { staffId: x.id, state: 'invited' as const, role: m.role } : { staffId: x.id, state: 'none' as const, role: null }
   })
@@ -605,6 +606,22 @@ export function demoCreateLogin(biz: string, staffId: string, role: string, pass
     commit({ ...state })
     return null
   } catch (e) { return (e as Error).message }
+}
+/** Mirrors school_delete_staff(): owner or admin only, with a reason; their access to the school goes with the record. */
+export function demoDeleteStaff(biz: string, staffId: string, reason: string): string | null {
+  const x = state.staff.find((y) => y.id === staffId && y.businessId === biz)
+  if (!demoAllowed(biz, 'school-staff', 'school.delete')) return 'permission denied'
+  if (!x) return 'staff member not found'
+  if (trim(reason).length < 3) return 'say why (it is kept in the audit trail)'
+  const g = getDemoState()
+  const member = g.members.find((m) => m.businessId === biz && (m.userId && m.userId === x.userId || (x.email && m.email === trim(x.email).toLowerCase())))
+  if (member) { const err = demoDeleteMember(member.id); if (err) return err }
+  return run(biz, 'school_staff_delete', null, (s) => {
+    s.timetable = s.timetable.map((t) => (t.staffId === staffId ? { ...t, staffId: null } : t))
+    s.assignments = s.assignments.filter((a) => a.staffId !== staffId)
+    s.staff = s.staff.filter((y) => y.id !== staffId)
+    return null
+  }).error
 }
 export function demoCancelLogin(biz: string, staffId: string): string | null {
   try {

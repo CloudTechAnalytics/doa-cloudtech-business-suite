@@ -15,6 +15,7 @@ import { useViewPrefs } from '@/shared/view/viewPrefs'
 import type { BusinessSummary } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, ErrorState, Spinner } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
+import { AccessSuspended } from '@/app/layouts/AccessSuspended'
 import { Menu } from '@/shared/components/menu'
 
 const roleLabel = (role: string) => role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
@@ -59,12 +60,14 @@ function DeleteDialog({ business, onClose, onDeleted }: { business: BusinessSumm
 export function BusinessesPage() {
   const navigate = useNavigate()
   const { email, signOut } = useAuth()
-  const { businesses, loading, error, select, refresh } = useBusiness()
+  const { businesses, blocked, loading, error, select, refresh } = useBusiness()
   const [deleting, setDeleting] = useState<BusinessSummary | null>(null)
   const platform = usePlatformRole()
   const view = useViewPrefs()
 
   if (loading || platform.loading) return <Spinner />
+  // Someone whose only access was suspended is told so, rather than being offered a new business.
+  if (!businesses.length && blocked.length && !platform.data) return <AccessSuspended blocked={blocked} />
   // A platform admin with no business of their own lands in the console, not on the new-business form.
   if (!businesses.length && !error) return <Navigate to={platform.data ? '/platform' : '/start'} replace />
 

@@ -40,6 +40,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0036_school_staff_access_heal` | `school_staff_access` links a staff record to the active member whose email matches it, so the staff list shows the true sign-in state |
 | `…0037_school_teacher_scope` | permission `school.guardians` (teachers, principal, bursar, admissions officer, manager, admin, owner) opens Parents & Guardians; `school.teach` (My Classes) now belongs to the teacher role alone |
 | `…0038_school_reshape` | changing the kind of school reshapes it: classes of the stages left out are deleted when unused (kept as not in use when they hold records), departments are removed when there is no senior secondary, subjects of the new levels are added and given to classes that take none; widening adds what is missing |
+| `…0039_delete_staff_blocked_access` | `delete_member` (owner or admin removes a person from the business; not the owner or yourself, and only the owner may remove an admin; account kept), `school_delete_staff` (owner or admin, with a reason: record and assignments erased, access removed), `my_blocked_memberships` (so a suspended person is told, not sent to create a business), staff access state `suspended` |
 
 ## Tables named in the architecture brief
 

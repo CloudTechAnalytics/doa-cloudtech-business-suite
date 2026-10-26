@@ -22,6 +22,7 @@ import { useWorkspaceAttention } from './useWorkspaceAttention'
 import { useGridLabels } from '@/shared/view/useGridLabels'
 import { useViewPrefs } from '@/shared/view/viewPrefs'
 import { resetDemoTrade } from '@/demo/demoTrade'
+import { AccessSuspended } from './AccessSuspended'
 import { Spinner } from '@/shared/components'
 import { CrumbContext } from '@/shared/components/breadcrumb'
 import { DetailSlotContext } from '@/shared/components/detail-page'
@@ -84,7 +85,7 @@ function RecordMenu({ items }: { items: { label: string; to: string }[] }) {
 
 export function AppShell() {
   const location = useLocation()
-  const { active, loading } = useBusiness()
+  const { active, loading, blocked } = useBusiness()
   const { statuses } = useModules()
   // The business's chosen colour theme paints the whole workspace, and the website's default comes back when leaving it.
   useEffect(() => applyTheme(themeByKey(active?.theme)), [active?.theme])
@@ -112,6 +113,7 @@ export function AppShell() {
   }
 
   if (loading) return <Spinner />
+  if (!active && blocked.length) return <AccessSuspended blocked={blocked} />
   if (!active) return <Navigate to="/onboarding" replace />
 
   const usable = new Set(statuses.filter((s) => s.usable).map((s) => s.code))

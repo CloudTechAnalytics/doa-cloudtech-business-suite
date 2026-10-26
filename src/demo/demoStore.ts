@@ -243,6 +243,22 @@ export function demoCancelInvite(businessId: string, email: string) {
   commit({ ...state, members: state.members.filter((m) => !(m.businessId === businessId && m.email === e && m.status === 'invited')) })
 }
 
+/** Mirrors delete_member(): removes the person from the business altogether (their account stays). */
+export function demoDeleteMember(memberId: string): string | null {
+  const m = state.members.find((x) => x.id === memberId)
+  if (!m || !canManageStaff(demoRoleIn(m.businessId))) return 'permission denied'
+  if (m.role === 'owner' || m.userId === state.userId) return 'this person cannot be removed'
+  if (m.role === 'business_admin' && demoRoleIn(m.businessId) !== 'owner') return 'only the owner can remove an administrator'
+  commit({ ...state, members: state.members.filter((x) => x.id !== memberId) })
+  return null
+}
+
+/** The signed-in person's memberships that were suspended or revoked, so the app can say so instead of offering to create a business. */
+export function demoBlockedMemberships(): { id: string; name: string; status: 'suspended' | 'revoked' }[] {
+  return state.members.filter((m) => m.userId === state.userId && (m.status === 'suspended' || m.status === 'revoked'))
+    .flatMap((m) => state.businesses.filter((b) => b.id === m.businessId && !b.archived).map((b) => ({ id: b.id, name: b.name, status: m.status as 'suspended' | 'revoked' })))
+}
+
 export function demoSetStatus(memberId: string, status: DemoMember['status']): string | null {
   const m = state.members.find((x) => x.id === memberId)
   if (!m || !canManageStaff(demoRoleIn(m.businessId))) return 'permission denied'

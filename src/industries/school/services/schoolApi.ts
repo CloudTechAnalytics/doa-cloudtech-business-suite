@@ -263,6 +263,11 @@ export async function addStaffWithLogin(b: string, v: Parameters<typeof sc.demoS
   const e2 = await createLogin(b, mine.id, login.role, login.password)
   return e2 ? 'The staff member was saved, but the login was not created: ' + e2 : null
 }
+/** Permanently deletes a staff record and removes their access to the school. Owners and business admins only; a reason is kept in the audit trail. */
+export async function deleteStaff(b: string, staffId: string, reason: string) {
+  if (isDemoMode) return sc.demoDeleteStaff(b, staffId, reason)
+  return msg((await db().rpc('school_delete_staff', { p_business: b, p_staff: staffId, p_reason: reason })).error)
+}
 export async function cancelLogin(b: string, staffId: string) {
   if (isDemoMode) return sc.demoCancelLogin(b, staffId)
   return msg((await db().rpc('school_cancel_login', { p_business: b, p_staff: staffId })).error)

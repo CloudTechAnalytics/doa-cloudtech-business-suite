@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
-import { canManageStaff, demoInvite, demoRoleIn, demoSetStatus, useDemoState } from '@/demo/demoStore'
+import { canManageStaff, demoDeleteMember, demoInvite, demoRoleIn, demoSetStatus, useDemoState } from '@/demo/demoStore'
+import { ConfirmDelete } from '@/shared/components/ConfirmDelete'
 import type { RoleName } from '@/shared/types/domain'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
@@ -61,6 +62,7 @@ function DemoStaffPage() {
                     ? <Button variant="secondary" onClick={() => setError(demoSetStatus(m.id, 'suspended'))}>Suspend</Button>
                     : m.status !== 'revoked' && <Button variant="secondary" onClick={() => setError(demoSetStatus(m.id, 'active'))}>Reinstate</Button>}
                   {m.status !== 'revoked' && <Button variant="ghost" onClick={() => setError(demoSetStatus(m.id, 'revoked'))}>Revoke</Button>}
+                  <ConfirmDelete compact label={m.name} noun="staff member" warning="They lose all access to this business and are taken off the staff list. Their own sign-in account is not deleted. Suspend them instead if they may come back." onConfirm={async () => demoDeleteMember(m.id)} onDeleted={() => setError(null)} />
                 </span>
               )}
             </li>
@@ -137,6 +139,7 @@ function LiveStaffPage() {
                       ? <Button variant="secondary" onClick={() => setStatus(m.id, 'suspended')}>Suspend</Button>
                       : m.status !== 'revoked' && <Button variant="secondary" onClick={() => setStatus(m.id, 'active')}>Reinstate</Button>}
                     {m.status !== 'revoked' && <Button variant="ghost" onClick={() => setStatus(m.id, 'revoked')}>Revoke</Button>}
+                    <ConfirmDelete compact label={m.profiles?.display_name || 'this person'} noun="staff member" warning="They lose all access to this business and are taken off the staff list. Their own sign-in account is not deleted. Suspend them instead if they may come back." onConfirm={async () => { if (!supabase) return 'Not connected'; const { error } = await supabase.rpc('delete_member', { p_member: m.id }); return error?.message ?? null }} onDeleted={load} />
                   </span>
                 )}
               </li>

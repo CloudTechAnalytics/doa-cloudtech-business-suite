@@ -8,7 +8,8 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { useSchool } from '../components/schoolUi'
 import { passwordProblem } from '@/core/auth/AuthPages'
-import { addStaffWithLogin, cancelLogin, createLogin, giveLogin, loadStaff, loadStaffAccess, saveStaff, setAssignments } from '../services/schoolApi'
+import { ConfirmDelete } from '@/shared/components/ConfirmDelete'
+import { addStaffWithLogin, cancelLogin, createLogin, deleteStaff, giveLogin, loadStaff, loadStaffAccess, saveStaff, setAssignments } from '../services/schoolApi'
 import type { SStaff, StaffAccess } from '../services/schoolApi'
 
 const ROLE_NAMES: Record<string, string> = { teacher: 'Teacher', bursar: 'Bursar', admissions_officer: 'Admissions officer', principal: 'Principal' }
@@ -77,6 +78,7 @@ function Credentials({ name, email, password, onDone }: { name: string; email: s
 
 function accessBadge(a: StaffAccess | null) {
   if (!a || a.state === 'none') return <span className="text-xs text-ink/50">No login</span>
+  if (a.state === 'suspended') return <Badge tone="danger">Suspended{a.role ? ' · ' + roleLabel(a.role) : ''}</Badge>
   return a.state === 'signed_in' ? <Badge tone="success">Can sign in{a.role ? ' · ' + roleLabel(a.role) : ''}</Badge> : <Badge tone="warning">Invited · {roleLabel(a.role)}</Badge>
 }
 
@@ -139,7 +141,7 @@ function Assign({ ctx, staff, access, onAccess, assignments, manage, onClose, on
   }
   const toAdd = additions()
   return (
-    <DetailPage title={staff.name} onClose={onClose} actions={manage ? <Button variant="secondary" onClick={onEdit}>Edit</Button> : undefined}>
+    <DetailPage title={staff.name} onClose={onClose} actions={manage ? <div className="flex gap-2"><Button variant="secondary" onClick={onEdit}>Edit</Button>{ctx.can('school.delete') && <ConfirmDelete label={staff.name} noun="staff member" warning="Their record and class assignments are erased, lessons they taught stay on the timetable without a teacher, and any sign-in they had to this school is removed. Their own account is not deleted. To keep the record, untick Still working here under Edit instead." withReason onConfirm={(reason) => deleteStaff(ctx.businessId, staff.id, reason)} onDeleted={async () => { onClose(); await onChanged() }} />}</div> : undefined}>
       <p className="mb-3 text-sm text-ink/70">{staff.staffNo} · {staff.jobTitle ?? 'Staff'} · {[staff.phone, staff.email].filter(Boolean).join(' · ') || 'No contact'}</p>
       <SignInAccess ctx={ctx} staff={staff} access={access} manage={manage} onChanged={onAccess} />
       <h3 className="mb-1 text-sm font-semibold">Classes and subjects</h3>
@@ -179,6 +181,7 @@ function SignInAccess({ ctx, staff, access, manage, onChanged }: { ctx: ReturnTy
     <section className="mb-4 rounded-lg border border-line bg-surface p-3 text-sm" aria-label="Sign-in access">
       <h3 className="mb-1 font-semibold">Sign-in access</h3>
       {made && staff.email ? <Credentials name={staff.name} email={staff.email} password={made} onDone={() => setMade(null)} /> : (<>
+        {state === 'suspended' && <p className="text-danger">{staff.name}'s access is <b>suspended</b>: they are locked out until the owner or an admin reinstates them under Staff &amp; Roles.</p>}
         {state === 'signed_in' && <p>{staff.name} can sign in{access?.role ? ' as ' + roleLabel(access.role) : ''}. To change or remove their access, use Staff &amp; Roles.</p>}
         {state === 'invited' && (
           <div className="space-y-2"><p>Invited as <b>{roleLabel(access?.role ?? null)}</b>. When {staff.name} signs up with <b>{staff.email}</b> and confirms that email, they are in and linked to this record.</p>

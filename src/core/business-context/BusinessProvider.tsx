@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { IndustryCode, RoleName } from '@/shared/types/domain'
-import { demoRoleIn, useDemoState } from '@/demo/demoStore'
+import { demoBlockedMemberships, demoRoleIn, useDemoState } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { supabase } from '@/shared/utilities/supabase'
@@ -17,8 +17,12 @@ export interface BusinessSummary {
   theme?: string | null
 }
 
+/** A business the person belongs to but may not use right now: their access was suspended or removed by the owner. */
+export interface BlockedAccess { id: string; name: string; status: 'suspended' | 'revoked' }
+
 interface BusinessState {
   businesses: BusinessSummary[]
+  blocked: BlockedAccess[]
   active: BusinessSummary | null
   loading: boolean
   error: string | null
@@ -46,21 +50,24 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   // Which user the current list belongs to; until it matches, we are still loading (covers sign-up followed by an immediate redirect).
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fetchedBlocked, setBlocked] = useState<BlockedAccess[]>([])
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async (quiet: boolean) => {
     if (isDemoMode || !supabase || !userId) {
       setBusinesses([])
       setLoading(false)
       setLoadedFor(null)
       return
     }
-    setLoading(true)
+    if (!quiet) setLoading(true)
     // Pick up any invitations addressed to this (confirmed) email before listing businesses.
     await supabase.rpc('accept_my_invitations')
     const { data, error } = await supabase
       .from('businesses')
       .select('id, name, primary_industry_code, owner_user_id, settings')
       .order('created_at')
+    const blockedRows = await supabase.rpc('my_blocked_memberships')
+    if (!blockedRows.error) setBlocked(((blockedRows.data ?? []) as { business_id: string; business_name: string; status: string }[]).map((r) => ({ id: r.business_id, name: r.business_name, status: r.status as BlockedAccess['status'] })))
     if (error) setError(error.message)
     else {
       setError(null)
@@ -69,18 +76,29 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     setLoading(false)
     setLoadedFor(userId)
   }, [userId])
+  const refresh = useCallback(() => load(false), [load])
 
   useEffect(() => {
     // Clear previous user's businesses immediately, then re-fetch the authorised list.
-    setBusinesses([])
-    void refresh()
-  }, [refresh])
+    setBusinesses([]); setBlocked([])
+    void load(false)
+  }, [load])
+
+  // Access can be withdrawn while someone is signed in, so look again every minute and whenever they come back to the tab. Quietly: no spinner, no reload.
+  useEffect(() => {
+    if (isDemoMode || !userId) return
+    const again = () => { if (document.visibilityState === 'visible') void load(true) }
+    const timer = setInterval(again, 60_000)
+    document.addEventListener('visibilitychange', again)
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', again) }
+  }, [load, userId])
 
   const businesses: BusinessSummary[] = isDemoMode
     ? demo.members
         .filter((m) => m.userId === userId && m.status === 'active')
         .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner', theme: b.settings?.theme ?? null })))
     : fetched
+  const blocked: BlockedAccess[] = isDemoMode ? demoBlockedMemberships() : fetchedBlocked
   const loading = isDemoMode ? false : fetchLoading || (!!userId && loadedFor !== userId)
   const active = businesses.find((b) => b.id === activeId) ?? businesses[0] ?? null
 
@@ -90,7 +108,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <BusinessContext.Provider value={{ businesses, active, loading, error, select, refresh }}>
+    <BusinessContext.Provider value={{ businesses, blocked, active, loading, error, select, refresh }}>
       {children}
     </BusinessContext.Provider>
   )
