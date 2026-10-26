@@ -176,3 +176,18 @@ html.classic-palette {
   --color-info: #117a8b;
   --color-info-soft: #def4f8;
 }
+
+/* ---- Card view: every list of clickable records (not report tables) is drawn as a grid of cards when the person chooses "Cards". ---- */
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) { display: block; }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) thead { display: none; }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) tbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); gap: 0.75rem; padding: 0.75rem; }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) tr {
+  display: flex; flex-direction: column; gap: 0.35rem; padding: 0.85rem; border: 1px solid var(--color-line) !important; border-radius: 0.75rem; background: #fff;
+  box-shadow: var(--shadow-card); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
+}
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) tr:hover { transform: translateY(-2px); box-shadow: var(--shadow-raised); }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0 !important; border: 0 !important; text-align: left !important; }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td::before { content: attr(data-label); flex-shrink: 0; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: rgb(11 27 51 / 0.5); }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td:first-child { display: block; font-size: 0.95rem; font-weight: 600; }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td:first-child::before { display: none; }
+[data-list-view="grid"] table:has(tbody tr[data-row-link], tbody tr.cursor-pointer) td:empty { display: none; }

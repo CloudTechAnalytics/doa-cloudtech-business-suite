@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, Check, ChevronDown, LayoutGrid, LogOut, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ACCOUNT_MODULES, appPath, buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
@@ -16,6 +16,9 @@ import { resetDemoPharmacy } from '@/demo/demoPharmacy'
 import { resetDemoSchool } from '@/demo/demoSchool'
 import { demoReset } from '@/demo/demoStore'
 import { applyTheme, themeByKey } from '@/core/theme/themes'
+import { ViewMenu } from '@/shared/view/ViewMenu'
+import { useGridLabels } from '@/shared/view/useGridLabels'
+import { useViewPrefs } from '@/shared/view/viewPrefs'
 import { resetDemoTrade } from '@/demo/demoTrade'
 import { Spinner } from '@/shared/components'
 import { CrumbContext } from '@/shared/components/breadcrumb'
@@ -91,6 +94,10 @@ export function AppShell() {
   const { statuses } = useModules()
   // The business's chosen colour theme paints the whole workspace, and the website's default comes back when leaving it.
   useEffect(() => applyTheme(themeByKey(active?.theme)), [active?.theme])
+  const view = useViewPrefs()
+  const mainRef = useRef<HTMLElement>(null)
+  useGridLabels(view.list === 'grid', mainRef)
+  const panel = view.detail === 'panel'
   const [collapsed, setCollapsed] = useState(readCollapsed)
   // The drawer is open only for the page it was opened on, so navigating closes it without an effect.
   const [drawerPath, setDrawerPath] = useState<string | null>(null)
@@ -99,7 +106,7 @@ export function AppShell() {
   const [detailOpen, setDetailOpen] = useState(0)
   const enter = useCallback(() => setDetailOpen((n) => n + 1), [])
   const leave = useCallback(() => setDetailOpen((n) => Math.max(n - 1, 0)), [])
-  const detailSlot = useMemo(() => ({ node: detailNode, enter, leave }), [detailNode, enter, leave])
+  const detailSlot = useMemo(() => ({ node: detailNode, enter, leave, panel }), [detailNode, enter, leave, panel])
   const drawer = drawerPath === location.pathname
   const setDrawer = (open: boolean) => setDrawerPath(open ? location.pathname : null)
   const toggleCollapsed = () => {
@@ -133,6 +140,7 @@ export function AppShell() {
           <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface"><LayoutGrid className="size-5" aria-hidden /></NavLink>
           <span className="px-2 text-[15px] font-semibold">{current?.label ?? 'DOA'}</span>
           <div className="ml-auto flex items-center gap-2">
+            <ViewMenu />
             <RecordMenu items={quick} />
             <BusinessSwitcher />
             <UserMenu modules={[...new Map(apps.flatMap((a) => a.modules).filter((m) => ACCOUNT_MODULES.includes(m.code)).map((m) => [m.code, m])).values()]} />
@@ -146,12 +154,13 @@ export function AppShell() {
             <aside className={`no-print sticky top-12 hidden h-[calc(100dvh-3rem)] shrink-0 self-start border-r border-line bg-white transition-[width] lg:block ${collapsed ? 'w-16' : 'w-60'}`}>
               <Sidebar apps={apps} collapsed={collapsed} onToggle={toggleCollapsed} />
             </aside>
-            <main className="min-w-0 flex-1 px-4 py-5 sm:px-6">
+            <main ref={mainRef} data-list-view={view.list} className="min-w-0 flex-1 px-4 py-5 sm:px-6">
               <DetailSlotContext.Provider value={detailSlot}>
-                <div className="max-w-[1400px]">
+                <div className={panel ? 'flex items-start gap-4' : 'max-w-[1400px]'}>
                   {/* Keyed by business so no view state or data leaks across a business switch. */}
-                  <div hidden={detailOpen > 0}><Outlet key={active.id} /></div>
-                  <div ref={setDetailNode} />
+                  <div hidden={detailOpen > 0 && !panel} className={panel ? 'min-w-0 flex-1' : undefined}><Outlet key={active.id} /></div>
+                  {/* Full page: the record replaces the list. Side panel: it sits beside the list and the list stays in view. */}
+                  <div ref={setDetailNode} className={panel ? (detailOpen > 0 ? 'sticky top-14 max-h-[calc(100dvh-4.5rem)] w-full max-w-[46%] shrink-0 basis-[46%] overflow-y-auto' : 'hidden') : undefined} />
                 </div>
               </DetailSlotContext.Provider>
             </main>

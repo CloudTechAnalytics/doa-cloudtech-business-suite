@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom'
 import { Dialog } from './dialog'
 
 /** The app shell provides the place a detail page is drawn: it replaces the page's content area and the page underneath stays alive (and keeps its filters and scroll data). */
-export interface DetailSlot { node: HTMLElement | null; enter: () => void; leave: () => void }
+/** `panel` means records open in a side panel beside the list (the person's choice), so the list stays on screen and nothing scrolls to the top. */
+export interface DetailSlot { node: HTMLElement | null; enter: () => void; leave: () => void; panel?: boolean }
 export const DetailSlotContext = createContext<DetailSlot | null>(null)
 
 /**
@@ -23,7 +24,7 @@ export function DetailPage({ title, onClose, children, wide = false, view = fals
   useLayoutEffect(() => {
     if (asBox) return
     slot?.enter()
-    window.scrollTo(0, 0)
+    if (!slot?.panel) window.scrollTo(0, 0)
     return () => slot?.leave()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -40,7 +41,7 @@ export function DetailPage({ title, onClose, children, wide = false, view = fals
       <button type="button" onClick={onClose} className="no-print mb-3 inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-sm font-medium text-ink/70 hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden /> Back
       </button>
-      <div className={`rounded-lg border border-line bg-white p-5 shadow-card sm:p-6 ${wide ? '' : 'max-w-3xl'}`}>
+      <div className={`rounded-lg border border-line bg-white p-5 shadow-card sm:p-6 ${wide || slot.panel ? '' : 'max-w-3xl'}`}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <h1 className="text-xl font-semibold">{shown}</h1>
           <div className="flex shrink-0 items-center gap-2">

@@ -10,6 +10,8 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { getIndustry } from '@/core/industry-registry'
 import { archiveBusiness } from '@/core/businesses/businessActions'
 import { usePlatformRole } from '@/core/platform-admin/platformUi'
+import { ViewMenu } from '@/shared/view/ViewMenu'
+import { useViewPrefs } from '@/shared/view/viewPrefs'
 import type { BusinessSummary } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, ErrorState, Spinner } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
@@ -60,6 +62,7 @@ export function BusinessesPage() {
   const { businesses, loading, error, select, refresh } = useBusiness()
   const [deleting, setDeleting] = useState<BusinessSummary | null>(null)
   const platform = usePlatformRole()
+  const view = useViewPrefs()
 
   if (loading || platform.loading) return <Spinner />
   // A platform admin with no business of their own lands in the console, not on the new-business form.
@@ -93,44 +96,46 @@ export function BusinessesPage() {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-8 sm:px-6">
         <h1 className="text-3xl font-bold text-ink sm:text-4xl">Your businesses</h1>
         <Link to="/start" className="inline-flex h-10 items-center rounded-md bg-amber px-5 text-sm font-bold text-ink hover:bg-amber-dark">Create</Link>
+        <div className="ml-auto"><ViewMenu detail={false} /></div>
       </div>
 
       {error && <div className="mx-auto max-w-5xl px-4 sm:px-6"><ErrorState title="Could not load your businesses" message={error} /></div>}
 
-      <ul className="border-y border-line bg-surface">
+      <ul className={view.list === 'grid' ? 'mx-auto grid max-w-5xl gap-4 px-4 pb-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-3' : 'border-y border-line bg-surface'}>
         {businesses.map((b) => {
           const d = getIndustry(b.industry)
-          return (
-            <li key={b.id} className="border-b border-line last:border-b-0">
-              <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-4 sm:px-6">
-                <span className="grid size-11 shrink-0 place-items-center rounded-lg text-white" style={{ background: industryColor(b.industry) }}>
-                  <d.icon className="size-5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-lg font-bold text-ink/80">{b.name}</p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-ink/60">
-                    {d.name}
-                    {b.role && <Badge>{roleLabel(b.role)}</Badge>}
-                  </p>
-                </div>
-                {b.isOwner && (
-                  <Menu
-                    label={`${b.name} options`}
-                    trigger={({ toggle }) => (
-                      <button type="button" onClick={toggle} aria-haspopup="menu" aria-label={`${b.name} options`} className="grid size-9 place-items-center rounded-md text-ink/50 hover:bg-white hover:text-ink">
-                        <Settings className="size-5" aria-hidden />
-                      </button>
-                    )}
-                    items={[{ label: 'Delete business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setDeleting(b) }]}
-                  />
-                )}
-                <button
-                  type="button" onClick={() => open(b.id)} aria-label={`Connect to ${b.name}`}
-                  className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md bg-amber px-5 text-base font-bold text-ink hover:bg-amber-dark"
-                >
-                  Connect <ChevronRight className="size-5" aria-hidden />
+          const grid = view.list === 'grid'
+          const icon = <span className={`grid shrink-0 place-items-center rounded-lg text-white ${grid ? 'size-12' : 'size-11'}`} style={{ background: industryColor(b.industry) }}><d.icon className="size-5" aria-hidden /></span>
+          const text = (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-lg font-bold text-ink/80">{b.name}</p>
+              <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-ink/60">{d.name}{b.role && <Badge>{roleLabel(b.role)}</Badge>}</p>
+            </div>
+          )
+          const options = b.isOwner && (
+            <Menu
+              label={`${b.name} options`}
+              trigger={({ toggle }) => (
+                <button type="button" onClick={toggle} aria-haspopup="menu" aria-label={`${b.name} options`} className="grid size-9 place-items-center rounded-md text-ink/50 hover:bg-white hover:text-ink">
+                  <Settings className="size-5" aria-hidden />
                 </button>
-              </div>
+              )}
+              items={[{ label: 'Delete business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setDeleting(b) }]}
+            />
+          )
+          const connect = (
+            <button type="button" onClick={() => open(b.id)} aria-label={`Connect to ${b.name}`} className={`inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-md bg-amber px-5 text-base font-bold text-ink hover:bg-amber-dark ${grid ? 'w-full' : ''}`}>
+              Connect <ChevronRight className="size-5" aria-hidden />
+            </button>
+          )
+          return grid ? (
+            <li key={b.id} className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-raised">
+              <div className="flex items-start gap-3">{icon}{text}{options}</div>
+              {connect}
+            </li>
+          ) : (
+            <li key={b.id} className="border-b border-line last:border-b-0">
+              <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-4 sm:px-6">{icon}{text}{options}{connect}</div>
             </li>
           )
         })}
