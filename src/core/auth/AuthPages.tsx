@@ -79,7 +79,9 @@ function AuthForm({ mode }: { mode: Mode }) {
     const name = String(f.get('name') ?? '').trim()
     const next: Record<string, string> = {}
     if (!/^\S+@\S+\.\S+$/.test(email)) next.email = 'Enter a valid email address.'
-    if (password.length < 8) next.password = 'Password must be at least 8 characters.'
+    if (mode === 'signup' && !isDemoMode) {
+      if (password.length < 10 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/d/.test(password)) next.password = 'Use at least 10 characters, with a lowercase letter, an uppercase letter and a number.'
+    } else if (password.length < 8) next.password = 'Password must be at least 8 characters.'
     if (mode === 'signup' && !name) next.name = 'Enter your name.'
     setErrors(next)
     setFormError(null)

@@ -30,3 +30,7 @@ Only the Supabase URL and anon key reach the browser (`VITE_*`). The service-rol
 - No private file storage or signed downloads yet (no feature uses files).
 - No rate limiting or bot protection beyond Supabase Auth defaults.
 - Pharmacy compliance (prescriptions, controlled medicines, privacy and recordkeeping) is not assessed; the module is `coming_soon`.
+
+## Database privileges (migration 0022)
+
+Hosted Supabase gives the anon and authenticated roles broad default privileges on every new object. Migration 0022 removes them: signed-out visitors have no table, column or function privileges at all, signed-in users can read only tables and views that have row-level-security policies, can write only the named columns that are granted (never ids, owners or creators), and can run only the functions that are meant to be called from the app. Internal helpers and trigger functions are not callable. The one deliberate exception to "views use the caller's rights" is `farm_worker_names` (names only, with the farm permission checked inside it).
