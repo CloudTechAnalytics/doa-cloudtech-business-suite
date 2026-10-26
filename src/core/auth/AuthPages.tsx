@@ -134,11 +134,18 @@ function AuthForm({ mode }: { mode: Mode }) {
   )
 }
 
+/** The sign-in page is always the sign-in page. Someone who is already signed in is told so, and can continue or sign in as somebody else. */
 export function SignInPage() {
-  const { userId } = useAuth()
-  if (userId) return <Navigate to="/businesses" replace />
+  const { userId, email } = useAuth()
   return (
     <AuthLayout title="Sign in">
+      {userId && (
+        <div className="mb-4 rounded-lg border border-line bg-surface p-3 text-sm">
+          <p>You are already signed in{email ? <> as <b>{email}</b></> : null}.</p>
+          <Link to="/businesses" className="mt-2 inline-flex h-9 items-center rounded-md bg-amber px-3.5 text-sm font-bold text-ink hover:bg-amber-dark">Continue to my businesses</Link>
+          <p className="mt-2 text-xs text-ink/60">Or sign in below to switch to a different account.</p>
+        </div>
+      )}
       <AuthForm mode="signin" />
       {!isDemoMode && <p className="mt-3 text-center text-sm"><Link to="/forgot-password" className="text-ink/70 underline decoration-amber decoration-2 underline-offset-4 hover:text-ink">Forgot your password?</Link></p>}
       <p className="mt-5 text-center text-sm text-ink/70">

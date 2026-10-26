@@ -4,8 +4,8 @@ import { SiteNav } from './SiteNav'
 
 /**
  * The public site's header, shared by the landing page and the "Choose your business" pages so the Apps and
- * Industries menus are always there. It is always the public pair: if a session exists, /sign-in sends the
- * visitor straight to their apps.
+ * Industries menus are always there. It is always the public pair: "Sign in" always opens the sign-in page; if a session exists, that page offers
+ * to continue to their apps.
  */
 export function SiteHeader() {
   return (
