@@ -34,13 +34,13 @@ export function SchoolStudentsPage() {
   const remarks = useAsync(() => loadRemarks(businessId).catch(() => []), [businessId])
   const [importing, setImporting] = useState(false); const [yearEnd, setYearEnd] = useState(false); const [printingIds, setPrintingIds] = useState(false); const [idNote, setIdNote] = useState<string | null>(null)
   const [adding, setAdding] = useState(false); const [moving, setMoving] = useState(false); const [openId, setOpenId] = useState<string | null>(null)
-  if (!ctx.active) return null
   const edit = can('school.students')
   const term = q.trim().toLowerCase()
   const list = (students.data ?? []).filter((x) => (!status || x.status === status) && (!cls || x.classId === cls) && (!term || fullName(x).toLowerCase().includes(term) || x.admissionNo.toLowerCase().includes(term)))
   const open = students.data?.find((x) => x.id === openId) ?? null
   const shownIds = list.slice(0, 60).map((x) => x.id)
   const pics = useAsync(() => loadPhotos(businessId, shownIds).catch(() => ({} as Record<string, string>)), [businessId, shownIds.join(',')])
+  if (!ctx.active) return null
   const exportCsv = () => downloadCsv('students', [['Admission no', 'Name', 'Class', 'Gender', 'Date of birth', 'Status', 'Admitted'], ...list.map((x) => [x.admissionNo, fullName(x), className(x.classId), x.gender ?? '', x.dob ?? '', x.status, x.admittedOn])])
 
   async function printIds() {
