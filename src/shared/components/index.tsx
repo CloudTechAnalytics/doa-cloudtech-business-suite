@@ -77,10 +77,14 @@ export function Notice({ children }: { children: ReactNode }) {
   return <div role="status" className="rounded-lg border border-amber/50 bg-amber/10 p-3 text-sm text-ink">{children}</div>
 }
 
+/** Page and panel loader: centred in the space it fills, in the colours of the current theme. */
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center justify-center gap-2 py-12 text-sm text-ink/70">
-      <Loader2 className="size-5 animate-spin" aria-hidden /> {label}…
+    <div role="status" aria-live="polite" className="grid min-h-[45vh] w-full place-items-center px-4 py-10">
+      <div className="flex flex-col items-center gap-5">
+        <div className="loader" aria-hidden><span className="loader-ring" /><span className="loader-ring loader-ring-2" /><span className="loader-core" /></div>
+        <p className="flex items-baseline text-sm font-medium tracking-wide text-ink/70">{label}<span className="loader-dots" aria-hidden><i>.</i><i>.</i><i>.</i></span></p>
+      </div>
     </div>
   )
 }
