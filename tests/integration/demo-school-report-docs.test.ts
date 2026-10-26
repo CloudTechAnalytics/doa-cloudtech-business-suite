@@ -106,3 +106,17 @@ describe('photos and documents (demo)', () => {
     expect(sc.demoPhotos(biz, [bola])).toEqual({}); expect(sc.demoDocuments(biz, bola)).toEqual([])
   })
 })
+
+describe('registering with a passport photo', () => {
+  it('returns the new student so the photo can be saved in the same step', async () => {
+    const { registerStudentWithId, setPhoto, loadPhotos } = await import('@/industries/school/services/schoolApi')
+    as('owner@demo.test')
+    const input = { first: 'Zara', middle: '', last: 'Photo', dob: '', gender: 'female', classId: p1, admittedOn: '2026-09-01', emergencyName: '', emergencyPhone: '', notes: '' }
+    const r = await registerStudentWithId(biz, input, [], 'key-zara-photo-1')
+    expect(r.error).toBeNull(); expect(r.studentId).toBeTruthy()
+    expect(await setPhoto(biz, r.studentId!, pic)).toBeNull()
+    expect(await loadPhotos(biz, [r.studentId!])).toEqual({ [r.studentId!]: pic })
+    const again = await registerStudentWithId(biz, input, [], 'key-zara-photo-1') // a retry with the same key never registers twice
+    expect(again.studentId).toBe(r.studentId)
+  })
+})

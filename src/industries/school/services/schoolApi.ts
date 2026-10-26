@@ -236,6 +236,12 @@ export async function registerStudent(b: string, v: StudentInput, guardians: Gua
   if (isDemoMode) return sc.demoRegisterStudent(b, v, guardians, key).error
   return msg((await db().rpc('school_register_student', { p_business: b, v: studentJson(v), p_guardians: guardians.map((g) => ({ name: g.name, phone: g.phone, email: g.email, relationship: g.relationship, primary: g.primary })), p_key: key })).error)
 }
+/** Registers a student and returns their id, so the caller can attach a photo straight away. */
+export async function registerStudentWithId(b: string, v: StudentInput, guardians: GuardianInput[], key: string): Promise<{ error: string | null; studentId: string | null }> {
+  if (isDemoMode) { const r = sc.demoRegisterStudent(b, v, guardians, key); return { error: r.error, studentId: r.result?.studentId ?? null } }
+  const { data, error } = await db().rpc('school_register_student', { p_business: b, v: studentJson(v), p_guardians: guardians.map((g) => ({ name: g.name, phone: g.phone, email: g.email, relationship: g.relationship, primary: g.primary })), p_key: key })
+  return { error: msg(error), studentId: error ? null : ((data as { student_id?: string } | null)?.student_id ?? null) }
+}
 export async function updateStudent(b: string, id: string, v: StudentInput) {
   if (isDemoMode) return sc.demoUpdateStudent(b, id, v)
   return msg((await db().rpc('school_update_student', { p_student: id, v: studentJson(v) })).error)

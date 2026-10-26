@@ -12,11 +12,12 @@ import { ConfirmDelete } from '../components/ConfirmDelete'
 import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
 import { EndOfYearDialog, ImportStudentsDialog } from '../components/StudentBulkDialogs'
 import { StudentDocumentsTab, idCardData } from '../components/StudentDocumentsTab'
+import { Avatar, PassportPicker } from '../components/Passport'
 import { printAnnualCards, printIdCards } from '../components/StudentSheets'
 import { NoSetup, downloadCsv, fullName, useSchool } from '../components/schoolUi'
 import { SchoolAdmissionsPage } from './SchoolAdmissionsPage'
 import type { SchoolCtx } from '../components/schoolUi'
-import { annualCard, deleteStudent, loadPhotos, loadRemarks, loadAdmissions, loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, registerStudent, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
+import { annualCard, deleteStudent, loadPhotos, registerStudentWithId, setPhoto, loadRemarks, loadAdmissions, loadAttendance, loadBills, loadEnrollments, loadGuardians, loadStudents, promote, reportCard, setStudentStatus, updateStudent } from '../services/schoolApi'
 import type { GuardianInput, SStudent, StudentInput, StudentStatus } from '../services/schoolApi'
 
 const TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = { active: 'success', transferred: 'warning', withdrawn: 'danger', graduated: 'neutral' }
@@ -31,18 +32,20 @@ export function SchoolStudentsPage() {
   const apps = useAsync(() => loadAdmissions(businessId).catch(() => []), [businessId])
   const [tab, setTab] = useState<'students' | 'applications'>('students')
   const remarks = useAsync(() => loadRemarks(businessId).catch(() => []), [businessId])
-  const [importing, setImporting] = useState(false); const [yearEnd, setYearEnd] = useState(false); const [printingIds, setPrintingIds] = useState(false)
+  const [importing, setImporting] = useState(false); const [yearEnd, setYearEnd] = useState(false); const [printingIds, setPrintingIds] = useState(false); const [idNote, setIdNote] = useState<string | null>(null)
   const [adding, setAdding] = useState(false); const [moving, setMoving] = useState(false); const [openId, setOpenId] = useState<string | null>(null)
   if (!ctx.active) return null
   const edit = can('school.students')
   const term = q.trim().toLowerCase()
   const list = (students.data ?? []).filter((x) => (!status || x.status === status) && (!cls || x.classId === cls) && (!term || fullName(x).toLowerCase().includes(term) || x.admissionNo.toLowerCase().includes(term)))
   const open = students.data?.find((x) => x.id === openId) ?? null
+  const shownIds = list.slice(0, 60).map((x) => x.id)
+  const pics = useAsync(() => loadPhotos(businessId, shownIds).catch(() => ({} as Record<string, string>)), [businessId, shownIds.join(',')])
   const exportCsv = () => downloadCsv('students', [['Admission no', 'Name', 'Class', 'Gender', 'Date of birth', 'Status', 'Admitted'], ...list.map((x) => [x.admissionNo, fullName(x), className(x.classId), x.gender ?? '', x.dob ?? '', x.status, x.admittedOn])])
 
   async function printIds() {
     setPrintingIds(true)
-    try { const shown = list.slice(0, 200); const photos = await loadPhotos(businessId, shown.map((x) => x.id)); printIdCards(shown.map((x) => idCardData(ctx, x, photos[x.id] ?? null))) } finally { setPrintingIds(false) }
+    try { const shown = list.slice(0, 200); const photos = await loadPhotos(businessId, shown.map((x) => x.id)); const none = shown.filter((x) => !photos[x.id]).length; setIdNote(none ? `${none} of ${shown.length} student${shown.length === 1 ? ' has' : 's have'} no passport photo yet; their cards print a blank photo box. Add photos under each student's Documents tab.` : null); printIdCards(shown.map((x) => idCardData(ctx, x, photos[x.id] ?? null))) } finally { setPrintingIds(false) }
   }
   const pending = (apps.data ?? []).filter((a) => a.status === 'pending').length
   const showApps = can('school.students') || can('school.read')
@@ -72,6 +75,7 @@ export function SchoolStudentsPage() {
         </div>} />
       {tabs}
       {students.error && <ErrorState message={students.error} />}
+      {idNote && <div className="mb-3"><Notice>{idNote}</Notice></div>}
       {s && !s.classes.length && <NoSetup />}
       <div className="my-3 flex flex-wrap items-end gap-3">
         <div className="w-64"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or admission number" /></div>
@@ -85,7 +89,7 @@ export function SchoolStudentsPage() {
             <tbody className="divide-y divide-ink/10">
               {list.map((x) => (
                 <tr key={x.id} onClick={() => setOpenId(x.id)} className="cursor-pointer hover:bg-surface">
-                  <td className="p-3 font-medium">{fullName(x)}<div className="text-xs font-normal text-ink/60">{[x.gender && label(x.gender), x.dob].filter(Boolean).join(' · ')}</div></td>
+                  <td className="p-3 font-medium"><span className="flex items-center gap-3"><Avatar name={fullName(x)} photo={pics.data?.[x.id]} /><span>{fullName(x)}<span className="block text-xs font-normal text-ink/60">{[x.gender && label(x.gender), x.dob].filter(Boolean).join(' · ')}</span></span></span></td>
                   <td className="p-3">{x.admissionNo}</td><td className="p-3">{className(x.classId)}</td><td className="p-3"><Badge tone={TONE[x.status]}>{label(x.status)}</Badge></td><td className="p-3">{x.admittedOn}</td>
                 </tr>
               ))}
@@ -118,7 +122,7 @@ const readStudent = (f: FormData, classId: string | null, admittedOn = ''): Stud
 
 function RegisterDialog({ ctx, onClose, onSaved }: { ctx: SchoolCtx; onClose: () => void; onSaved: () => Promise<void> }) {
   const runner = useFormRunner(onSaved)
-  const [problem, setProblem] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null); const [photo, setPhotoData] = useState<string | null>(null)
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget); const g = (k: string) => String(f.get(k) ?? '').trim()
@@ -126,12 +130,18 @@ function RegisterDialog({ ctx, onClose, onSaved }: { ctx: SchoolCtx; onClose: ()
     if (!g('class')) return setProblem('Choose the class.')
     const guardian: GuardianInput = { name: g('gName'), phone: g('gPhone'), email: g('gEmail'), relationship: g('gRel') || 'parent', primary: true }
     setProblem(null)
-    await runner.run((k) => registerStudent(ctx.businessId, readStudent(f, g('class')), guardian.name ? [guardian] : [], k), 'Registered.')
+    await runner.run(async (k) => {
+      const r = await registerStudentWithId(ctx.businessId, readStudent(f, g('class')), guardian.name ? [guardian] : [], k)
+      if (r.error) return r.error
+      if (photo && r.studentId) { const pe = await setPhoto(ctx.businessId, r.studentId, photo); if (pe) return `The student is registered, but the photo was not saved (${pe}). Press Register again to retry, or add the photo later under Documents.` }
+      return null
+    }, 'Registered.')
   }
   return (
     <Dialog title="Register a student" onClose={onClose} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <StudentFields classes={ctx.classes} withClass />
+        <PassportPicker value={photo} onChange={setPhotoData} />
         <div><p className="mb-1 text-sm font-semibold">Parent or guardian</p>
           <div className="grid gap-3 sm:grid-cols-4"><TextField label="Name" name="gName" /><TextField label="Phone" name="gPhone" /><TextField label="Email (for the parent portal)" name="gEmail" type="email" /><TextField label="Relationship" name="gRel" placeholder="mother, father, guardian" /></div>
         </div>
@@ -190,7 +200,7 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
 
   return (
     <DetailPage title={`${fullName(st)}`} onClose={onClose} wide actions={<div className="flex gap-2"><Button variant="secondary" onClick={() => window.print()} className="no-print"><Printer className="size-4" aria-hidden /> Print</Button>{ctx.can('school.delete') && <ConfirmDelete label={fullName(st)} noun="student" warning="Their attendance, results, remarks and class history are erased with them. A student who has fee payments on record cannot be deleted, because records of money are never erased; mark them as withdrawn instead." withReason onConfirm={(reason) => deleteStudent(businessId, st.id, reason)} onDeleted={async () => { onClose(); await onChanged() }} />}</div>}>
-      <p className="mb-3 text-sm text-ink/70">{st.admissionNo} · {className(st.classId)} · <Badge tone={TONE[st.status]}>{label(st.status)}</Badge>{st.statusReason ? ` · ${st.statusReason}` : ''}</p>
+      <div className="mb-3 flex items-center gap-3"><Avatar name={fullName(st)} photo={photo.data} size="lg" /><p className="text-sm text-ink/70">{st.admissionNo} · {className(st.classId)} · <Badge tone={TONE[st.status]}>{label(st.status)}</Badge>{st.statusReason ? ` · ${st.statusReason}` : ''}</p></div>
       <div role="tablist" aria-label="Student sections" className="no-print mb-4 flex flex-wrap gap-1 border-b border-ink/10">
         {tabs.map(([id, t]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === id ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>)}
       </div>
