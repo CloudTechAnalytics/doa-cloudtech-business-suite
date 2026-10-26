@@ -9,7 +9,7 @@ import { Button, ErrorState, Notice } from '@/shared/components'
 import { BrandLockup } from '@/app/layouts/Brand'
 import { useAuth } from '@/core/auth/AuthProvider'
 
-function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
+export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col items-center bg-white px-4 pb-10 pt-16 sm:pt-24">
       <div className="w-full max-w-[350px] rounded-xl border border-line border-t-4 border-t-amber bg-white px-6 pb-7 pt-6 shadow-raised">
@@ -34,7 +34,7 @@ function AuthLayout({ title, children }: { title: string; children: ReactNode })
   )
 }
 
-function Field({ label, name, type = 'text', autoComplete, error, placeholder, hint }: {
+export function Field({ label, name, type = 'text', autoComplete, error, placeholder, hint }: {
   label: string; name: string; type?: string; autoComplete?: string; error?: string; placeholder: string; hint?: string
 }) {
   const [shown, setShown] = useState(false)
@@ -64,6 +64,9 @@ function Field({ label, name, type = 'text', autoComplete, error, placeholder, h
 
 type Mode = 'signin' | 'signup'
 
+/** The same rules the database enforces on new passwords (Supabase Authentication settings). */
+export const passwordProblem = (p: string) => (p.length < 10 || !/[a-z]/.test(p) || !/[A-Z]/.test(p) || !/\d/.test(p) ? 'Use at least 10 characters, with a lowercase letter, an uppercase letter and a number.' : null)
+
 function AuthForm({ mode }: { mode: Mode }) {
   const navigate = useNavigate()
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -80,7 +83,8 @@ function AuthForm({ mode }: { mode: Mode }) {
     const next: Record<string, string> = {}
     if (!/^\S+@\S+\.\S+$/.test(email)) next.email = 'Enter a valid email address.'
     if (mode === 'signup' && !isDemoMode) {
-      if (password.length < 10 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/d/.test(password)) next.password = 'Use at least 10 characters, with a lowercase letter, an uppercase letter and a number.'
+      const problem = passwordProblem(password)
+      if (problem) next.password = problem
     } else if (password.length < 8) next.password = 'Password must be at least 8 characters.'
     if (mode === 'signup' && !name) next.name = 'Enter your name.'
     setErrors(next)
@@ -115,7 +119,7 @@ function AuthForm({ mode }: { mode: Mode }) {
       <Field
         label="Password" name="password" type="password" error={errors.password} placeholder="Enter your password"
         autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-        hint={mode === 'signup' ? 'At least 8 characters.' : undefined}
+        hint={mode === 'signup' ? (isDemoMode ? 'At least 8 characters.' : 'At least 10 characters, with a lowercase letter, an uppercase letter and a number.') : undefined}
       />
       {formError && <ErrorState title="Could not continue" message={formError} />}
       {info && <Notice>{info}</Notice>}
@@ -132,6 +136,7 @@ export function SignInPage() {
   return (
     <AuthLayout title="Sign in">
       <AuthForm mode="signin" />
+      {!isDemoMode && <p className="mt-3 text-center text-sm"><Link to="/forgot-password" className="text-ink/70 underline decoration-amber decoration-2 underline-offset-4 hover:text-ink">Forgot your password?</Link></p>}
       <p className="mt-5 text-center text-sm text-ink/70">
         New here? <Link to="/sign-up" className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Create an account</Link>
       </p>
