@@ -1,11 +1,11 @@
 import * as sc from '@/demo/demoSchool'
-import type { ApplicationInput, AttendanceStatus, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
+import type { ApplicationInput, AttendanceStatus, SPeriod, SSlot, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 
 /** School data access. Live mode reads row-level-secured tables and calls database functions; demo mode runs the browser mirror.
  *  Mutations return an error message or null. */
-export type { ApplicationInput, AttendanceStatus, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus }
+export type { SPeriod, SSlot, ApplicationInput, AttendanceStatus, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus }
 export { PAY_METHODS, STAGES, stageOk } from '@/demo/demoSchool'
 
 const n = (v: unknown) => Number(v ?? 0)
@@ -278,4 +278,24 @@ export async function reversePayment(b: string, paymentId: string, reason: strin
 export async function publishAnnouncement(b: string, v: Parameters<typeof sc.demoPublishAnnouncement>[1]) {
   if (isDemoMode) return sc.demoPublishAnnouncement(b, v)
   return msg((await db().rpc('school_publish_announcement', { p_business: b, p_title: v.title, p_body: v.body, p_audience: v.audience, p_class: v.classId, p_date: v.publishOn })).error)
+}
+
+// ------------------------------------------------------------------ timetable
+export async function loadTimetable(b: string): Promise<{ periods: SPeriod[]; slots: SSlot[] }> {
+  await ready(b)
+  if (isDemoMode) return sc.demoTimetable(b)
+  const [p, t] = await Promise.all([db().from('school_periods').select('*').eq('business_id', b).order('position'), db().from('school_timetable').select('*').eq('business_id', b)])
+  const time = (v: unknown) => String(v).slice(0, 5)
+  return {
+    periods: must<Row[]>(p).map((r) => ({ id: String(r.id), businessId: b, label: String(r.label), startsAt: time(r.starts_at), endsAt: time(r.ends_at), isBreak: !!r.is_break, position: n(r.position) })),
+    slots: must<Row[]>(t).map((r) => ({ id: String(r.id), businessId: b, classId: String(r.class_id), day: n(r.day), periodId: String(r.period_id), subjectId: String(r.subject_id), staffId: r.staff_id as string | null, room: r.room as string | null })),
+  }
+}
+export async function savePeriods(b: string, list: { id?: string | null; label: string; starts: string; ends: string; isBreak: boolean }[]) {
+  if (isDemoMode) return sc.demoSavePeriods(b, list)
+  return msg((await db().rpc('school_save_periods', { p_business: b, p_periods: list.map((p) => ({ id: p.id ?? null, label: p.label, starts: p.starts, ends: p.ends, is_break: p.isBreak })) })).error)
+}
+export async function setSlot(b: string, classId: string, day: number, periodId: string, subjectId: string | null, staffId: string | null, room: string) {
+  if (isDemoMode) return sc.demoSetSlot(b, classId, day, periodId, subjectId, staffId, room)
+  return msg((await db().rpc('school_set_slot', { p_business: b, p_class: classId, p_day: day, p_period: periodId, p_subject: subjectId, p_staff: staffId, p_room: room })).error)
 }

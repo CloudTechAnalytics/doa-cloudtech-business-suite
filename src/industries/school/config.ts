@@ -14,7 +14,7 @@ export const schoolConfig = {
   requiredSharedModules: [] as SharedModuleCode[],
   optionalSharedModules: ['expenses'] as SharedModuleCode[],
   defaultModules: [
-    'school-my-classes', 'school-students', 'school-admissions', 'school-guardians', 'school-classes', 'school-staff', 'school-attendance', 'school-results',
+    'school-my-classes', 'school-timetable', 'school-students', 'school-admissions', 'school-guardians', 'school-classes', 'school-staff', 'school-attendance', 'school-results',
     'school-fees', 'school-payments', 'school-announcements', 'school-reports', 'school-settings', 'school-portal', 'expenses',
   ] as ModuleCode[],
   optionalModules: [] as ModuleCode[],

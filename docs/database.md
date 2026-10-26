@@ -32,6 +32,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0028_avatars` | public storage bucket `avatars` (small JPEG, PNG or WebP only, 512 KB) with policies so a person can add, replace or remove pictures only inside a folder named after their own user id; `profiles.avatar_path` remembers the file. Does nothing where the storage schema does not exist (the test database) |
 | `…0029_profile_title` | `profiles.job_title` (up to 60 characters, set only by the person themselves): what they are called at work (Principal, Director...), shown at the top of the app in place of the role. No effect on permissions |
 | `…0030_school_teacher_parent` | module `school-my-classes` (My Classes, permission `school.teach`) for schools, switched on for existing schools too; `school_update_my_contact`: a parent changes only the contact record tied to their own login |
+| `…0031_school_timetable` | module `school-timetable`; `school_periods` and `school_timetable` (readable by school staff, a teacher for their own classes and lessons, a parent for their child's class); `school_save_periods` and `school_set_slot` (school managers only) refuse breaks, non-school days, subjects the class does not take, teachers not assigned to that subject and class, and a teacher in two places at once |
 
 ## Tables named in the architecture brief
 

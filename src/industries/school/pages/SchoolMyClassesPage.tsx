@@ -7,8 +7,9 @@ import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, S
 import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { label } from '@/shared/utilities/format'
-import { NoSetup, fullName, today, useSchool } from '../components/schoolUi'
-import { loadAttendance, loadGuardians, loadScores, loadStaff, loadStudents } from '../services/schoolApi'
+import { NoSetup, WEEKDAYS, fullName, today, useSchool } from '../components/schoolUi'
+import { TimetableGrid } from '../components/TimetableGrid'
+import { loadAttendance, loadGuardians, loadScores, loadStaff, loadStudents, loadTimetable } from '../services/schoolApi'
 import type { SAttendance, SScore, SStudent } from '../services/schoolApi'
 
 const MARK_TONE = { present: 'success', absent: 'danger', late: 'warning', excused: 'neutral' } as const
@@ -23,6 +24,7 @@ export function SchoolMyClassesPage() {
   const students = useAsync(() => loadStudents(businessId), [businessId])
   const attendance = useAsync(() => loadAttendance(businessId), [businessId])
   const scores = useAsync(() => loadScores(businessId), [businessId])
+  const week = useAsync(() => loadTimetable(businessId).catch(() => ({ periods: [], slots: [] })), [businessId])
   const [openId, setOpenId] = useState<string | null>(null)
   const [termId, setTermId] = useState('')
   if (!active) return null
@@ -53,6 +55,12 @@ export function SchoolMyClassesPage() {
       ) : (
         <>
           <div className="mb-3 max-w-xs"><SelectField label="Term" value={term} onChange={(e) => setTermId(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div>
+          {me && week.data && week.data.periods.length > 0 && week.data.slots.some((x) => x.staffId === me.id) && (
+            <Card className="mb-4 p-0">
+              <h2 className="border-b border-line p-3 font-semibold">My week</h2>
+              <TimetableGrid periods={week.data.periods} days={WEEKDAYS.filter(([n]) => (s?.settings?.workingDays ?? [1, 2, 3, 4, 5]).includes(n))} cell={(day, p) => { const x = week.data!.slots.find((y) => y.day === day && y.periodId === p.id && y.staffId === me.id); return x ? <div className="rounded-md bg-accent-soft px-2 py-1.5"><b className="block">{className(x.classId)}</b><span className="text-xs text-ink/70">{subjectName(x.subjectId)}</span></div> : <span className="text-ink/30">Free</span> }} />
+            </Card>
+          )}
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {classIds.map((id) => {
               const i = infoFor(id); const taken = i.todays.length

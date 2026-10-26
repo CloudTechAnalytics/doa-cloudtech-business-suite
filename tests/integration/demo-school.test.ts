@@ -164,4 +164,31 @@ describe('demo school follows the database rules', () => {
     as('teacher@demo.test'); sc.demoClaimLinks(B)
     expect(sc.demoUpdateMyContact(B, '1', '1')).toMatch(/permission denied/)
   })
+
+  it('has a timetable that managers set, teachers and parents only read, and that never double-books a teacher', () => {
+    as('owner@demo.test')
+    const first = sc.demoTimetable(B)
+    expect(first.periods.length).toBeGreaterThan(3); expect(first.slots.length).toBeGreaterThan(10)
+    const { classes } = sc.demoStructure(B)
+    const p1 = classes.find((c) => c.name === 'Primary 1')!; const p2 = classes.find((c) => c.name === 'Primary 2')!
+    // An earlier test narrowed the school to secondary and back; widening does not reopen the classes by itself.
+    for (const c of [p1, p2]) expect(sc.demoSaveClass(B, { id: c.id, name: c.name, levelOrder: c.levelOrder, arm: '', active: true, stage: c.stage })).toBeNull()
+    const lesson = first.periods.find((p) => !p.isBreak)!; const brk = first.periods.find((p) => p.isBreak)!
+    const eng = sc.demoStructure(B).subjects.find((x) => x.name === 'English Language')!
+    const teacher = sc.demoAssignments(B).find((a) => a.classId === p1.id && a.subjectId === eng.id)!.staffId
+    expect(sc.demoSetSlot(B, p1.id, 1, brk.id, eng.id, null, '')).toMatch(/break cannot have a lesson/)
+    expect(sc.demoSetSlot(B, p1.id, 6, lesson.id, eng.id, null, '')).toMatch(/not a school day/)
+    expect(sc.demoSetSlot(B, p2.id, 1, lesson.id, eng.id, teacher, '')).toMatch(/not assigned/) // the teacher does not teach Primary 2
+    const physics = sc.demoStructure(B).subjects.find((x) => x.name === 'Physics')!
+    expect(sc.demoSetSlot(B, p1.id, 1, lesson.id, physics.id, null, '')).toMatch(/does not take that subject/)
+    expect(sc.demoSavePeriods(B, [{ label: 'A', starts: '09:00', ends: '08:00', isBreak: false }])).toMatch(/end after it starts/)
+    expect(sc.demoSavePeriods(B, [{ id: first.periods[0].id, label: 'Only one', starts: '08:00', ends: '08:40', isBreak: false }])).toMatch(/clear them before removing/)
+    as('teacher@demo.test'); sc.demoClaimLinks(B)
+    expect(sc.demoSetSlot(B, p1.id, 1, lesson.id, eng.id, teacher, '')).toMatch(/permission denied/)
+    const mine = sc.demoTimetable(B)
+    expect(mine.slots.length).toBeGreaterThan(0); expect(mine.slots.every((x) => x.classId === p1.id)).toBe(true)
+    as('parent@demo.test'); sc.demoClaimLinks(B)
+    const theirs = sc.demoTimetable(B)
+    expect(theirs.slots.length).toBeGreaterThan(0); expect(theirs.slots.every((x) => ['Primary 1', 'Primary 2'].includes(classes.find((c) => c.id === x.classId)!.name))).toBe(true)
+  })
 })

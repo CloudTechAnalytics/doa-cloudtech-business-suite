@@ -7,13 +7,14 @@ import { useAuth } from '@/core/auth/AuthProvider'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
-import { Stat, fullName, useSchool } from '../components/schoolUi'
-import { claimLinks, loadAnnouncements, loadAttendance, loadBills, loadGuardians, loadPayments, loadStudents, reportCard, updateMyContact } from '../services/schoolApi'
+import { Stat, WEEKDAYS, fullName, useSchool } from '../components/schoolUi'
+import { TimetableGrid } from '../components/TimetableGrid'
+import { claimLinks, loadAnnouncements, loadAttendance, loadBills, loadGuardians, loadPayments, loadStudents, loadTimetable, reportCard, updateMyContact } from '../services/schoolApi'
 import type { SAttendance, SStudent } from '../services/schoolApi'
 import { ReportCardView } from './SchoolResultsPage'
 
-type Tab = 'overview' | 'attendance' | 'results' | 'fees' | 'notices' | 'details'
-const TABS: [Tab, string][] = [['overview', 'Overview'], ['attendance', 'Attendance'], ['results', 'Results'], ['fees', 'Fees'], ['notices', 'Notices'], ['details', 'My details']]
+type Tab = 'overview' | 'attendance' | 'timetable' | 'results' | 'fees' | 'notices' | 'details'
+const TABS: [Tab, string][] = [['overview', 'Overview'], ['attendance', 'Attendance'], ['timetable', 'Timetable'], ['results', 'Results'], ['fees', 'Fees'], ['notices', 'Notices'], ['details', 'My details']]
 const MARK = { present: 'bg-success text-white', late: 'bg-amber-dark text-ink', absent: 'bg-danger text-white', excused: 'bg-info text-white' } as const
 const rateOf = (rows: SAttendance[]) => (rows.length ? Math.round((rows.filter((a) => a.status === 'present' || a.status === 'late').length * 1000) / rows.length) / 10 : null)
 
@@ -29,6 +30,7 @@ export function SchoolPortalPage() {
   const pays = useAsync(() => (claimed ? loadPayments(businessId).catch(() => []) : Promise.resolve([])), [businessId, claimed])
   const notes = useAsync(() => (claimed ? loadAnnouncements(businessId).catch(() => []) : Promise.resolve([])), [businessId, claimed])
   const people = useAsync(() => (claimed ? loadGuardians(businessId).catch(() => ({ guardians: [], links: [] })) : Promise.resolve({ guardians: [], links: [] })), [businessId, claimed])
+  const week = useAsync(() => (claimed ? loadTimetable(businessId).catch(() => ({ periods: [], slots: [] })) : Promise.resolve({ periods: [], slots: [] })), [businessId, claimed])
   const [tab, setTab] = useState<Tab>('overview'); const [kid, setKid] = useState(''); const [termId, setTermId] = useState('')
   if (!active) return null
   if (!claimed || kids.loading) return <Spinner />
@@ -68,6 +70,9 @@ export function SchoolPortalPage() {
         </div>
       )}
       {tab === 'attendance' && <AttendanceTab ctx={ctx} rows={mine} />}
+      {tab === 'timetable' && (week.data?.periods.length && week.data.slots.some((x) => x.classId === child.classId)
+        ? <Card className="p-0"><h2 className="border-b border-line p-3 font-semibold">{className(child.classId)} timetable</h2><TimetableGrid periods={week.data.periods} days={WEEKDAYS.filter(([n]) => (s?.settings?.workingDays ?? [1, 2, 3, 4, 5]).includes(n))} cell={(day, p) => { const x = week.data!.slots.find((y) => y.classId === child.classId && y.day === day && y.periodId === p.id); return x ? <div className="rounded-md bg-accent-soft px-2 py-1.5"><b className="block">{ctx.subjectName(x.subjectId)}</b></div> : <span className="text-ink/30">–</span> }} /></Card>
+        : <Card><EmptyState title="No timetable yet" description="The school has not published a timetable for this class." /></Card>)}
       {tab === 'results' && <ResultsTab ctx={ctx} child={child} term={term} />}
       {tab === 'fees' && (
         <div className="space-y-3">

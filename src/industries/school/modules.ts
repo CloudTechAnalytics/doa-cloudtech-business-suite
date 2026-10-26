@@ -1,4 +1,4 @@
-import { Banknote, BarChart3, BookOpen, CalendarCheck, ClipboardList, GraduationCap, HeartHandshake, LayoutList, Megaphone, Receipt, Settings2, UserCog, Users } from 'lucide-react'
+import { Banknote, BarChart3, BookOpen, CalendarCheck, CalendarDays, ClipboardList, GraduationCap, HeartHandshake, LayoutList, Megaphone, Receipt, Settings2, UserCog, Users } from 'lucide-react'
 import type { ModuleDefinition } from '@/shared/types/domain'
 
 const base = { navGroup: 'School', owner: 'school' as const }
@@ -11,6 +11,7 @@ export const schoolModules: ModuleDefinition[] = [
   { ...base, code: 'school-guardians', name: 'Parents & Guardians', description: 'Parents and guardians linked to students.', path: 'school/guardians', permission: 'school.read', icon: HeartHandshake },
   { ...base, code: 'school-classes', name: 'Classes & Subjects', description: 'Sessions, terms, classes and subjects.', path: 'school/classes', permission: 'school.read', icon: BookOpen },
   { ...base, code: 'school-staff', name: 'Teachers & Staff', description: 'Staff directory and class and subject assignments.', path: 'school/staff', permission: 'school.manage', icon: UserCog },
+  { ...base, code: 'school-timetable', name: 'Timetable', description: 'The periods of the school day and the weekly timetable of every class.', path: 'school/timetable', permission: 'school.manage', icon: CalendarDays },
   { ...base, code: 'school-attendance', name: 'Attendance', description: 'Daily attendance by class.', path: 'school/attendance', permission: 'school.attendance', icon: CalendarCheck },
   { ...base, code: 'school-results', name: 'Results & Report Cards', description: 'Score entry, approval, publishing and report cards.', path: 'school/results', permission: 'school.results.enter', icon: ClipboardList },
   { ...base, code: 'school-fees', name: 'School Fees', description: 'Fee items and student fee bills.', path: 'school/fees', permission: 'school.fees.read', icon: Banknote },

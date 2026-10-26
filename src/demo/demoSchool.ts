@@ -39,7 +39,11 @@ export interface SPayment { id: string; businessId: string; receipt: string; bil
 export interface SAnnouncement { id: string; businessId: string; title: string; body: string; audience: 'everyone' | 'parents' | 'teachers' | 'staff' | 'class'; classId: string | null; publishOn: string; createdAt: string }
 export interface SHoliday { businessId: string; on: string; name: string }
 
+export interface SPeriod { id: string; businessId: string; label: string; startsAt: string; endsAt: string; isBreak: boolean; position: number }
+export interface SSlot { id: string; businessId: string; classId: string; day: number; periodId: string; subjectId: string; staffId: string | null; room: string | null }
+
 interface School {
+  periods: SPeriod[]; timetable: SSlot[]; ttSeeded: string[]
   settings: Record<string, SSettings>; bands: Record<string, SBand[]>; sessions: SSession[]; terms: STerm[]; classes: SClass[]; subjects: SSubject[]; classSubjects: { classId: string; subjectId: string }[]
   students: SStudent[]; enrollments: SEnrollment[]; guardians: SGuardian[]; links: SLink[]; admissions: SAdmission[]; staff: SStaff[]; assignments: SAssignment[]; holidays: SHoliday[]
   attendance: SAttendance[]; scores: SScore[]; remarks: SRemark[]; feeItems: SFeeItem[]; bills: SBill[]; payments: SPayment[]; announcements: SAnnouncement[]
@@ -47,7 +51,7 @@ interface School {
 }
 
 const KEY = 'doa.demo.school.v1'
-const empty = (): School => ({ settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
+const empty = (): School => ({ periods: [], timetable: [], ttSeeded: [], settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
 function load(): School {
   try {
     const raw = localStorage.getItem(KEY)
@@ -696,4 +700,81 @@ export function ensureDemoSchool(biz: string) {
   s.announcements.push({ id: newId('ann'), businessId: biz, title: 'Welcome back', body: 'The new term has started. Fees are due within two weeks.', audience: 'parents', classId: null, publishOn: addDays(today(), -3), createdAt: new Date().toISOString() },
     { id: newId('ann'), businessId: biz, title: 'Staff meeting', body: 'Friday at 2pm in the staff room.', audience: 'teachers', classId: null, publishOn: addDays(today(), -1), createdAt: new Date().toISOString() })
   commit(s)
+}
+
+// ------------------------------------------------------------------- timetable
+/** The first time a demo school's timetable is looked at it gets a normal school day and a week of lessons for Primary 1, so there is something to see. */
+function seedTimetable(biz: string) {
+  if (state.ttSeeded.includes(biz) || !state.classes.some((c) => c.businessId === biz)) return
+  const s: School = JSON.parse(JSON.stringify(state)) as School
+  s.ttSeeded.push(biz)
+  const times: [string, string, string, boolean][] = [['Period 1', '08:00', '08:40', false], ['Period 2', '08:40', '09:20', false], ['Period 3', '09:20', '10:00', false], ['Break', '10:00', '10:20', true], ['Period 4', '10:20', '11:00', false], ['Period 5', '11:00', '11:40', false], ['Period 6', '11:40', '12:20', false]]
+  times.forEach(([label, startsAt, endsAt, isBreak], i) => s.periods.push({ id: newId('per'), businessId: biz, label, startsAt, endsAt, isBreak, position: i + 1 }))
+  const p1 = s.classes.find((c) => c.businessId === biz && c.name === 'Primary 1')
+  if (p1) {
+    const taken = s.classSubjects.filter((x) => x.classId === p1.id).map((x) => x.subjectId)
+    const named = (n: string) => s.subjects.find((x) => x.businessId === biz && x.name === n)?.id
+    const eng = named('English Language'); const mth = named('Mathematics')
+    const others = taken.filter((id) => id !== eng && id !== mth)
+    const teach = (sub: string | undefined) => s.assignments.find((a) => a.businessId === biz && a.classId === p1.id && a.subjectId === sub)?.staffId ?? null
+    const lessons = s.periods.filter((p) => !p.isBreak)
+    for (let day = 1; day <= 5; day++) lessons.forEach((p, i) => {
+      const subject = i === 0 ? (day % 2 ? eng : mth) : i === 1 ? (day % 2 ? mth : eng) : others[(day + i) % Math.max(others.length, 1)]
+      if (subject) s.timetable.push({ id: newId('slt'), businessId: biz, classId: p1.id, day, periodId: p.id, subjectId: subject, staffId: teach(subject), room: null })
+    })
+  }
+  commit(s)
+}
+
+/** What the signed-in person may see: managers everything, a teacher their own lessons and classes, a parent their child's class. */
+export function demoTimetable(biz: string): { periods: SPeriod[]; slots: SSlot[] } {
+  ensureDemoSchool(biz); seedTimetable(biz)
+  if (!getDemoState().members.some((m) => m.businessId === biz && m.userId === me() && m.status === 'active')) throw new Error('permission denied')
+  const mineStaff = staffOf(state, biz)
+  const visible = (x: SSlot) => can(biz, 'school.read') || teachesClass(state, biz, x.classId) || (!!mineStaff && x.staffId === mineStaff.id)
+    || state.students.some((st) => st.businessId === biz && st.classId === x.classId && isGuardianOf(state, biz, st.id))
+  return { periods: state.periods.filter((p) => p.businessId === biz).sort((a, b) => a.position - b.position), slots: state.timetable.filter((x) => x.businessId === biz && visible(x)) }
+}
+
+export function demoSavePeriods(biz: string, list: { id?: string | null; label: string; starts: string; ends: string; isBreak: boolean }[]): string | null {
+  return run(biz, 'school_periods', null, (s) => {
+    guard(biz, 'school-timetable', 'school.manage')
+    if (list.length < 1 || list.length > 30) throw new Error('add between 1 and 30 periods')
+    let prev = ''
+    for (const p of list) {
+      if (!trim(p.label)) throw new Error('every period needs a name')
+      if (!p.starts || !p.ends || p.ends <= p.starts) throw new Error(`period "${p.label}" must end after it starts`)
+      if (prev && p.starts < prev) throw new Error(`period "${p.label}" starts before the one above it ends`)
+      prev = p.ends
+    }
+    const keep = new Set<string>()
+    const next: SPeriod[] = list.map((p, i) => {
+      const ex = p.id ? s.periods.find((x) => x.id === p.id && x.businessId === biz) : undefined
+      if (ex && p.isBreak && s.timetable.some((t) => t.periodId === ex.id)) throw new Error(`period "${p.label}" has lessons in the timetable, so it cannot become a break`)
+      const id = ex?.id ?? newId('per'); keep.add(id)
+      return { id, businessId: biz, label: trim(p.label), startsAt: p.starts, endsAt: p.ends, isBreak: p.isBreak, position: i + 1 }
+    })
+    for (const old of s.periods.filter((x) => x.businessId === biz && !keep.has(x.id))) if (s.timetable.some((t) => t.periodId === old.id)) throw new Error(`period "${old.label}" has lessons in the timetable; clear them before removing it`)
+    s.periods = s.periods.filter((x) => x.businessId !== biz).concat(next)
+    return null
+  }).error
+}
+
+export function demoSetSlot(biz: string, classId: string, day: number, periodId: string, subjectId: string | null, staffId: string | null, room: string): string | null {
+  return run(biz, 'school_slot', null, (s) => {
+    guard(biz, 'school-timetable', 'school.manage')
+    if (!s.classes.some((c) => c.id === classId && c.businessId === biz && c.active)) throw new Error('choose a class that is open')
+    const period = s.periods.find((p) => p.id === periodId && p.businessId === biz); if (!period) throw new Error('period not found')
+    const rest = s.timetable.filter((x) => !(x.businessId === biz && x.classId === classId && x.day === day && x.periodId === periodId))
+    if (subjectId === null) { s.timetable = rest; return null }
+    if (!(s.settings[biz]?.workingDays ?? [1, 2, 3, 4, 5]).includes(day)) throw new Error('that day is not a school day')
+    if (period.isBreak) throw new Error('a break cannot have a lesson')
+    if (!s.classSubjects.some((x) => x.classId === classId && x.subjectId === subjectId)) throw new Error('this class does not take that subject')
+    if (staffId !== null) {
+      if (!s.assignments.some((a) => a.businessId === biz && a.classId === classId && a.subjectId === subjectId && a.staffId === staffId) || !s.staff.some((x) => x.id === staffId && x.status === 'active')) throw new Error('that teacher is not assigned to this subject in this class (assign them under Teachers & Staff first)')
+      if (rest.some((x) => x.businessId === biz && x.staffId === staffId && x.day === day && x.periodId === periodId)) throw new Error('that teacher already has a lesson at this time in another class')
+    }
+    s.timetable = [...rest, { id: newId('slt'), businessId: biz, classId, day, periodId, subjectId, staffId, room: nul(room) }]
+    return null
+  }).error
 }

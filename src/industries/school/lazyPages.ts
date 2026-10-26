@@ -15,3 +15,4 @@ export const SchoolReportsPage = lazy(() => import('./pages/SchoolReportsPage').
 export const SchoolSettingsPage = lazy(() => import('./pages/SchoolSettingsPage').then((m) => ({ default: m.SchoolSettingsPage })))
 export const SchoolPortalPage = lazy(() => import('./pages/SchoolPortalPage').then((m) => ({ default: m.SchoolPortalPage })))
 export const SchoolMyClassesPage = lazy(() => import('./pages/SchoolMyClassesPage').then((m) => ({ default: m.SchoolMyClassesPage })))
+export const SchoolTimetablePage = lazy(() => import('./pages/SchoolTimetablePage').then((m) => ({ default: m.SchoolTimetablePage })))
