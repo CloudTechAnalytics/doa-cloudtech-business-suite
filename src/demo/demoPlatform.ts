@@ -1,5 +1,5 @@
 import { PLANS, PLAN_PRICES } from '@/core/subscriptions/plans'
-import { demoPlatformPatchBusiness, demoPlatformPatchMembers, demoPlatformRemoveBusiness, demoPlatformSetPlan, demoPlatformSetSuspended, getDemoState } from '@/demo/demoStore'
+import { demoPlatformPatchBusiness, demoPlatformPatchMembers, demoPlatformRemoveBusiness, demoPlatformRemoveUsers, demoPlatformSetPlan, demoPlatformSetSuspended, getDemoState } from '@/demo/demoStore'
 import type { DemoBusiness } from '@/demo/demoStore'
 import type { PlanCode } from '@/shared/types/domain'
 
@@ -207,10 +207,15 @@ export function demoPlatformPurgeBusiness(businessId: string, confirmName: strin
     need('owner'); reason(why)
     const b = getDemoState().businesses.find((x) => x.id === businessId); if (!b) throw new Error('business not found')
     if (confirmName.trim() !== b.name) throw new Error('type the business name exactly to confirm')
-    log(s, 'business.purge', businessId, why, { name: b.name })
+    // The people who belonged only to this business lose their accounts too; anyone elsewhere, on the platform team, or doing this keeps theirs.
+    const st = getDemoState()
+    const here = [...new Set(st.members.filter((m) => m.businessId === businessId && m.userId).map((m) => m.userId!))]
+    const doomed = here.filter((u) => u !== getDemoState().userId && !s.admins.some((a) => a.userId === u) && !st.members.some((m) => m.userId === u && m.businessId !== businessId))
+    log(s, 'business.purge', businessId, why, { name: b.name, accounts_deleted: doomed.length, accounts_kept: here.length - doomed.length })
     s.audit[0].business = b.name
     delete s.subs[businessId]; delete s.details[businessId]
     demoPlatformRemoveBusiness(businessId)
+    demoPlatformRemoveUsers(doomed)
   })
 }
 export function demoPlatformUpdateBusiness(businessId: string, v: { name: string; legalName: string; timezone: string; reason: string }): string | null {

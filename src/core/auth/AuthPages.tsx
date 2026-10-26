@@ -5,9 +5,10 @@ import { DEMO_LOGINS, demoSignIn, demoSignUp } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { Eye, EyeOff } from 'lucide-react'
-import { Button, ErrorState, Notice } from '@/shared/components'
+import { Button, ErrorState } from '@/shared/components'
 import { BrandLockup } from '@/app/layouts/Brand'
 import { useAuth } from '@/core/auth/AuthProvider'
+import { CheckEmail } from './CheckEmail'
 
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -71,7 +72,8 @@ function AuthForm({ mode }: { mode: Mode }) {
   const navigate = useNavigate()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
-  const [info, setInfo] = useState<string | null>(null)
+  // An address waiting for its confirmation email: shows the "Check your email" screen instead of the form.
+  const [pending, setPending] = useState<{ email: string; reason: 'signup' | 'unconfirmed' } | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -101,16 +103,19 @@ function AuthForm({ mode }: { mode: Mode }) {
     setBusy(true)
     if (mode === 'signin') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setFormError(error.message)
+      if (error && /not confirmed/i.test(error.message)) setPending({ email, reason: 'unconfirmed' })
+      else if (error) setFormError(error.message)
       else navigate('/businesses', { replace: true })
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } })
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: `${window.location.origin}/email-confirmed` } })
       if (error) setFormError(error.message)
       else if (data.session) navigate('/businesses', { replace: true })
-      else setInfo('Check your email to confirm your address, then sign in.')
+      else setPending({ email, reason: 'signup' })
     }
     setBusy(false)
   }
+
+  if (pending) return <CheckEmail email={pending.email} reason={pending.reason} onBack={() => setPending(null)} />
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4">
@@ -122,7 +127,6 @@ function AuthForm({ mode }: { mode: Mode }) {
         hint={mode === 'signup' ? (isDemoMode ? 'At least 8 characters.' : 'At least 10 characters, with a lowercase letter, an uppercase letter and a number.') : undefined}
       />
       {formError && <ErrorState title="Could not continue" message={formError} />}
-      {info && <Notice>{info}</Notice>}
       <Button type="submit" className="h-11 w-full text-sm font-semibold uppercase tracking-wide" loading={busy}>
         {mode === 'signin' ? 'Sign in' : 'Create account'}
       </Button>

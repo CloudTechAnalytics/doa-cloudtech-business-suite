@@ -6,7 +6,7 @@ import { HelpPage } from '@/app/landing/HelpPage'
 import { LandingPage } from '@/app/landing/LandingPage'
 import { PricingPage } from '@/app/landing/PricingPage'
 import { SignInPage, SignUpPage } from '@/core/auth/AuthPages'
-import { ForgotPasswordPage, ResetPasswordPage } from '@/core/auth/ResetPages'
+import { EmailConfirmedPage, ForgotPasswordPage, ResetPasswordPage } from '@/core/auth/ResetPages'
 import { RequireAuth } from '@/core/auth/AuthProvider'
 import { BusinessesPage } from '@/core/businesses/BusinessesPage'
 import { OnboardingPage } from '@/core/businesses/OnboardingPage'
@@ -55,6 +55,7 @@ export function AppRoutes() {
       <Route path="/sign-up" element={<SignUpPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/email-confirmed" element={<EmailConfirmedPage />} />
       <Route path="/start" element={<StartPage />} />
       <Route path="/onboarding" element={<StartPage />} />
       <Route path="/businesses" element={<RequireAuth><BusinessesPage /></RequireAuth>} />

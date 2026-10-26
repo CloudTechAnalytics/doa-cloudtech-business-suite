@@ -65,6 +65,10 @@ describe('the demo console can edit, stop people, move ownership and delete, wit
     expect(pl.demoPlatformPurgeBusiness('b-pharmacy', 'careplus', 'wrong name')).toMatch(/exactly/)
     expect(getDemoState().businesses.some((b) => b.id === 'b-pharmacy')).toBe(true)
     expect(pl.demoPlatformPurgeBusiness('b-pharmacy', 'CarePlus Pharmacy', 'Owner asked for permanent deletion')).toBeNull()
+    // The pharmacist belonged only to the pharmacy and is gone; the cashier and the owner also belong elsewhere and stay.
+    expect(getDemoState().users.some((u) => u.id === 'u-pharm')).toBe(false)
+    expect(getDemoState().users.some((u) => u.id === 'u-cashier')).toBe(true)
+    expect(getDemoState().users.some((u) => u.id === 'u-owner')).toBe(true)
     expect(getDemoState().businesses.some((b) => b.id === 'b-pharmacy')).toBe(false)
     expect(getDemoState().members.some((m) => m.businessId === 'b-pharmacy')).toBe(false)
     expect(pl.demoPlatformBusinesses().some((b) => b.id === 'b-pharmacy')).toBe(false)

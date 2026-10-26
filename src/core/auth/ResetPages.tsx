@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, ErrorState, Notice } from '@/shared/components'
@@ -75,6 +76,29 @@ export function ResetPasswordPage() {
           {error && <ErrorState title="Not saved" message={error} />}
           <Button type="submit" className="h-11 w-full text-sm font-semibold uppercase tracking-wide" loading={busy}>Save new password</Button>
         </form>
+      )}
+    </AuthLayout>
+  )
+}
+
+/** Where the link in the confirmation email lands. Supabase has already signed the person in, so this says so and carries on to their businesses. */
+export function EmailConfirmedPage() {
+  const { userId, loading } = useAuth()
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!userId) return
+    const t = setTimeout(() => navigate('/businesses', { replace: true }), 3500)
+    return () => clearTimeout(t)
+  }, [userId, navigate])
+  return (
+    <AuthLayout title="Email confirmed">
+      {loading ? <p className="text-sm text-ink/70">Confirming…</p> : (
+        <div className="space-y-4 text-center">
+          <span className="mx-auto grid size-14 place-items-center rounded-full bg-success-soft text-success"><CheckCircle2 className="size-7" aria-hidden /></span>
+          <h2 className="text-lg font-bold">Your email is confirmed</h2>
+          <p className="text-sm text-ink/75">{userId ? 'Welcome to DOA. Taking you to your businesses…' : 'Your account is ready. Sign in to continue.'}</p>
+          <Link to={userId ? '/businesses' : '/sign-in'} className="inline-flex h-11 w-full items-center justify-center rounded-md bg-amber text-sm font-bold uppercase tracking-wide text-ink hover:bg-amber-dark">{userId ? 'Continue' : 'Sign in'}</Link>
+        </div>
       )}
     </AuthLayout>
   )

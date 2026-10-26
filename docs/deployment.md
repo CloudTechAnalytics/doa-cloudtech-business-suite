@@ -27,6 +27,12 @@ Without them a production build shows a "not connected" page. It never falls bac
 * Email confirmation is on. Supabase's built-in mail sender is limited to a few emails an hour, so configure a real SMTP provider before inviting customers.
 * Anonymous sign-ins and open redirects stay off.
 
+## Emails (confirm your email, reset your password)
+
+The emails are written as DOA emails: `scripts/email-templates.mjs` is the source (one layout, six messages) and `supabase/email-templates/*.html` is its output. After changing the wording, run `node scripts/email-templates.mjs`, and put them on the project with `SUPABASE_ACCESS_TOKEN=... node scripts/apply-email-templates.mjs` (or paste each file into Authentication, Emails in the dashboard). A test fails if the files and the script disagree, or if any email mentions Supabase.
+
+What Supabase's built-in sender cannot change is the **From** name and address: it still says Supabase Auth. To send from DOA (for example `DOA <no-reply@yourdomain>`), set up custom SMTP in Authentication, Emails, SMTP Settings with a provider such as Resend, Brevo or Postmark, using a domain you own. This also removes the built-in limit of a few emails an hour. The sign-up confirmation link opens `/email-confirmed`, so `<your site>/**` must be in the redirect URLs.
+
 ## First platform owner
 
 1. Open the site and sign up with your own email, then confirm it.
