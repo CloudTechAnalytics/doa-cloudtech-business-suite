@@ -26,6 +26,7 @@ All schema lives in `supabase/migrations/` and is applied in filename order. Mig
 | `…0020_school_stages` | `school_classes.stage`; the kind of school (nursery, primary, secondary or all) decides which stages exist: `school_setup` builds only that kind's classes and subjects, `school_save_class` refuses another stage, and `school_save_settings` retires other stages (refused while they hold active students). See docs/school.md |
 | `…0021_platform_admin` | `platform_admins` (owner, engineer, support) and the append-only `platform_audit_log`; `platform_*` functions for overview, businesses, users, plans, audit, health and team, and for changing subscriptions and suspending businesses (each needs a reason and is logged). See docs/platform-admin.md |
 | `…0024_platform_actions` | `platform_update_business`, `platform_set_member_status` (engineer or owner), `platform_transfer_ownership` and `platform_archive_business` (platform owner only); each needs a reason and is logged. The owner of a business cannot be stopped until ownership is moved. See docs/platform-admin.md |
+| `…0025_platform_usage` | `platform_settings` (plan limits, closed to direct access) and `platform_usage()`: database size, file storage, businesses, users and audit events for the System Health page. Limits start at the free plan (500 MB, 1 GB); raise them in `platform_settings` after upgrading |
 
 ## Tables named in the architecture brief
 

@@ -1,5 +1,6 @@
-import { Ban, CheckCircle2, Eye, MoreHorizontal, Trash2, UserCheck, XCircle } from 'lucide-react'
-import { useState } from 'react'
+import { Ban, CheckCircle2, Database, Eye, HardDrive, MoreHorizontal, RefreshCw, Trash2, UserCheck, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
@@ -7,9 +8,10 @@ import { Menu } from '@/shared/components/menu'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
-import { addAdmin, loadAudit, loadHealth, loadPlans, loadTeam, loadUsers, removeAdmin, setMemberStatus } from './platformApi'
+import { addAdmin, loadAudit, loadHealth, loadPlans, loadTeam, loadUsage, loadUsers, probeServices, removeAdmin, setMemberStatus } from './platformApi'
+import type { ServiceCheck } from './platformApi'
 import type { PlatformRole } from './platformApi'
-import { day, usePlatform, when } from './platformUi'
+import { Kpi, day, usePlatform, when } from './platformUi'
 
 type MemberRow = { key: string; userId: string; name: string; email: string; platformRole: PlatformRole | null; businessId: string | null; business: string | null; role: string | null; status: string | null; lastSignIn: string | null }
 
@@ -121,17 +123,88 @@ export function PlatformAudit() {
   )
 }
 
+type Level = 'ok' | 'slow' | 'down'
+/** Under 1.5 s is fine, up to 4 s is slow, anything slower (or failing) is down. These are timings from your own browser, so your connection counts too. */
+const levelOf = (c: ServiceCheck): Level => (!c.ok || c.ms === null ? 'down' : c.ms < 1500 ? 'ok' : c.ms < 4000 ? 'slow' : 'down')
+const LEVEL = {
+  ok: { text: 'Operational', badge: 'bg-success-soft text-success', dot: 'bg-success' },
+  slow: { text: 'Degraded', badge: 'bg-warning-soft text-warning', dot: 'bg-amber-dark' },
+  down: { text: 'Not responding', badge: 'bg-danger-soft text-danger', dot: 'bg-danger' },
+} as const
+const mb = (bytes: number) => (bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(Math.round(bytes / 1024 ** 2), bytes > 0 ? 1 : 0)} MB`)
+
+function UsageBar({ icon, name, used, cap }: { icon: ReactNode; name: string; used: number; cap: number }) {
+  const pct = cap ? (used / cap) * 100 : 0
+  const tone = pct >= 90 ? 'bg-danger' : pct >= 70 ? 'bg-amber-dark' : 'bg-accent'
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between text-sm"><span className="flex items-center gap-2 font-medium">{icon}{name}</span><span className="tabular text-ink/70">{mb(used)} of {mb(cap)} ({pct < 0.1 && used > 0 ? '<0.1' : pct.toFixed(1)}%)</span></div>
+      <div className="h-2 overflow-hidden rounded-full bg-canvas" role="progressbar" aria-label={`${name} used`} aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}><div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.min(Math.max(pct, used > 0 ? 1 : 0), 100)}%` }} /></div>
+      {pct >= 70 && <p className="mt-1 text-xs text-warning">{pct >= 90 ? 'Almost full.' : 'Above 70%.'} Upgrade the hosting plan, then raise the limit in the platform settings table.</p>}
+    </div>
+  )
+}
+
 export function PlatformHealth() {
-  const h = useAsync(loadHealth, [])
+  const services = useAsync(probeServices, [])
+  const data = useAsync(loadHealth, [])
+  const usage = useAsync(loadUsage, [])
+  const [checked, setChecked] = useState<Date | null>(null)
+  const run = async () => { await Promise.all([services.refresh(), data.refresh(), usage.refresh()]); setChecked(new Date()) }
+  useEffect(() => { const t = setInterval(() => void run(), 60_000); return () => clearInterval(t) // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const checks = services.data ?? []
+  const worst: Level = checks.some((c) => levelOf(c) === 'down') ? 'down' : checks.some((c) => levelOf(c) === 'slow') ? 'slow' : 'ok'
+  const failing = (data.data?.checks ?? []).filter((c) => !c.ok)
+  const u = usage.data
   return (
     <>
-      <PageHeader title="System Health" description="Checks over the real records. A failing check says what it found." actions={<Button variant="secondary" onClick={() => void h.refresh()}>Check again</Button>} />
-      {h.error && <ErrorState message={h.error} />}
-      {h.loading && !h.data ? <Spinner /> : h.data && (
-        <>
-          <Card className="mt-4 p-0"><ul className="divide-y divide-ink/10 text-sm">{h.data.checks.map((c) => <li key={c.name} className="flex items-center justify-between gap-3 p-4"><span className="flex items-center gap-2 font-medium">{c.ok ? <CheckCircle2 className="size-5 text-success" aria-hidden /> : <XCircle className="size-5 text-warning" aria-hidden />}{c.name}</span><span className={c.ok ? 'text-ink/70' : 'font-semibold text-warning'}>{c.detail}</span></li>)}</ul></Card>
-          <p className="mt-3 text-sm text-ink/70">Last 24 hours: {h.data.businessChanges24h} change(s) inside businesses, {h.data.platformActions24h} from this console. Checked {when(h.data.checkedAt)}.</p>
-        </>
+      <PageHeader title="System Health" description="Live checks against the services the platform depends on, timed from your browser, and how much of the hosting plan is used." actions={<Button variant="secondary" loading={services.loading} onClick={() => void run()}><RefreshCw className="size-4" aria-hidden /> Run checks</Button>} />
+      {services.error && <ErrorState message={services.error} />}
+      <Card className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 font-medium"><span className={`size-2.5 rounded-full ${LEVEL[worst].dot}`} aria-hidden />{services.loading && !checks.length ? 'Checking…' : worst === 'ok' ? 'All services are responding normally' : worst === 'slow' ? 'Some services are slow' : 'A service is not responding'}</p>
+          <p className="text-xs text-ink/60">{checked ? `Last checked ${checked.toLocaleTimeString('en-NG')}` : 'Just now'} · refreshes every minute</p>
+        </div>
+      </Card>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {services.loading && !checks.length ? <Spinner /> : checks.map((c) => { const l = levelOf(c); return (
+          <Card key={c.key}>
+            <div className="flex items-start justify-between gap-2"><h2 className="font-semibold">{c.name}</h2><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${LEVEL[l].badge}`}>{LEVEL[l].text}</span></div>
+            <p className="mt-1 text-sm text-ink/70">{c.detail}</p>
+            <p className="mt-3 text-sm">Round-trip <b className="tabular">{c.ms === null ? 'no answer' : `${c.ms}ms`}</b></p>
+          </Card>
+        ) })}
+      </div>
+
+      <h2 className="mb-2 mt-8 text-sm font-semibold">Hosting plan usage</h2>
+      <Card>
+        {usage.loading && !u ? <Spinner /> : u && (
+          <div className="grid gap-6 md:grid-cols-2">
+            <UsageBar icon={<Database className="size-4" aria-hidden />} name="Database" used={u.databaseBytes} cap={u.databaseCapBytes} />
+            <UsageBar icon={<HardDrive className="size-4" aria-hidden />} name="File storage" used={u.storageBytes} cap={u.storageCapBytes} />
+          </div>
+        )}
+        {usage.error && <ErrorState message={usage.error} />}
+        <p className="mt-4 text-xs text-ink/60">Measured against the plan limits kept in the platform settings table (they start at the free plan: 500 MB database and 1 GB storage). Raise them there after upgrading.</p>
+      </Card>
+
+      <h2 className="mb-2 mt-8 text-sm font-semibold">Platform usage</h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi title="Businesses" value={u ? String(u.businesses) : '–'} note="Not deleted" to="/platform/businesses" />
+        <Kpi title="Users" value={u ? String(u.users) : '–'} note="Accounts across all businesses" to="/platform/users" />
+        <Kpi title="Storage used" value={u ? mb(u.storageBytes) : '–'} note="Uploaded files" />
+        <Kpi title="Audit events" value={u ? String(u.auditEvents) : '–'} note="Recorded platform-wide" to="/platform/audit" />
+      </div>
+
+      <h2 className="mb-2 mt-8 text-sm font-semibold">Data checks</h2>
+      {data.error && <ErrorState message={data.error} />}
+      {data.loading && !data.data ? <Spinner /> : data.data && (
+        <Card className="p-0">
+          <ul className="divide-y divide-ink/10 text-sm">{data.data.checks.map((c) => <li key={c.name} className="flex items-center justify-between gap-3 p-4"><span className="flex items-center gap-2 font-medium">{c.ok ? <CheckCircle2 className="size-5 text-success" aria-hidden /> : <XCircle className="size-5 text-warning" aria-hidden />}{c.name}</span><span className={c.ok ? 'text-ink/70' : 'font-semibold text-warning'}>{c.detail}</span></li>)}</ul>
+          <p className="border-t border-line p-3 text-xs text-ink/60">{failing.length ? `${failing.length} check(s) need attention. ` : ''}Last 24 hours: {data.data.businessChanges24h} change(s) inside businesses, {data.data.platformActions24h} from this console.</p>
+        </Card>
       )}
     </>
   )

@@ -1,11 +1,11 @@
 import * as pl from '@/demo/demoPlatform'
-import type { PAdmin, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUserRow, PlatformRole, SubStatus } from '@/demo/demoPlatform'
-import { isDemoMode } from '@/shared/utilities/env'
+import type { PAdmin, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus } from '@/demo/demoPlatform'
+import { env, isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import type { PlanCode } from '@/shared/types/domain'
 
 /** Platform console data access. Live mode calls database functions that check the platform team table; demo mode runs the browser mirror. */
-export type { PAdmin, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUserRow, PlatformRole, SubStatus }
+export type { PAdmin, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus }
 export type { BusinessState } from '@/demo/demoPlatform'
 
 type Row = Record<string, unknown>
@@ -113,4 +113,39 @@ export async function setMemberStatus(businessId: string, userId: string, status
 export async function archiveBusiness(businessId: string, reason: string): Promise<string | null> {
   if (isDemoMode) return pl.demoPlatformArchiveBusiness(businessId, reason)
   return msg('platform_archive_business', { p_business: businessId, p_reason: reason })
+}
+
+export async function loadUsage(): Promise<PUsage> {
+  if (isDemoMode) return pl.demoPlatformUsage()
+  const x = await rpc<Row>('platform_usage')
+  return { databaseBytes: n(x.database_bytes), databaseCapBytes: n(x.database_cap_bytes), storageBytes: n(x.storage_bytes), storageCapBytes: n(x.storage_cap_bytes), businesses: n(x.businesses), users: n(x.users), auditEvents: n(x.audit_events) }
+}
+
+/** One live check of a service the platform depends on, timed from this browser. */
+export interface ServiceCheck { key: string; name: string; detail: string; ms: number | null; ok: boolean }
+
+async function timed(run: () => Promise<boolean>): Promise<{ ms: number | null; ok: boolean }> {
+  const t0 = performance.now()
+  try { const ok = await run(); return { ms: Math.round(performance.now() - t0), ok } } catch { return { ms: null, ok: false } }
+}
+
+/** Times a real request to each service: the database through the API, sign-in, and the website's own hosting. Demo mode has no network to measure. */
+export async function probeServices(): Promise<ServiceCheck[]> {
+  if (isDemoMode) {
+    return [
+      { key: 'db', name: 'Database & REST API', detail: 'Demo data kept in this browser', ...(await timed(async () => true)) },
+      { key: 'auth', name: 'Authentication', detail: 'Demo sign-in kept in this browser', ...(await timed(async () => true)) },
+    ]
+  }
+  const headers = { apikey: env.supabaseAnonKey }
+  const [db, auth, site] = await Promise.all([
+    timed(async () => !(await supabase!.rpc('platform_role')).error),
+    timed(async () => (await fetch(`${env.supabaseUrl}/auth/v1/health`, { headers, cache: 'no-store' })).ok),
+    timed(async () => (await fetch('/favicon.svg', { cache: 'no-store' })).ok),
+  ])
+  return [
+    { key: 'db', name: 'Database & REST API', detail: 'PostgreSQL through the API: all business data', ...db },
+    { key: 'auth', name: 'Authentication', detail: 'Sign-in, sessions and password reset', ...auth },
+    { key: 'site', name: 'Website hosting', detail: 'The pages and scripts you are using now', ...site },
+  ]
 }

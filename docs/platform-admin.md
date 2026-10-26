@@ -27,6 +27,10 @@ After that, owners add people from **Platform Team** in the console (the person 
 Dashboard (businesses, paying, trials, suspended, MRR and ARR, users, by kind of business, trials ending soon, health), Businesses (search, owner, plan; open one for its people,
 subscription, apps and the changes made from the console), Users, Subscriptions, Plans & Pricing, Platform Team, Audit Log, System Health.
 
+## System Health
+
+Service cards time a real request from your browser to the database API, sign-in and the website hosting (under 1.5 s is operational, up to 4 s degraded, slower or failing is not responding), and refresh every minute. Below them: database and file storage against the plan limits (turns amber at 70% and red at 90%), platform-wide counts, and data checks over the real records (businesses without a subscription, trials that ran out, past-due subscriptions). There is no emailed alert yet. Realtime and Edge Functions are not shown because DOA does not use them.
+
 ## Row actions
 
 Every business row has a menu: View, Edit, Suspend or Reactivate, Transfer ownership (owner), View subscription, Open audit log, Delete business (owner; type the name to confirm). Every user row (one per person per business) has Set inactive, Set active again and Remove from business. The Subscriptions page lists every business with its plan and status as drop-downs; changing one asks for a reason first.

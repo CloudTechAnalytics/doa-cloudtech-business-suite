@@ -27,6 +27,7 @@ export interface PUserRow { id: string; name: string; email: string; createdAt: 
 export interface PPlan { code: string; name: string; price: number; currency: string; interval: string; maxMembers: number; maxBranches: number; businesses: number }
 export interface PAuditRow { id: string; at: string; action: string; by: string | null; businessId: string | null; business: string | null; reason: string | null }
 export interface PHealth { checkedAt: string; checks: { name: string; ok: boolean; detail: string }[]; businessChanges24h: number; platformActions24h: number }
+export interface PUsage { databaseBytes: number; databaseCapBytes: number; storageBytes: number; storageCapBytes: number; businesses: number; users: number; auditEvents: number }
 export interface PAdmin { userId: string; name: string; email: string; role: PlatformRole; since: string }
 
 interface Sub { status: SubStatus; trialEnd: string | null; periodEnd: string; plan?: PlanCode }
@@ -242,4 +243,13 @@ export function demoPlatformArchiveBusiness(businessId: string, why: string): st
     log(s, 'business.archive', businessId, why, { name: b.name })
     demoPlatformPatchBusiness(businessId, { archived: true })
   })
+}
+
+/** Demo mode keeps its data in this browser, so "database size" is what the demo data takes in browser storage. */
+export function demoPlatformUsage(): PUsage {
+  need('read')
+  let bytes = 0
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith('doa.demo')) bytes += (localStorage.getItem(k) ?? '').length * 2 } } catch { /* storage unavailable */ }
+  const o = demoPlatformOverview()
+  return { databaseBytes: bytes, databaseCapBytes: 500 * 1024 * 1024, storageBytes: 0, storageCapBytes: 1024 * 1024 * 1024, businesses: o.businesses, users: o.users, auditEvents: state.audit.length }
 }
