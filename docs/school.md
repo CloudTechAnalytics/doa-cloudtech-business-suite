@@ -23,6 +23,7 @@ expenses module. Migration: `supabase/migrations/20261021000019_school.sql`. Dem
 | Subjects by level | Each subject is tagged with the levels it is taught at (nursery, primary, junior secondary, senior secondary) and optionally a department. The class subject picker lists subjects that fit the class first and the rest under "Other subjects" |
 | Deleting | Owner and business admin can delete a student or a parent/guardian, with a reason. A student's attendance, results and class history go with them; a student with fee payments is refused, since money records are never erased. Everything is audited |
 | Report card | Designed for A4: school heading, pupil details, class work/exam/total/grade per subject with class average, highest and lowest, average and position, attendance, remarks, next term date, grading key and signature lines. Print one card, or **Print all report cards** for a class (one per page) |
+| Staff sign-in | A staff record is just a person; cleaners, drivers and security need no login. To let a teacher, bursar or admissions officer sign in, record their email and press **Give sign-in access**: they are invited by email, sign up and confirm their email, and choose their own password. They are then joined to the school and linked to their record automatically. No one else ever sets or sees a password |
 | Reports | Enrolment, attendance, results and fees, each exportable to CSV |
 | Announcements | By audience: everyone, parents, teachers, staff or one class |
 

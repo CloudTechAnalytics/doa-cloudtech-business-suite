@@ -199,6 +199,11 @@ export const canManageStaff = (role: RoleName | null) => role === 'owner' || rol
 
 export function demoInvite(businessId: string, email: string, role: RoleName): string | null {
   if (!canManageStaff(demoRoleIn(businessId))) return 'permission denied'
+  return demoInviteUnchecked(businessId, email, role)
+}
+
+/** The invitation itself, for callers that have already checked who may invite (the school staff page lets a principal invite). */
+export function demoInviteUnchecked(businessId: string, email: string, role: RoleName): string | null {
   if (role === 'owner') return 'owner role cannot be assigned'
   const e = email.trim().toLowerCase()
   if (state.members.some((m) => m.businessId === businessId && m.email === e && m.status !== 'revoked')) return 'Already a member or invited.'
@@ -212,6 +217,12 @@ export function demoInvite(businessId: string, email: string, role: RoleName): s
     : { id: uid('m'), businessId, userId: null, email: e, name: e, role, status: 'invited' }
   commit({ ...state, members: [...state.members, m] })
   return null
+}
+
+/** Withdraws a login invitation that has not been used yet. */
+export function demoCancelInvite(businessId: string, email: string) {
+  const e = email.trim().toLowerCase()
+  commit({ ...state, members: state.members.filter((m) => !(m.businessId === businessId && m.email === e && m.status === 'invited')) })
 }
 
 export function demoSetStatus(memberId: string, status: DemoMember['status']): string | null {

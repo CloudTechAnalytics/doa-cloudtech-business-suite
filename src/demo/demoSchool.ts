@@ -1,6 +1,6 @@
 import { addDays, r2, today } from '@/demo/demoBakery'
 import { newId } from '@/demo/demoInventory'
-import { getDemoState } from '@/demo/demoStore'
+import { demoCancelInvite, demoInviteUnchecked, getDemoState } from '@/demo/demoStore'
 import { demoAllowed, demoCanTrade } from '@/demo/demoTrade'
 
 /**
@@ -485,6 +485,43 @@ export function demoSaveStaff(biz: string, v: { id: string | null; name: string;
     else { const x = s.staff.find((y) => y.id === v.id && y.businessId === biz); if (!x) throw new Error('staff member not found'); Object.assign(x, { name: trim(v.name), phone: nul(v.phone), email: nul(v.email), jobTitle: nul(v.jobTitle), department: nul(v.department), status: v.active ? 'active' : 'inactive' }) }
     return null
   }).error
+}
+export type StaffAccess = { staffId: string; state: 'none' | 'invited' | 'signed_in'; role: string | null }
+export const LOGIN_ROLES = ['teacher', 'bursar', 'admissions_officer', 'principal'] as const
+export function demoStaffAccess(biz: string): StaffAccess[] {
+  ensureDemoSchool(biz)
+  if (!can(biz, 'school.manage')) return []
+  const g = getDemoState()
+  return state.staff.filter((x) => x.businessId === biz).map((x) => {
+    const e = (x.email ?? '').toLowerCase()
+    const m = g.members.find((y) => y.businessId === biz && e && y.email === e && y.status !== 'revoked')
+    if (x.userId) return { staffId: x.id, state: 'signed_in' as const, role: m?.role ?? null }
+    return m?.status === 'invited' ? { staffId: x.id, state: 'invited' as const, role: m.role } : { staffId: x.id, state: 'none' as const, role: null }
+  })
+}
+export function demoGiveLogin(biz: string, staffId: string, role: string): string | null {
+  try {
+    guard(biz, 'school-staff', 'school.manage')
+    const x = state.staff.find((y) => y.id === staffId && y.businessId === biz)
+    if (!x) return 'staff member not found'
+    const email = trim(x.email).toLowerCase()
+    if (!email) return "add the staff member's email address first; it is how they sign in"
+    if (!LOGIN_ROLES.includes(role as (typeof LOGIN_ROLES)[number])) return 'choose teacher, bursar, admissions officer or principal'
+    if (role === 'principal' && !can(biz, 'staff.manage')) return 'only the owner or an admin can give the principal role'
+    const g = getDemoState()
+    if (g.members.some((m) => m.businessId === biz && m.email === email && m.status === 'active')) return 'this person already has a login for the school'
+    demoCancelInvite(biz, email)
+    return demoInviteUnchecked(biz, email, role as Parameters<typeof demoInviteUnchecked>[2])
+  } catch (e) { return (e as Error).message }
+}
+export function demoCancelLogin(biz: string, staffId: string): string | null {
+  try {
+    guard(biz, 'school-staff', 'school.manage')
+    const x = state.staff.find((y) => y.id === staffId && y.businessId === biz)
+    if (!x) return 'staff member not found'
+    demoCancelInvite(biz, trim(x.email))
+    return null
+  } catch (e) { return (e as Error).message }
 }
 export function demoSetAssignments(biz: string, staffId: string, items: { classId: string; subjectId: string | null; classTeacher: boolean }[]): string | null {
   return run(biz, 'school_assignments', null, (s) => {

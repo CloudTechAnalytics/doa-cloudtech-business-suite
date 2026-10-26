@@ -236,6 +236,22 @@ export async function saveStaff(b: string, v: Parameters<typeof sc.demoSaveStaff
   if (isDemoMode) return sc.demoSaveStaff(b, v)
   return msg((await db().rpc('school_save_staff', { p_business: b, p_id: v.id, p_name: v.name, p_phone: v.phone, p_email: v.email, p_title: v.jobTitle, p_department: v.department, p_active: v.active })).error)
 }
+export type { StaffAccess } from '@/demo/demoSchool'
+export async function loadStaffAccess(b: string): Promise<sc.StaffAccess[]> {
+  await ready(b)
+  if (isDemoMode) return sc.demoStaffAccess(b)
+  const { data, error } = await db().rpc('school_staff_access', { p_business: b })
+  if (error) throw new Error(msg(error) ?? 'Could not load sign-in access')
+  return ((data ?? []) as Row[]).map((r) => ({ staffId: String(r.staff_id), state: r.state as sc.StaffAccess['state'], role: r.role as string | null }))
+}
+export async function giveLogin(b: string, staffId: string, role: string) {
+  if (isDemoMode) return sc.demoGiveLogin(b, staffId, role)
+  return msg((await db().rpc('school_give_login', { p_business: b, p_staff: staffId, p_role: role })).error)
+}
+export async function cancelLogin(b: string, staffId: string) {
+  if (isDemoMode) return sc.demoCancelLogin(b, staffId)
+  return msg((await db().rpc('school_cancel_login', { p_business: b, p_staff: staffId })).error)
+}
 export async function setAssignments(b: string, staffId: string, items: { classId: string; subjectId: string | null; classTeacher: boolean }[]) {
   if (isDemoMode) return sc.demoSetAssignments(b, staffId, items)
   return msg((await db().rpc('school_set_assignments', { p_business: b, p_staff: staffId, p_items: items.map((i) => ({ class_id: i.classId, subject_id: i.subjectId, class_teacher: i.classTeacher })) })).error)
