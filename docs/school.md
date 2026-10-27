@@ -57,3 +57,7 @@ Concurrent payments are guarded by a row lock, but the single-connection test da
 
 Apply migrations in order (the school migration is last), then create a business of type School. Invite staff with the roles above; parents are invited
 with the `parent` role using the email recorded on their child's guardian record.
+
+## Before a school goes live
+
+See [launch-checklist.md](launch-checklist.md): email sending, the Terms and Privacy notice (and the note a school gives parents), backups, and a rehearsal on the live site.

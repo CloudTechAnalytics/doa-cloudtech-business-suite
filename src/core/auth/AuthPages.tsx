@@ -141,6 +141,7 @@ function AuthForm({ mode }: { mode: Mode }) {
       <Button type="submit" className="h-11 w-full text-sm font-semibold uppercase tracking-wide" loading={busy}>
         {mode === 'signin' ? 'Sign in' : 'Create account'}
       </Button>
+      {mode === 'signup' && <p className="text-center text-xs text-ink/60">By creating an account you agree to the <Link to="/terms" className="underline">Terms of use</Link> and the <Link to="/privacy" className="underline">Privacy notice</Link>.</p>}
     </form>
   )
 }

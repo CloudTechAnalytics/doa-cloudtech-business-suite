@@ -6,6 +6,7 @@ import { AppStorePage } from '@/core/app-catalogue/AppStorePage'
 import { AppStartPage } from '@/core/app-catalogue/AppStartPage'
 import { AppsPage } from '@/app/landing/AppsPage'
 import { HelpPage } from '@/app/landing/HelpPage'
+import { ContactPage, PrivacyPage, TermsPage } from '@/app/landing/LegalPages'
 import { LandingPage } from '@/app/landing/LandingPage'
 import { PricingPage } from '@/app/landing/PricingPage'
 import { SignInPage, SignUpPage } from '@/core/auth/AuthPages'
@@ -56,6 +57,9 @@ export function AppRoutes() {
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/apps" element={<AppsPage />} />
       <Route path="/help" element={<HelpPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/contact" element={<ContactPage />} />
       <Route path="/sign-in" element={<SignInPage />} />
       <Route path="/sign-up" element={<SignUpPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
