@@ -1,5 +1,5 @@
 import * as demo from '@/demo/demoFinance'
-import type { CashEntry, ExpenseCategory, NewExpense, PayableRow, ReceivableRow, ReportSummary } from '@/demo/demoFinance'
+import type { BudgetRow, BudgetStatus, CashEntry, ExpenseCategory, ExpenseReport, NewExpense, PayableRow, ReceivableRow, ReportSummary } from '@/demo/demoFinance'
 import { demoCan as invCan } from '@/demo/demoInventory'
 import { demoCanTrade, ensureDemoTrade } from '@/demo/demoTrade'
 import { isDemoMode } from '@/shared/utilities/env'
@@ -7,7 +7,7 @@ import { supabase } from '@/shared/utilities/supabase'
 
 /** Expenses, receivables, payables, cashbook and the summary report. Live mode reads the database views and calls the
  *  functions; demo mode runs the browser mirror. Mutations return an error message or null. */
-export type { CashEntry, ExpenseCategory, NewExpense, PayableRow, ReceivableRow, ReportSummary }
+export type { BudgetRow, BudgetStatus, CashEntry, ExpenseCategory, ExpenseReport, NewExpense, PayableRow, ReceivableRow, ReportSummary }
 export { EXPENSE_CATEGORIES, PAY_METHODS } from '@/demo/demoFinance'
 
 export interface ExpenseDto {
@@ -29,7 +29,7 @@ export async function listExpenses(b: string): Promise<ExpenseDto[]> {
   if (isDemoMode) {
     return demo.getFinance().expenses.filter((e) => e.businessId === b).map((e) => ({ id: e.id, number: e.number, category: e.category, amount: e.amount, method: e.method, description: e.description, date: e.date, supplierId: e.supplierId, batchId: e.batchId, source: e.source, status: e.status, voidReason: e.voidReason })).reverse()
   }
-  const r = await db().from('expenses').select('*').eq('business_id', b).order('expense_date', { ascending: false }).order('created_at', { ascending: false }).limit(500)
+  const r = await db().from('expenses').select('*').eq('business_id', b).order('expense_date', { ascending: false }).order('created_at', { ascending: false }).limit(2000)
   if (r.error) throw new Error(r.error.message)
   return (r.data ?? []).map((e) => ({ id: e.id, number: e.expense_number, category: e.category as ExpenseCategory, amount: n(e.amount), method: e.payment_method, description: e.description, date: e.expense_date, supplierId: e.supplier_id, batchId: e.farm_batch_id, source: e.source, status: e.status as 'posted' | 'voided', voidReason: e.void_reason }))
 }
@@ -97,4 +97,26 @@ export async function listBatchChoices(b: string): Promise<{ id: string; label: 
   const r = await db().from('farm_batches').select('id, batch_code, species_or_crop').eq('business_id', b).eq('status', 'active').order('batch_code')
   if (r.error) return []
   return (r.data ?? []).map((x) => ({ id: x.id, label: `${x.batch_code} · ${x.species_or_crop}` }))
+}
+
+// ------------------------------------------------------------------------------ budgets and the spending report
+/** Monthly budget against what was actually spent, for the month that contains `month` (YYYY-MM-DD). */
+export async function budgetStatus(b: string, month: string): Promise<BudgetStatus> {
+  if (isDemoMode) return demo.demoBudgetStatus(b, month)
+  const { data, error } = await db().rpc('expense_budget_status', { p_business: b, p_month: month })
+  if (error) throw new Error(error.message)
+  const x = data as { month: string; rows: { category: string; budget: number | null; spent: number }[] }
+  return { month: x.month, rows: x.rows.map((r): BudgetRow => ({ category: r.category, budget: r.budget === null ? null : n(r.budget), spent: n(r.spent) })) }
+}
+/** Sets a category's monthly budget; zero or nothing removes it. */
+export async function setBudget(b: string, category: string, amount: number | null) {
+  if (isDemoMode) return demo.demoSetBudget(b, category, amount)
+  return msg((await db().rpc('expense_set_budget', { p_business: b, p_category: category, p_amount: amount })).error)
+}
+export async function expenseReport(b: string, from: string, to: string): Promise<ExpenseReport> {
+  if (isDemoMode) return demo.demoExpenseReport(b, from, to)
+  const { data, error } = await db().rpc('expense_report', { p_business: b, p_from: from, p_to: to })
+  if (error) throw new Error(error.message)
+  const x = data as { total: number; count: number; by_category: { category: string; total: number; count: number }[]; by_month: { month: string; total: number }[]; by_method: { method: string; total: number }[]; by_supplier: { supplier: string; total: number }[] }
+  return { total: n(x.total), count: n(x.count), byCategory: x.by_category.map((r) => ({ category: r.category, total: n(r.total), count: n(r.count) })), byMonth: x.by_month.map((r) => ({ month: r.month, total: n(r.total) })), byMethod: x.by_method.map((r) => ({ method: r.method, total: n(r.total) })), bySupplier: x.by_supplier.map((r) => ({ supplier: r.supplier, total: n(r.total) })) }
 }

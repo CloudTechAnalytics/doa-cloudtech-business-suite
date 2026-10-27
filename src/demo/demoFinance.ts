@@ -8,14 +8,16 @@ import { demoAllowed, getTrade } from '@/demo/demoTrade'
  * supabase/migrations/20261021000010_finance.sql: cash basis, voids instead of deletes, read-only derived views.
  */
 export const EXPENSE_CATEGORIES = ['feed', 'labour', 'medication', 'fuel_energy', 'repairs', 'transport', 'utilities', 'rent', 'supplies', 'other'] as const
-export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
+/** A category is a short lower-case name (feed, marketing, staff_welfare). The ten above are the farm's starting set; a business may use any other. */
+export type ExpenseCategory = string
+export const CATEGORY_PATTERN = /^[a-z][a-z0-9_]{1,39}$/
 export const PAY_METHODS = ['cash', 'bank_transfer', 'card', 'pos', 'other'] as const
 
 export interface DExpense {
   id: string; businessId: string; number: string; category: ExpenseCategory; amount: number; method: string; description: string
   date: string; supplierId: string | null; batchId: string | null; source: 'manual' | 'maintenance'; status: 'posted' | 'voided'; voidReason: string | null; createdAt?: string
 }
-interface Fin { expenses: DExpense[]; seq: Record<string, number>; keys: Record<string, string> }
+interface Fin { expenses: DExpense[]; seq: Record<string, number>; keys: Record<string, string>; /** Monthly budget per category, keyed business|category. */ budgets?: Record<string, number> }
 
 const KEY = 'doa.demo.finance.v1'
 const empty = (): Fin => ({ expenses: [], seq: {}, keys: {} })
@@ -66,7 +68,7 @@ export function postExpense(f: Fin, biz: string, v: NewExpense, source: DExpense
   if (!(v.amount > 0) || Math.round(v.amount * 100) / 100 !== v.amount) throw new Error('amount must be positive with at most 2 decimals')
   if (!v.date || v.date > today()) throw new Error('the expense date cannot be in the future')
   if (v.description.trim().length < 2) throw new Error('describe the expense (at least 2 characters)')
-  if (!EXPENSE_CATEGORIES.includes(v.category)) throw new Error('unknown category')
+  if (!CATEGORY_PATTERN.test(v.category ?? '')) throw new Error('choose a category (letters, numbers and underscores, 2 to 40 characters)')
   if (!(PAY_METHODS as readonly string[]).includes(v.method)) throw new Error('unknown payment method')
   if (v.supplierId && !getTrade().suppliers.some((s) => s.id === v.supplierId && s.businessId === biz)) throw new Error('unknown supplier')
   const k = `${biz}|expense`
@@ -185,4 +187,54 @@ export function demoVoidMaintenanceExpense(biz: string, id: string, reason: stri
   const f: Fin = JSON.parse(JSON.stringify(state)) as Fin
   const e = f.expenses.find((x) => x.id === id && x.businessId === biz)
   if (e) { e.status = 'voided'; e.voidReason = `Maintenance record voided: ${reason}`; commit(f) }
+}
+
+// ---------------------------------------------------------------- budgets and the spending report (mirror 20261021000056)
+export interface BudgetRow { category: string; budget: number | null; spent: number }
+export interface BudgetStatus { month: string; rows: BudgetRow[] }
+export interface ExpenseReport {
+  total: number; count: number; byCategory: { category: string; total: number; count: number }[]; byMonth: { month: string; total: number }[]
+  byMethod: { method: string; total: number }[]; bySupplier: { supplier: string; total: number }[]
+}
+const canReadExpenses = (biz: string) => allowedAny(biz, 'expenses.read')
+const posted = (biz: string) => state.expenses.filter((e) => e.businessId === biz && e.status === 'posted')
+
+/** Sets the monthly budget for a category; zero or nothing removes it. Same permission as recording an expense. */
+export function demoSetBudget(biz: string, category: string, amount: number | null): string | null {
+  if (!allowedAny(biz, 'expenses.record')) return 'permission denied'
+  if (!CATEGORY_PATTERN.test(category ?? '')) return 'choose a category'
+  const a = Math.round((amount ?? 0) * 100) / 100
+  if (a < 0) return 'a budget cannot be negative'
+  const budgets = { ...(state.budgets ?? {}) }
+  if (a === 0) delete budgets[`${biz}|${category}`]; else budgets[`${biz}|${category}`] = a
+  commit({ ...state, budgets })
+  return null
+}
+
+/** Budget beside actual spending for the month that holds `month` (a date). Categories with spending but no budget are listed with a null budget. */
+export function demoBudgetStatus(biz: string, month: string): BudgetStatus {
+  if (!canReadExpenses(biz)) throw new Error('permission denied')
+  const m = (month || today()).slice(0, 7)
+  const spent = new Map<string, number>()
+  for (const e of posted(biz).filter((x) => x.date.slice(0, 7) === m)) spent.set(e.category, (spent.get(e.category) ?? 0) + c(e.amount))
+  const budgets = Object.entries(state.budgets ?? {}).filter(([k]) => k.startsWith(`${biz}|`)).map(([k, v]) => [k.slice(biz.length + 1), v] as const)
+  const cats = new Set([...budgets.map(([k]) => k), ...spent.keys()])
+  return { month: `${m}-01`, rows: [...cats].sort().map((category) => ({ category, budget: budgets.find(([k]) => k === category)?.[1] ?? null, spent: m_(spent.get(category) ?? 0) })) }
+}
+const m_ = (cents: number) => cents / 100
+
+/** Adds up a period: by category, month, payment method and supplier (top ten). Voided expenses are left out. */
+export function demoExpenseReport(biz: string, from: string, to: string): ExpenseReport {
+  if (!canReadExpenses(biz)) throw new Error('permission denied')
+  if (!from || !to || to < from) throw new Error('choose a valid period')
+  const list = posted(biz).filter((e) => e.date >= from && e.date <= to)
+  const sum = (key: (e: DExpense) => string | null) => { const t = new Map<string, { cents: number; n: number }>(); for (const e of list) { const k = key(e); if (k === null) continue; const cur = t.get(k) ?? { cents: 0, n: 0 }; cur.cents += c(e.amount); cur.n++; t.set(k, cur) } return t }
+  const desc = <T extends { total: number }>(rows: T[]) => rows.sort((a, z) => z.total - a.total)
+  return {
+    total: m_(list.reduce((a, e) => a + c(e.amount), 0)), count: list.length,
+    byCategory: desc([...sum((e) => e.category)].map(([category, v]) => ({ category, total: m_(v.cents), count: v.n }))),
+    byMonth: [...sum((e) => e.date.slice(0, 7))].map(([month, v]) => ({ month, total: m_(v.cents) })).sort((a, z) => a.month.localeCompare(z.month)),
+    byMethod: desc([...sum((e) => e.method)].map(([method, v]) => ({ method, total: m_(v.cents) }))),
+    bySupplier: desc([...sum((e) => (e.supplierId ? getTrade().suppliers.find((s) => s.id === e.supplierId)?.name ?? null : null))].map(([supplier, v]) => ({ supplier, total: m_(v.cents) }))).slice(0, 10),
+  }
 }

@@ -115,9 +115,20 @@ Built, on top of drafts, sending, payments (with reversal), cancelling, quotes-t
 
 Not yet: recurring invoices (they need a scheduler), automatic reminders by email or SMS (no delivery integration), a link a customer can open and accept, tax profiles (more than one rate on an invoice, tax-inclusive prices), invoicing from inventory items, partial refunds of a settled invoice (a credit note cannot go below what has already been paid), multi-currency, and a PDF file generated on the server.
 
+### Expenses (deepened fifth)
+
+Built, on top of recording, voiding with a reason (never deleting), the cashbook and the farm's batch costing:
+
+- **Your own categories.** A category is a short lower-case name (`marketing`, `staff_welfare`). A farm still starts with feed, labour, medication and the rest; every other business starts with a general set (supplies, rent, utilities, salaries, transport, marketing, software, taxes and so on). Pick one, or type a new name: the screens turn "Staff welfare" into `staff_welfare`. The database accepts any such name (the old fixed list is gone), and anything already used stays choosable.
+- **Budgets** (`expense_set_budget`, `expense_budget_status`): a monthly amount per category that repeats every month until changed or removed, shown beside what was actually spent in any month (posted entries only). The bar turns amber at 80% and red when passed; spending in a category with no budget is listed too. Setting one needs the same permission as recording an expense; reading needs the expenses read permission. Removing a budget is written to the audit log.
+- **Report** (`expense_report`): for This month, Last month, Last 30 days, This year or any dates: total, count and average, and by category (with share), month, how it was paid and top suppliers, worked out on the server; CSV export.
+- **The list**: filters for words (description, number, category), category, how it was paid, a date range and posted or voided; CSV export; **record again** copies an entry into the form.
+- Every part is in the sidebar (Expenses, Budgets, Report).
+
+Not yet: receipt photos and file attachments (needs file storage), recurring expenses (they need a scheduler), approval before an expense counts, expense claims by staff, per-department or per-project budgets, a yearly budget view, budget alerts by email, and tax or VAT split on an entry.
+
 ### The other apps (not yet deepened)
 
-- **Expenses:** receipt attachments, recurring expenses, budgets, approvals, vendors.
 - **Finance:** profit and loss by category, bank accounts and reconciliation, budget against actual, cash-flow forecast.
 
 ## One workspace, visible to the platform

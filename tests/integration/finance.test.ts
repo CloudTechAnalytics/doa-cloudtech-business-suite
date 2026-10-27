@@ -59,7 +59,7 @@ describe('record_expense / void_expense (database)', () => {
     await expect(expense(owner, biz, 0)).rejects.toThrow(/positive/)
     await expect(expense(owner, biz, 1.234)).rejects.toThrow(/2 decimals/)
     await expect(expense(owner, biz, 5, { date: '2999-01-01' })).rejects.toThrow(/future/)
-    await expect(expense(owner, biz, 5, { cat: 'gold' })).rejects.toThrow(/check constraint|violates/)
+    await expect(expense(owner, biz, 5, { cat: 'Not Valid!' })).rejects.toThrow(/choose a category/)
     const k = key()
     const a = await expense(owner, biz, 9, { desc: 'Idem expense', k })
     expect(await expense(owner, biz, 9, { desc: 'Idem expense', k })).toBe(a)
@@ -171,7 +171,7 @@ describe('demo finance mirrors the database rules', () => {
     const v = { category: 'feed' as const, amount: 5, method: 'cash', description: 'Test expense', date: today, supplierId: null, batchId: null }
     expect(demoRecordExpense(B, { ...v, amount: 0 }, dkey()).error).toMatch(/positive/)
     expect(demoRecordExpense(B, { ...v, date: '2999-01-01' }, dkey()).error).toMatch(/future/)
-    expect(demoRecordExpense(B, { ...v, category: 'gold' as never }, dkey()).error).toMatch(/unknown category/)
+    expect(demoRecordExpense(B, { ...v, category: 'Not Valid!' }, dkey()).error).toMatch(/choose a category/)
     const k = dkey()
     const a = demoRecordExpense(B, v, k); const b = demoRecordExpense(B, v, k)
     expect(b.result).toEqual(a.result)
