@@ -87,11 +87,23 @@ Built, on top of what it already had (a product grid with search and barcode sca
 - **Receipt by WhatsApp** (opens WhatsApp with the receipt text; DOA sends nothing itself) as well as print or save as PDF.
 - Every part of the till is in the sidebar (New sale, History, Today).
 
-Not yet: selling **services** (items with no stock: needs a stock-tracking flag on products), product categories and variants in the generic till (retail has them), tips, loyalty points, customer-facing display, offline sales, a cash drawer with opening and closing counts for the general till (the retail and pharmacy tills have shifts).
+Services (items with no stock) are sold from the same till since Inventory was deepened (below). Not yet: product categories and variants in the generic till (retail has them), tips, loyalty points, customer-facing display, offline sales, a cash drawer with opening and closing counts for the general till (the retail and pharmacy tills have shifts).
+
+### Inventory (deepened third)
+
+Built, on top of the movement ledger, locations, receive / adjust / issue / transfer and reversal it already had:
+
+- **Services**: a product can be a *Service* (sold like a product, no stock). It is set when the product is created and cannot be changed afterwards (the database does not allow it). A service is left out of Stock, Receive, Adjust, Transfer and Counts, shows "Service" on the till tile with no stock check, and a sale of it moves no stock. Voids and returns of such a sale work.
+- **Edit a product** (name, SKU, barcode, price, cost, reorder level, category) and **categories** (pick one, or name a new one inline; one category per name, whatever the case).
+- **Counts** tab over `stock_count_start / record / post`: pick a location, type what is on the shelf (blank skips a product), post. Each difference is one *count adjustment* in the ledger, worked out against the stock at posting time so sales made during the count are not lost. A posted count is read-only.
+- **Stock tab**: summary tiles (stock value, products kept in stock, out of stock, running low) and a **Needs attention** list, out of stock first. The suggested quantity is a plain rule (top back up to twice the reorder level), labelled as such; a product with no reorder level gets no suggestion.
+- **CSV import** of a product list (`inventory_import_products`): up to 500 rows, loose headings (Item name, Code, Qty, Retail price...), a template, a preview, **opening stock** received into a chosen location through the ledger at the row's cost, services by *Type = Service*, categories created on the way, duplicates (SKU, barcode, or name when neither is given) skipped, unreadable rows reported one by one, all or nothing, and a repeat of the same request does nothing. **CSV export** of the stock list and of the product list (same headings as the template).
+- Every part is in the sidebar (Stock, Products, Counts, Movements, Receive, Adjust / issue, Transfer, Locations); `?tab=receive` style addresses, with the older `?tab=Receive` still accepted.
+
+Not yet: variants and product images, lots and expiry for general goods (pharmacy has its own), bundles / kits, units conversion on the screen, a purchase-order-driven reorder (Purchases is a separate module), per-location reorder levels, barcode label printing, valuation reports by date, and a forecast-based reorder suggestion.
 
 ### The other apps (not yet deepened)
 
-- **Inventory:** low-stock alerts and reorder suggestions, stock counts, locations and transfers, variants, units, lots, barcodes, valuation.
 - **Invoices:** recurring invoices, payment reminders, credit notes, tax profiles, customer statements, a link a customer can open and accept.
 - **Expenses:** receipt attachments, recurring expenses, budgets, approvals, vendors.
 - **Finance:** profit and loss by category, bank accounts and reconciliation, budget against actual, cash-flow forecast.

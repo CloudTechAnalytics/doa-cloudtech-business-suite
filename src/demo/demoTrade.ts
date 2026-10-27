@@ -230,7 +230,7 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
       if (!(l.quantity > 0)) throw new Error('quantity must be greater than zero')
       if (l.unitPrice !== undefined && l.unitPrice !== p.sellingPrice) throw new Error(`the price of ${p.name} has changed to ${p.sellingPrice}; refresh and retry`)
       if ((l.discount ?? 0) > 0 && !demoCanTrade(biz, 'sales.discount')) throw new Error('you are not allowed to give discounts')
-      saleGuard.check(biz, p.id, l.quantity, p.name)
+      if (p.tracksStock !== false) saleGuard.check(biz, p.id, l.quantity, p.name)
       return p
     })
     let priced
@@ -243,8 +243,9 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
     t.sales.push(sale)
     const group = newId('g')
     lines.forEach((l, i) => {
-      const m = postMovement(inv, prods[i], locationId, 'sale', -l.quantity, null, null, group)
-      t.saleItems.push({ id: newId('si'), saleId: sale.id, productId: prods[i].id, description: prods[i].name, quantity: l.quantity, unitPrice: prods[i].sellingPrice, discount: priced.lines[i].discount, tax: priced.lines[i].tax, total: priced.lines[i].total, unitCost: m.unitCost, movementId: m.id })
+      // A service has no stock: the sale is recorded, nothing moves.
+      const m = prods[i].tracksStock === false ? null : postMovement(inv, prods[i], locationId, 'sale', -l.quantity, null, null, group)
+      t.saleItems.push({ id: newId('si'), saleId: sale.id, productId: prods[i].id, description: prods[i].name, quantity: l.quantity, unitPrice: prods[i].sellingPrice, discount: priced.lines[i].discount, tax: priced.lines[i].tax, total: priced.lines[i].total, unitCost: m?.unitCost ?? null, movementId: m?.id ?? null })
     })
     for (const p of payments) addPayment(t, biz, { saleId: sale.id, type: 'sale_receipt', method: p.method, amount: p.amount, status: p.status ?? 'successful', reference: p.reference })
     if (sale.balanceDue > 0) {

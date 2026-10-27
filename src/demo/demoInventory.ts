@@ -6,7 +6,10 @@ import { rolePermissions } from '@/core/permissions/roles'
 
 /** Browser-only inventory for demo mode; uses the same ledger rules as the database (see ledger.ts). */
 
-export interface DProduct { id: string; businessId: string; sku: string | null; barcode: string | null; name: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; status: 'active' | 'archived'; kind?: 'ingredient' | 'finished_good' | 'goods' }
+export interface DProduct { id: string; businessId: string; sku: string | null; barcode: string | null; name: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; status: 'active' | 'archived'; kind?: 'ingredient' | 'finished_good' | 'goods'; /** false for a service: sold like a product but with no stock. */ tracksStock?: boolean; categoryId?: string | null }
+export interface DCategory { id: string; businessId: string; name: string }
+export interface DCountItem { productId: string; expected: number; counted: number | null }
+export interface DCount { id: string; businessId: string; locationId: string; status: 'open' | 'posted'; createdAt: string; postedAt: string | null; items: DCountItem[] }
 /** A batch of finished goods with an expiry date; stock leaves the oldest-expiring lot first (mirrors bakery_lots). */
 export interface DLot { batchNumber?: string | null; status?: 'active' | 'quarantined'; statusReason?: string | null; manufacturedOn?: string | null; supplierId?: string | null; locationId?: string | null; id: string; businessId: string; productId: string; batchId: string; quantity: number; remaining: number; producedOn: string; expiresOn: string | null; voided: boolean }
 export interface DAlloc { lotId: string; movementId: string; quantity: number; restored: boolean }
@@ -27,6 +30,8 @@ export interface Inv {
   martLotProducts?: string[]
   /** Pharmacy medicines: batch stock that never sells expired, quarantined or undated lots. */
   pharmacyProducts?: string[]
+  categories?: DCategory[]
+  counts?: DCount[]
 }
 
 const KEY = 'doa.demo.inv.v1'
@@ -36,7 +41,7 @@ const empty = (): Inv => ({ products: [], locations: [], movements: [], balances
 
 /** A working copy for an operation that commits only if every step succeeds. */
 export function cloneInv(inv: Inv): Inv {
-  return { ...inv, balances: { ...inv.balances }, movements: [...inv.movements], keys: { ...inv.keys }, lots: (inv.lots ?? []).map((l) => ({ ...l })), allocs: (inv.allocs ?? []).map((a) => ({ ...a })), lotProducts: [...(inv.lotProducts ?? [])], martLotProducts: [...(inv.martLotProducts ?? [])], pharmacyProducts: [...(inv.pharmacyProducts ?? [])] }
+  return { ...inv, balances: { ...inv.balances }, movements: [...inv.movements], keys: { ...inv.keys }, lots: (inv.lots ?? []).map((l) => ({ ...l })), allocs: (inv.allocs ?? []).map((a) => ({ ...a })), lotProducts: [...(inv.lotProducts ?? [])], martLotProducts: [...(inv.martLotProducts ?? [])], pharmacyProducts: [...(inv.pharmacyProducts ?? [])], categories: [...(inv.categories ?? [])], counts: (inv.counts ?? []).map((c) => ({ ...c, items: c.items.map((i) => ({ ...i })) })) }
 }
 
 function load(): Inv {
@@ -203,6 +208,7 @@ function transaction(businessId: string, op: string, key: string, fn: (inv: Inv)
 const product = (inv: Inv, businessId: string, pid: string) => {
   const p = inv.products.find((x) => x.id === pid && x.businessId === businessId)
   if (!p || p.status !== 'active') throw new Error('invalid product')
+  if (p.tracksStock === false) throw new Error('product does not track stock')
   return p
 }
 const location = (inv: Inv, businessId: string, lid: string) => {
@@ -266,14 +272,14 @@ export function demoReverse(businessId: string, movementId: string, reason: stri
   })
 }
 
-export function demoCreateProduct(businessId: string, p: { name: string; sku: string; barcode: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null }): string | null {
+export function demoCreateProduct(businessId: string, p: { name: string; sku: string; barcode: string; unit: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; tracksStock?: boolean; categoryId?: string | null }): string | null {
   const denied = guard(businessId)
   if (denied) return denied
   if (!p.name.trim()) return 'Enter the product name.'
   const dup = (f: 'sku' | 'barcode') => p[f].trim() && state.products.some((x) => x.businessId === businessId && x[f]?.toLowerCase() === p[f].trim().toLowerCase())
   if (dup('sku')) return 'duplicate key: this SKU already exists'
   if (dup('barcode')) return 'duplicate key: this barcode already exists'
-  commit({ ...state, products: [...state.products, { id: id('p'), businessId, name: p.name.trim(), sku: p.sku.trim() || null, barcode: p.barcode.trim() || null, unit: p.unit, sellingPrice: p.sellingPrice, defaultCost: p.defaultCost, reorderLevel: p.reorderLevel, status: 'active' }] })
+  commit({ ...state, products: [...state.products, { id: id('p'), businessId, name: p.name.trim(), sku: p.sku.trim() || null, barcode: p.barcode.trim() || null, unit: p.unit, sellingPrice: p.sellingPrice, defaultCost: p.defaultCost, reorderLevel: p.reorderLevel, status: 'active', tracksStock: p.tracksStock ?? true, categoryId: p.categoryId ?? null }] })
   return null
 }
 
@@ -299,4 +305,119 @@ export function demoEnsureProduct(businessId: string, p: { name: string; unit: s
   const product: DProduct = { id: id('p'), businessId, sku: p.sku, barcode: null, name: p.name, unit: p.unit, sellingPrice: p.price, defaultCost: null, reorderLevel: null, status: 'active' }
   commit({ ...state, products: [...state.products, product] })
   return product.id
+}
+
+// ---------------------------------------------------------------- categories, product edits, counts, import (mirror 20261021000003 and 20261021000053)
+export const demoCategories = (businessId: string) => (state.categories ?? []).filter((c) => c.businessId === businessId).sort((a, b) => a.name.localeCompare(b.name))
+export function demoCreateCategory(businessId: string, name: string): { error: string | null; id?: string } {
+  const denied = guard(businessId); if (denied) return { error: denied }
+  const n = name.trim()
+  if (!n) return { error: 'Enter the category name.' }
+  const have = demoCategories(businessId).find((c) => c.name.toLowerCase() === n.toLowerCase())
+  if (have) return { error: 'duplicate key: this category already exists', id: have.id }
+  const c: DCategory = { id: id('cat'), businessId, name: n }
+  commit({ ...state, categories: [...(state.categories ?? []), c] })
+  return { error: null, id: c.id }
+}
+
+/** Edits a product's details. Whether it tracks stock cannot be changed once it exists (the database does not allow it either). */
+export function demoUpdateProduct(businessId: string, productId: string, v: { name: string; sku: string; barcode: string; sellingPrice: number; defaultCost: number | null; reorderLevel: number | null; categoryId: string | null }): string | null {
+  const denied = guard(businessId); if (denied) return denied
+  if (!v.name.trim()) return 'Enter the product name.'
+  if (!(v.sellingPrice >= 0)) return 'Price cannot be negative.'
+  const dup = (f: 'sku' | 'barcode') => v[f].trim() && state.products.some((x) => x.businessId === businessId && x.id !== productId && x[f]?.toLowerCase() === v[f].trim().toLowerCase())
+  if (dup('sku')) return 'duplicate key: this SKU already exists'
+  if (dup('barcode')) return 'duplicate key: this barcode already exists'
+  if (!state.products.some((p) => p.id === productId && p.businessId === businessId)) return 'product not found'
+  commit({ ...state, products: state.products.map((p) => (p.id === productId ? { ...p, name: v.name.trim(), sku: v.sku.trim() || null, barcode: v.barcode.trim() || null, sellingPrice: v.sellingPrice, defaultCost: v.defaultCost, reorderLevel: v.reorderLevel, categoryId: v.categoryId } : p)) })
+  return null
+}
+
+function withResult<T>(businessId: string, op: string, key: string, fn: (inv: Inv) => T): { error: string | null; result?: T } {
+  const denied = guard(businessId); if (denied) return { error: denied }
+  if (!key || key.length < 8) return { error: 'an idempotency key of at least 8 characters is required' }
+  const prev = state.keys[`${businessId}|${key}`]
+  if (prev) return prev.op === op ? { error: null, result: JSON.parse(prev.result) as T } : { error: 'idempotency key already used for another operation' }
+  const next = cloneInv(state)
+  let result: T
+  try { result = fn(next) } catch (e) { return { error: (e as Error).message } }
+  next.keys[`${businessId}|${key}`] = { op, result: JSON.stringify(result) }
+  commit(next)
+  return { error: null, result }
+}
+
+export const demoCounts = (businessId: string) => (state.counts ?? []).filter((c) => c.businessId === businessId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+/** Starts a count of one location: every active product that tracks stock, with what the books say is there. */
+export function demoStartCount(businessId: string, locationId: string, key: string) {
+  return withResult(businessId, 'count_start', key, (inv) => {
+    location(inv, businessId, locationId)
+    const c: DCount = { id: id('cnt'), businessId, locationId, status: 'open', createdAt: new Date().toISOString(), postedAt: null,
+      items: inv.products.filter((p) => p.businessId === businessId && p.status === 'active' && p.tracksStock !== false).map((p) => ({ productId: p.id, expected: inv.balances[`${businessId}|${p.id}|${locationId}`]?.qty ?? 0, counted: null })) }
+    inv.counts = [...(inv.counts ?? []), c]
+    return { countId: c.id }
+  })
+}
+export function demoRecordCount(businessId: string, countId: string, productId: string, counted: number | null): string | null {
+  const denied = guard(businessId); if (denied) return denied
+  const c = (state.counts ?? []).find((x) => x.id === countId && x.businessId === businessId)
+  if (!c) return 'count not found'
+  if (c.status !== 'open') return 'count is already posted'
+  if (counted !== null && !(counted >= 0)) return 'counted quantity must be zero or more'
+  if (!c.items.some((i) => i.productId === productId)) return 'product is not part of this count'
+  commit({ ...state, counts: (state.counts ?? []).map((x) => (x.id === countId ? { ...x, items: x.items.map((i) => (i.productId === productId ? { ...i, counted } : i)) } : x)) })
+  return null
+}
+/** Applies each counted difference against the balance now (not the one when the count started), so stock ends up equal to what was counted. */
+export function demoPostCount(businessId: string, countId: string, key: string) {
+  return withResult(businessId, 'count_post', key, (inv) => {
+    const c = (inv.counts ?? []).find((x) => x.id === countId && x.businessId === businessId)
+    if (!c) throw new Error('count not found')
+    if (c.status !== 'open') throw new Error('count is already posted')
+    const group = id('g'); let adjusted = 0
+    for (const i of c.items.filter((x) => x.counted !== null)) {
+      const cur = inv.balances[`${businessId}|${i.productId}|${c.locationId}`]?.qty ?? 0
+      if (i.counted !== cur) { postMovement(inv, inv.products.find((p) => p.id === i.productId)!, c.locationId, 'count_adjustment', (i.counted as number) - cur, null, `Stock count ${c.id.slice(0, 8)}`, group); adjusted++ }
+    }
+    c.status = 'posted'; c.postedAt = new Date().toISOString()
+    return { adjusted }
+  })
+}
+
+export interface DProductImportRow { name?: string; sku?: string; barcode?: string; unit?: string; type?: string; category?: string; price?: string; cost?: string; reorder?: string; quantity?: string }
+export interface DProductImportResult { created: number; stocked: number; duplicates: number[]; invalid: { row: number; reason: string }[] }
+/** Mirrors inventory_import_products(): up to 500 rows, duplicates by SKU, barcode or name skipped, services have no stock, opening stock goes through the ledger, all or nothing. */
+export function demoImportProducts(businessId: string, locationId: string | null, rows: DProductImportRow[], key: string) {
+  return withResult(businessId, 'import_products', key, (inv): DProductImportResult => {
+    if (!rows.length) throw new Error('there are no rows to import')
+    if (rows.length > 500) throw new Error('import at most 500 rows at a time')
+    if (locationId) location(inv, businessId, locationId)
+    const dups: number[] = []; const bad: { row: number; reason: string }[] = []; const seen = new Set<string>(); const group = id('g'); let created = 0; let stocked = 0
+    const num = (s: string | undefined) => (s === undefined || s.trim() === '' ? null : Number(s))
+    rows.forEach((r, idx) => {
+      const i = idx + 1; const name = (r.name ?? '').trim(); const sku = (r.sku ?? '').trim() || null; const barcode = (r.barcode ?? '').trim() || null
+      const unit = ((r.unit ?? '').trim() || 'each').toLowerCase(); const service = ['service', 'services'].includes((r.type ?? '').toLowerCase())
+      if (!name) return void bad.push({ row: i, reason: 'no name' })
+      if (name.length > 200) return void bad.push({ row: i, reason: 'name is too long' })
+      if (!demoUnits.includes(unit)) return void bad.push({ row: i, reason: `unknown unit ${unit}` })
+      const price = num(r.price) ?? 0; const cost = num(r.cost); const reorder = num(r.reorder); const qty = num(r.quantity) ?? 0
+      if ([price, cost, reorder, qty].some((x) => x !== null && Number.isNaN(x))) return void bad.push({ row: i, reason: 'a price, cost, reorder level or quantity is not a number' })
+      if (price < 0 || (cost ?? 0) < 0 || (reorder ?? 0) < 0 || qty < 0) return void bad.push({ row: i, reason: 'a price, cost, reorder level or quantity is negative' })
+      if (qty > 0 && service) return void bad.push({ row: i, reason: 'a service has no stock to count' })
+      if (qty > 0 && !locationId) return void bad.push({ row: i, reason: 'choose where the opening stock goes' })
+      const k = sku ? `s:${sku.toLowerCase()}` : barcode ? `b:${barcode.toLowerCase()}` : `n:${name.toLowerCase()}`
+      const mine = inv.products.filter((p) => p.businessId === businessId)
+      if (seen.has(k) || (sku && mine.some((p) => p.sku?.toLowerCase() === sku.toLowerCase())) || (barcode && mine.some((p) => p.barcode?.toLowerCase() === barcode.toLowerCase())) || (!sku && !barcode && mine.some((p) => p.name.toLowerCase() === name.toLowerCase()))) return void dups.push(i)
+      seen.add(k)
+      let categoryId: string | null = null; const cat = (r.category ?? '').trim()
+      if (cat) {
+        let c = (inv.categories ?? []).find((x) => x.businessId === businessId && x.name.toLowerCase() === cat.toLowerCase())
+        if (!c) { c = { id: id('cat'), businessId, name: cat }; inv.categories = [...(inv.categories ?? []), c] }
+        categoryId = c.id
+      }
+      const p: DProduct = { id: id('p'), businessId, sku, barcode, name, unit, sellingPrice: Math.round(price * 100) / 100, defaultCost: cost, reorderLevel: reorder, status: 'active', tracksStock: !service, categoryId }
+      inv.products.push(p); created++
+      if (qty > 0) { postMovement(inv, p, locationId as string, 'receipt', qty, cost, 'Opening stock (import)', group); stocked++ }
+    })
+    return { created, stocked, duplicates: dups, invalid: bad }
+  })
 }

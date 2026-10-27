@@ -35,7 +35,8 @@ export async function loadCatalog(businessId: string, industry: IndustryCode): P
   const bal = Object.entries(inv.balances).filter(([k]) => k.startsWith(`${businessId}|`))
   return {
     units: ['each', 'dozen', 'kg', 'g', 'l', 'ml'],
-    products: inv.products.filter((p) => p.businessId === businessId).map((p) => ({ id: p.id, sku: p.sku, barcode: p.barcode, name: p.name, unit: p.unit, sellingPrice: p.sellingPrice, defaultCost: p.defaultCost, reorderLevel: p.reorderLevel, status: p.status })),
+    categories: (inv.categories ?? []).filter((c) => c.businessId === businessId).map((c) => ({ id: c.id, name: c.name })),
+    products: inv.products.filter((p) => p.businessId === businessId).map((p) => ({ id: p.id, sku: p.sku, barcode: p.barcode, name: p.name, unit: p.unit, sellingPrice: p.sellingPrice, defaultCost: p.defaultCost, reorderLevel: p.reorderLevel, status: p.status, tracksStock: p.tracksStock !== false, categoryId: p.categoryId ?? null })),
     locations: inv.locations.filter((l) => l.businessId === businessId).map((l) => ({ id: l.id, name: l.name })),
     balances: bal.map(([k, v]) => { const [, productId, locationId] = k.split('|'); return { productId, locationId, qty: v.qty, avgCost: v.avg } }),
     movements: [],

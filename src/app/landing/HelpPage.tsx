@@ -27,6 +27,8 @@ const TOPICS: Topic[] = [
   ] },
   { id: 'stock', title: 'Stock and purchases', blurb: 'Products, counts, suppliers and what you owe.', icon: Package, color: '#e8590c', articles: [
     { q: 'How do I add stock?', a: 'Use Receive stock on the Products or Inventory page, or receive goods against a purchase order. Stock only changes through these steps, never by typing a new number.' },
+    { q: 'Can I bring in my product list from a spreadsheet?', a: 'Yes. On Inventory, open Products and choose Import products. Save your sheet as a CSV file (File, Save as, CSV), download the template to see the columns, and upload it. You see what DOA understood before anything is saved. Products you already have are skipped, and an Opening stock column puts the quantities on your shelf.' },
+    { q: 'How do I sell something that has no stock, like a service?', a: 'Add it on Products and choose Service (no stock) under Kind. It appears on the till like any product, without a stock count, and selling it never changes your stock. This is chosen when you add it and cannot be changed later.' },
     { q: 'What is a stock count?', a: 'A count compares what you physically have with what the system says. A manager approves it, and the difference is recorded as an adjustment.' },
     { q: 'How do I record damaged or expired goods?', a: 'Use Damaged & Expired. The goods leave your stock and the loss is recorded with the reason.' },
     { q: 'Where do I see what I owe suppliers?', a: 'On the Suppliers page and in Reports. Orders, deliveries and payments are on the Purchases page.' },

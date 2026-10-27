@@ -85,7 +85,7 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
 
   useEffect(() => { if (!locationId && catalog.locations[0]) setLocationId(catalog.locations[0].id) }, [catalog.locations, locationId])
 
-  const onHand = (productId: string) => catalog.balances.filter((b) => b.productId === productId && b.locationId === locationId).reduce((a, b) => a + b.qty, 0)
+  const onHand = (productId: string) => catalog.products.find((p) => p.id === productId)?.tracksStock === false ? Infinity : catalog.balances.filter((b) => b.productId === productId && b.locationId === locationId).reduce((a, b) => a + b.qty, 0)
   const products = useMemo(() => {
     const t = search.trim().toLowerCase()
     return catalog.products.filter((p) => p.status === 'active' && (!t || [p.name, p.sku, p.barcode].some((v) => v?.toLowerCase().includes(t))))
@@ -170,12 +170,13 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
             {products.map((p) => {
               const have = onHand(p.id)
               const out = have <= 0
+              const service = p.tracksStock === false
               return (
                 <button key={p.id} type="button" disabled={out} onClick={() => add(p.id)}
                   className="rounded-lg border border-ink/10 bg-white p-3 text-left shadow-card transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">
                   <span className="block text-sm font-medium leading-snug">{p.name}</span>
                   <span className="mt-1 block text-sm tabular">{naira(p.sellingPrice)}</span>
-                  <span className="mt-1 block"><Badge tone={out ? 'danger' : p.reorderLevel !== null && have <= p.reorderLevel ? 'warning' : 'success'}>{out ? 'Out of stock' : `${qty(have)} ${p.unit}`}</Badge></span>
+                  <span className="mt-1 block"><Badge tone={service ? 'neutral' : out ? 'danger' : p.reorderLevel !== null && have <= p.reorderLevel ? 'warning' : 'success'}>{service ? 'Service' : out ? 'Out of stock' : `${qty(have)} ${p.unit}`}</Badge></span>
                 </button>
               )
             })}

@@ -4,6 +4,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { isDemoMode } from '@/shared/utilities/env'
+import { AlertTriangle, Download, Upload } from 'lucide-react'
 import { Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { DetailPage } from '@/shared/components/detail-page'
 import { Dialog } from '@/shared/components/dialog'
@@ -13,9 +14,15 @@ import type { InventoryData, MovementRow, Product } from '@/modules/inventory/in
 import { stockStatus } from '@/modules/inventory/ledger'
 import type { StockStatus } from '@/modules/inventory/ledger'
 import { DeleteButton } from '@/shared/components/delete-button'
+import { downloadCsv } from '@/shared/utilities/csvExport'
+import { CountsTab } from '@/modules/inventory/InventoryCounts'
+import { ImportProductsDialog } from '@/modules/inventory/InventoryImport'
+import { categoryName, needsAttention, productExport, stockExport, stockRows, summarise } from '@/modules/inventory/stockLogic'
 
-const TABS = ['Stock', 'Products', 'Locations', 'Movements', 'Receive', 'Adjust / issue', 'Transfer'] as const
-type Tab = (typeof TABS)[number]
+/** The address says which part is open (?tab=counts), so the sidebar, the tabs and the back button agree. The older capitalised names (?tab=Receive) still work. */
+const TABS = [['stock', 'Stock'], ['products', 'Products'], ['counts', 'Counts'], ['movements', 'Movements'], ['receive', 'Receive'], ['adjust', 'Adjust / issue'], ['transfer', 'Transfer'], ['locations', 'Locations']] as const
+type Tab = (typeof TABS)[number][0]
+const tabFrom = (q: string | null): Tab => { const k = (q ?? '').toLowerCase(); return TABS.find(([key, label]) => key === k || label.toLowerCase() === k)?.[0] ?? 'stock' }
 
 const naira = (n: number | null) => (n === null ? '–' : `₦${n.toLocaleString('en-NG', { maximumFractionDigits: 2 })}`)
 const fmt = (n: number) => n.toLocaleString('en-NG', { maximumFractionDigits: 4 })
@@ -46,9 +53,9 @@ function useIdempotencyKey() {
 
 export function InventoryPage() {
   const { active } = useBusiness()
-  const [params] = useSearchParams()
-  const requested = params.get('tab')
-  const [tab, setTab] = useState<Tab>(TABS.find((t) => t === requested) ?? 'Stock')
+  const [params, setParams] = useSearchParams()
+  const tab = tabFrom(params.get('tab'))
+  const setTab = (t: Tab) => setParams({ tab: t })
   const [perms, setPerms] = useState<string[] | null>(null)
   const businessId = active?.id ?? ''
   const { data, error, refresh } = useInventory(businessId, active?.industry ?? 'retail')
@@ -68,25 +75,26 @@ export function InventoryPage() {
       <PageHeader title="Inventory" description="Products, stock levels and the full movement history. Stock is derived from an append-only ledger." />
       {error && <ErrorState message={error} />}
       <div role="tablist" aria-label="Inventory sections" className="mb-4 flex flex-wrap gap-1 border-b border-ink/10">
-        {TABS.map((t) => (
+        {TABS.map(([key, label]) => (
           <button
-            key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}
-          >{t}</button>
+            key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === key ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}
+          >{label}</button>
         ))}
       </div>
       {!data ? <Spinner /> : (
         <>
-          {!canWrite && perms && ['Receive', 'Adjust / issue', 'Transfer'].includes(tab) && (
+          {!canWrite && perms && ['receive', 'adjust', 'transfer'].includes(tab) && (
             <Notice>Your role can view inventory but not change it.</Notice>
           )}
-          {tab === 'Stock' && <StockTab data={data} />}
-          {tab === 'Products' && <ProductsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
-          {tab === 'Locations' && <LocationsTab businessId={businessId} industry={active.industry} canWrite={canWrite} onChanged={refresh} />}
-          {tab === 'Movements' && <MovementsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
-          {tab === 'Receive' && canWrite && <ReceiveForm data={data} businessId={businessId} onDone={refresh} />}
-          {tab === 'Adjust / issue' && canWrite && <AdjustForm data={data} businessId={businessId} onDone={refresh} />}
-          {tab === 'Transfer' && canWrite && <TransferForm data={data} businessId={businessId} onDone={refresh} />}
+          {tab === 'stock' && <StockTab data={data} onGo={setTab} />}
+          {tab === 'products' && <ProductsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
+          {tab === 'counts' && <CountsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
+          {tab === 'locations' && <LocationsTab businessId={businessId} industry={active.industry} canWrite={canWrite} onChanged={refresh} />}
+          {tab === 'movements' && <MovementsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
+          {tab === 'receive' && canWrite && <ReceiveForm data={data} businessId={businessId} onDone={refresh} />}
+          {tab === 'adjust' && canWrite && <AdjustForm data={data} businessId={businessId} onDone={refresh} />}
+          {tab === 'transfer' && canWrite && <TransferForm data={data} businessId={businessId} onDone={refresh} />}
         </>
       )}
     </>
@@ -101,30 +109,46 @@ const STATUS_STYLE: Record<StockStatus, string> = {
 }
 const STATUS_LABEL: Record<StockStatus, string> = { out: 'Out of stock', low: 'Low stock', ok: 'In stock' }
 
-function StockTab({ data }: { data: InventoryData }) {
+function StockTab({ data, onGo }: { data: InventoryData; onGo: (t: Tab) => void }) {
   const [search, setSearch] = useState('')
   const [location, setLocation] = useState('')
   const [status, setStatus] = useState<'' | StockStatus>('')
   const [open, setOpen] = useState<string | null>(null)
 
+  const all = useMemo(() => stockRows(data, location), [data, location])
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase()
-    return data.products
-      .filter((p) => p.status === 'active')
-      .filter((p) => !term || [p.name, p.sku, p.barcode].some((v) => v?.toLowerCase().includes(term)))
-      .map((p) => {
-        const bals = data.balances.filter((b) => b.productId === p.id && (!location || b.locationId === location))
-        const qty = bals.reduce((s, b) => s + b.qty, 0)
-        const value = bals.reduce((s, b) => s + b.qty * (b.avgCost ?? 0), 0)
-        return { p, qty, avg: qty > 0 ? value / qty : null, value, st: stockStatus(qty, p.reorderLevel) }
-      })
-      .filter((r) => !status || r.st === status)
-  }, [data, search, location, status])
+    return all.filter((r) => (!term || [r.p.name, r.p.sku, r.p.barcode].some((v) => v?.toLowerCase().includes(term))) && (!status || r.st === status))
+  }, [all, search, status])
+  const sum = summarise(data, all)
+  const attention = needsAttention(all)
 
   const total = rows.reduce((s, r) => s + Math.max(r.value, 0), 0)
 
   return (
     <>
+      <div className="mb-4 grid gap-3 sm:grid-cols-4">
+        {([['Stock value', naira(sum.value)], ['Products kept in stock', String(sum.products)], ['Out of stock', String(sum.out)], ['Running low', String(sum.low)]] as const).map(([t, v]) => (
+          <div key={t} className="rounded-lg border border-line bg-white p-3"><p className="text-[11px] font-medium uppercase tracking-wide text-ink/60">{t}</p><p className="tabular mt-1 text-lg font-semibold">{v}</p></div>
+        ))}
+      </div>
+      {attention.length > 0 && (
+        <Card className="mb-4">
+          <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="size-4 text-warning" aria-hidden /> Needs attention <span className="font-normal text-ink/60">({attention.length})</span></h2>
+          <p className="mb-2 text-xs text-ink/60">Out of stock first, then at or below the reorder level. The suggested quantity tops a product back up to twice its reorder level: a simple rule, not a forecast.</p>
+          <ul className="divide-y divide-ink/10 text-sm">
+            {attention.slice(0, 8).map((r) => (
+              <li key={r.p.id} className="flex flex-wrap items-center gap-2 py-1.5">
+                <span className="font-medium">{r.p.name}</span>
+                <span className={clsx('rounded-md px-2 py-0.5 text-xs font-medium', STATUS_STYLE[r.st])}>{STATUS_LABEL[r.st]}</span>
+                <span className="tabular text-xs text-ink/60">{fmt(r.qty)} {r.p.unit} on hand{r.p.reorderLevel !== null ? ` · reorder at ${fmt(r.p.reorderLevel)}` : ''}</span>
+                <span className="ml-auto text-xs">{r.suggest !== null ? <>Suggested: buy <b>{fmt(r.suggest)}</b> {r.p.unit}</> : <span className="text-ink/50">No reorder level set</span>}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex gap-2">{attention.length > 8 && <span className="text-xs text-ink/60">…and {attention.length - 8} more (filter by status below).</span>}<Button variant="ghost" className="ml-auto" onClick={() => onGo('receive')}>Receive stock</Button></div>
+        </Card>
+      )}
       <div className="mb-3 grid gap-3 sm:grid-cols-3">
         <TextField label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, SKU or barcode" />
         <SelectField label="Location" value={location} onChange={(e) => setLocation(e.target.value)}>
@@ -136,7 +160,7 @@ function StockTab({ data }: { data: InventoryData }) {
         </SelectField>
       </div>
       {rows.length === 0 ? (
-        <EmptyState title="No products match" description={data.products.length ? 'Try clearing the filters.' : 'Add your first product on the Products tab.'} />
+        <EmptyState title="No products match" description={data.products.length ? (all.length ? 'Try clearing the filters.' : 'Your products are services, which keep no stock.') : 'Add your first product on the Products tab, or import a list.'} />
       ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
@@ -155,7 +179,10 @@ function StockTab({ data }: { data: InventoryData }) {
               ))}
             </tbody>
           </table>
-          <p className="border-t border-ink/10 p-3 text-right text-xs text-ink/60">Inventory value (weighted-average cost): <b>{naira(total)}</b></p>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 p-3 text-xs text-ink/60">
+            <Button variant="ghost" onClick={() => downloadCsv('stock.csv', stockExport(data, rows))}><Download className="size-4" aria-hidden /> Export stock (CSV)</Button>
+            <p>Inventory value (weighted-average cost): <b>{naira(total)}</b></p>
+          </div>
         </Card>
       )}
       {open && <ProductDetail data={data} id={open} onClose={() => setOpen(null)} />}
@@ -164,10 +191,28 @@ function StockTab({ data }: { data: InventoryData }) {
 }
 
 // -------------------------------------------------------------- products
+/** Picks a category, or names a new one. Returns the category to save (or an error). */
+async function resolveCategory(businessId: string, f: FormData): Promise<{ error: string | null; id: string | null }> {
+  const fresh = String(f.get('newCategory') ?? '').trim()
+  if (!fresh) return { error: null, id: String(f.get('category') ?? '') || null }
+  const r = await api.createCategory(businessId, fresh)
+  return { error: r.error, id: r.category?.id ?? null }
+}
+const CategoryFields = ({ data, current }: { data: InventoryData; current?: string | null }) => (
+  <>
+    <SelectField label="Category (optional)" name="category" defaultValue={current ?? ''}><option value="">No category</option>{data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField>
+    <TextField label="Or a new category" name="newCategory" maxLength={80} placeholder="e.g. Drinks" />
+  </>
+)
+
 function ProductsTab({ data, businessId, canWrite, onChanged }: { data: InventoryData; businessId: string; canWrite: boolean; onChanged: () => Promise<void> }) {
   const [open, setOpen] = useState<string | null>(null)
+  const [editing, setEditing] = useState<Product | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [service, setService] = useState(false)
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -181,18 +226,23 @@ function ProductsTab({ data, businessId, canWrite, onChanged }: { data: Inventor
     for (const k of ['cost', 'reorder']) { const v = optional(k); if (v !== null && !(v >= 0)) next[k] = 'Must be zero or more.' }
     setFieldErrors(next)
     if (Object.keys(next).length) return
+    const cat = await resolveCategory(businessId, f)
+    if (cat.error) return setError(cat.error)
     const err = await api.createProduct(businessId, {
       name: String(f.get('name')), sku: String(f.get('sku') ?? ''), barcode: String(f.get('barcode') ?? ''), unit: String(f.get('unit')),
-      sellingPrice: price, defaultCost: optional('cost'), reorderLevel: optional('reorder'),
+      sellingPrice: price, defaultCost: optional('cost'), reorderLevel: service ? null : optional('reorder'), tracksStock: !service, categoryId: cat.id,
     })
     setError(err)
-    if (!err) { form.reset(); await onChanged() }
+    if (!err) { form.reset(); setService(false); await onChanged() }
   }
 
   async function toggle(p: Product) {
     setError(await api.setProductStatus(businessId, p.id, p.status === 'active' ? 'archived' : 'active'))
     await onChanged()
   }
+
+  const term = search.trim().toLowerCase()
+  const shown = data.products.filter((p) => !term || [p.name, p.sku, p.barcode, categoryName(data.categories, p.categoryId)].some((v) => v?.toLowerCase().includes(term)))
 
   return (
     <>
@@ -203,26 +253,36 @@ function ProductsTab({ data, businessId, canWrite, onChanged }: { data: Inventor
             <TextField label="Name" name="name" error={fieldErrors.name} />
             <TextField label="SKU (optional)" name="sku" />
             <TextField label="Barcode (optional)" name="barcode" />
+            <SelectField label="Kind" value={service ? 'service' : 'product'} onChange={(e) => setService(e.target.value === 'service')} hint={service ? 'A service is sold like a product but has no stock to count.' : undefined}>
+              <option value="product">Product (keeps stock)</option><option value="service">Service (no stock)</option>
+            </SelectField>
             <SelectField label="Unit" name="unit" defaultValue="each">{data.units.map((u) => <option key={u} value={u}>{u}</option>)}</SelectField>
             <TextField label="Selling price (₦)" name="price" type="number" step="0.01" min="0" error={fieldErrors.price} />
             <TextField label="Default cost (₦)" name="cost" type="number" step="0.01" min="0" error={fieldErrors.cost} />
-            <TextField label="Reorder level" name="reorder" type="number" step="any" min="0" error={fieldErrors.reorder} hint="Low-stock alert at or below this quantity." />
-            <div className="flex items-end"><Button type="submit">Add product</Button></div>
+            {!service && <TextField label="Reorder level" name="reorder" type="number" step="any" min="0" error={fieldErrors.reorder} hint="Low-stock alert at or below this quantity." />}
+            <CategoryFields data={data} />
+            <div className="flex items-end"><Button type="submit">Add {service ? 'service' : 'product'}</Button></div>
           </form>
         </Card>
       )}
-      {data.products.length === 0 ? <EmptyState title="No products yet" description="Products you add appear here." /> : (
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <div className="min-w-56 flex-1"><TextField label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, SKU, barcode or category" /></div>
+        {canWrite && <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" aria-hidden /> Import products</Button>}
+        {data.products.length > 0 && <Button variant="secondary" onClick={() => downloadCsv('products.csv', productExport(data))}><Download className="size-4" aria-hidden /> Export products</Button>}
+      </div>
+      {data.products.length === 0 ? <EmptyState title="No products yet" description="Add one above, or import a whole list from a spreadsheet." /> : shown.length === 0 ? <EmptyState title="No products match" description="Try another search." /> : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Product</th><th className="p-3">Barcode</th><th className="p-3 text-right">Price</th><th className="p-3 text-right">Reorder at</th><th className="p-3" /></tr></thead>
+            <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Product</th><th className="p-3">Category</th><th className="p-3">Barcode</th><th className="p-3 text-right">Price</th><th className="p-3 text-right">Reorder at</th><th className="p-3" /></tr></thead>
             <tbody className="divide-y divide-ink/10">
-              {data.products.map((p) => (
+              {shown.map((p) => (
                 <tr key={p.id} onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) setOpen(p.id) }} className={clsx('cursor-pointer hover:bg-surface', p.status === 'archived' && 'opacity-50')}>
-                  <td className="p-3"><b>{p.name}</b><div className="text-xs text-ink/60">{p.sku ?? 'No SKU'} · {p.unit}</div></td>
+                  <td className="p-3"><b>{p.name}</b>{!p.tracksStock && <span className="ml-2 rounded-md bg-surface px-1.5 py-0.5 text-[11px] font-medium text-ink/70">Service</span>}<div className="text-xs text-ink/60">{p.sku ?? 'No SKU'} · {p.unit}</div></td>
+                  <td className="p-3">{categoryName(data.categories, p.categoryId) || '–'}</td>
                   <td className="p-3">{p.barcode ?? '–'}</td>
                   <td className="p-3 text-right tabular-nums">{naira(p.sellingPrice)}</td>
-                  <td className="p-3 text-right tabular-nums">{p.reorderLevel ?? '–'}</td>
-                  <td className="p-3 text-right">{canWrite && <Button variant="ghost" onClick={() => void toggle(p)}>{p.status === 'active' ? 'Archive' : 'Restore'}</Button>}</td>
+                  <td className="p-3 text-right tabular-nums">{p.tracksStock ? (p.reorderLevel ?? '–') : '–'}</td>
+                  <td className="p-3 text-right whitespace-nowrap">{canWrite && <><Button variant="ghost" onClick={() => setEditing(p)}>Edit</Button><Button variant="ghost" onClick={() => void toggle(p)}>{p.status === 'active' ? 'Archive' : 'Restore'}</Button></>}</td>
                 </tr>
               ))}
             </tbody>
@@ -230,7 +290,48 @@ function ProductsTab({ data, businessId, canWrite, onChanged }: { data: Inventor
         </Card>
       )}
       {open && <ProductDetail data={data} id={open} onClose={() => setOpen(null)} actions={canWrite && data.products.find((x) => x.id === open) ? <DeleteButton businessId={businessId} kind="product" id={open} label={data.products.find((x) => x.id === open)!.name} noun="product" onDeleted={async () => { setOpen(null); await onChanged() }} /> : undefined} />}
+      {editing && <EditProductDialog data={data} businessId={businessId} product={editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await onChanged() }} />}
+      {importing && <ImportProductsDialog data={data} businessId={businessId} onClose={() => setImporting(false)} onDone={onChanged} />}
     </>
+  )
+}
+
+/** Change a product's details. Whether it keeps stock is fixed when it is created (a product with history cannot become a service). */
+function EditProductDialog({ data, businessId, product, onClose, onSaved }: { data: InventoryData; businessId: string; product: Product; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget)
+    const optional = (k: string) => (String(f.get(k) ?? '').trim() === '' ? null : Number(f.get(k)))
+    const price = Number(f.get('price') || 0)
+    if (!String(f.get('name')).trim()) return setError('Enter the product name.')
+    if (!(price >= 0)) return setError('Price cannot be negative.')
+    const cost = optional('cost'); const reorder = product.tracksStock ? optional('reorder') : null
+    if ((cost !== null && !(cost >= 0)) || (reorder !== null && !(reorder >= 0))) return setError('Cost and reorder level must be zero or more.')
+    setBusy(true); setError(null)
+    const cat = await resolveCategory(businessId, f)
+    const err = cat.error ?? await api.updateProduct(businessId, product.id, { name: String(f.get('name')), sku: String(f.get('sku') ?? ''), barcode: String(f.get('barcode') ?? ''), sellingPrice: price, defaultCost: cost, reorderLevel: reorder, categoryId: cat.id })
+    setBusy(false)
+    if (err) return setError(err)
+    await onSaved()
+  }
+  return (
+    <Dialog title={`Edit ${product.tracksStock ? 'product' : 'service'}`} onClose={onClose} wide>
+      <form onSubmit={submit} noValidate className="grid gap-3 sm:grid-cols-2">
+        <TextField label="Name" name="name" defaultValue={product.name} autoFocus />
+        <TextField label="SKU (optional)" name="sku" defaultValue={product.sku ?? ''} />
+        <TextField label="Barcode (optional)" name="barcode" defaultValue={product.barcode ?? ''} />
+        <TextField label="Selling price (₦)" name="price" type="number" step="0.01" min="0" defaultValue={product.sellingPrice} />
+        <TextField label="Default cost (₦)" name="cost" type="number" step="0.01" min="0" defaultValue={product.defaultCost ?? ''} />
+        {product.tracksStock && <TextField label="Reorder level" name="reorder" type="number" step="any" min="0" defaultValue={product.reorderLevel ?? ''} />}
+        <CategoryFields data={data} current={product.categoryId} />
+        <div className="space-y-3 sm:col-span-2">
+          {error && <ErrorState title="Not saved" message={error} />}
+          <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={busy}>Save</Button></div>
+        </div>
+      </form>
+    </Dialog>
   )
 }
 
@@ -247,19 +348,21 @@ function ProductDetail({ data, id, onClose, actions }: { data: InventoryData; id
   return (
     <DetailPage title={p.name} onClose={onClose} wide actions={actions}>
       <div className="space-y-5">
+        {!p.tracksStock && <Notice>This is a service: it is sold like a product, but no stock is kept, so there is nothing to count or receive.</Notice>}
         <div className="grid gap-3 sm:grid-cols-4">
-          {([['On hand', `${fmt(qty)} ${p.unit}`], ['Stock value', naira(value)], ['Selling price', naira(p.sellingPrice)], ['Default cost', naira(p.defaultCost)]] as const).map(([t, v]) => (
+          {(p.tracksStock ? [['On hand', `${fmt(qty)} ${p.unit}`], ['Stock value', naira(value)], ['Selling price', naira(p.sellingPrice)], ['Default cost', naira(p.defaultCost)]] as const : [['Selling price', naira(p.sellingPrice)], ['Default cost', naira(p.defaultCost)]] as const).map(([t, v]) => (
             <div key={t} className="rounded-lg border border-line bg-white p-3"><p className="text-[11px] font-medium uppercase tracking-wide text-ink/60">{t}</p><p className="tabular mt-1 text-lg font-semibold">{v}</p></div>
           ))}
         </div>
         <dl className="grid gap-3 text-sm sm:grid-cols-3">
           <div><dt className="text-xs text-ink/60">SKU</dt><dd>{p.sku ?? '–'}</dd></div>
           <div><dt className="text-xs text-ink/60">Barcode</dt><dd>{p.barcode ?? '–'}</dd></div>
-          <div><dt className="text-xs text-ink/60">Reorder level</dt><dd>{p.reorderLevel ?? '–'}</dd></div>
-          <div><dt className="text-xs text-ink/60">Stock status</dt><dd><span className={clsx('rounded-md px-2 py-0.5 text-xs font-medium', STATUS_STYLE[st])}>{STATUS_LABEL[st]}</span></dd></div>
+          <div><dt className="text-xs text-ink/60">Category</dt><dd>{categoryName(data.categories, p.categoryId) || '–'}</dd></div>
+          {p.tracksStock && <div><dt className="text-xs text-ink/60">Reorder level</dt><dd>{p.reorderLevel ?? '–'}</dd></div>}
+          {p.tracksStock && <div><dt className="text-xs text-ink/60">Stock status</dt><dd><span className={clsx('rounded-md px-2 py-0.5 text-xs font-medium', STATUS_STYLE[st])}>{STATUS_LABEL[st]}</span></dd></div>}
           <div><dt className="text-xs text-ink/60">Record</dt><dd>{p.status === 'active' ? 'Active' : 'Archived'}</dd></div>
         </dl>
-        <div>
+        {p.tracksStock && <><div>
           <h3 className="mb-1 text-sm font-semibold">Stock by location</h3>
           {bals.length === 0 ? <p className="text-sm text-ink/60">No stock recorded yet.</p> : (
             <table className="w-full text-sm"><thead className="text-left text-xs font-semibold text-ink/70"><tr><th className="py-1">Location</th><th className="py-1 text-right">On hand</th><th className="py-1 text-right">Average cost</th><th className="py-1 text-right">Value</th></tr></thead>
@@ -271,7 +374,7 @@ function ProductDetail({ data, id, onClose, actions }: { data: InventoryData; id
           {moves.length === 0 ? <p className="text-sm text-ink/60">Nothing recorded yet.</p> : (
             <ul className="divide-y divide-ink/10 text-sm">{moves.map((m) => <li key={m.id} className="flex flex-wrap items-baseline gap-2 py-1.5"><span className="font-medium">{TYPE_LABEL[m.type] ?? m.type}</span><span className="tabular">{m.delta > 0 ? '+' : ''}{fmt(m.delta)} {p.unit}</span><span className="text-ink/60">{where(m.locationId)}{m.reason ? ` · ${m.reason}` : ''}{m.reversed ? ' · reversed' : ''}</span><span className="ml-auto text-xs text-ink/50">{new Date(m.at).toLocaleString('en-NG')}</span></li>)}</ul>
           )}
-        </div>
+        </div></>}
       </div>
     </DetailPage>
   )
@@ -429,7 +532,7 @@ function FormShell({ title, state, children, onSubmit, submitLabel }: { title: s
   )
 }
 
-const activeProducts = (d: InventoryData) => d.products.filter((p) => p.status === 'active')
+const activeProducts = (d: InventoryData) => d.products.filter((p) => p.status === 'active' && p.tracksStock)
 const ProductSelect = ({ data, error }: { data: InventoryData; error?: string }) => (
   <SelectField label="Product" name="product" defaultValue="" error={error}>
     <option value="" disabled>Select…</option>
