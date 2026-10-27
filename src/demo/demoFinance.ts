@@ -111,9 +111,9 @@ export function demoReceivables(biz: string): ReceivableRow[] {
     soldAt: s.soldAt, grandTotal: s.grandTotal, amountPaid: s.amountPaid, balanceDue: s.balanceDue, ageDays: ageDays(s.soldAt), source: 'sale',
   }))
   // An unpaid or part-paid invoice is a receivable too (the database view unions the two).
-  const invoices = getInvoices().invoices.filter((i) => i.businessId === biz && (i.status === 'sent' || i.status === 'partially_paid') && i.total - i.amountPaid > 0).map((i): ReceivableRow => ({
+  const invoices = getInvoices().invoices.filter((i) => i.businessId === biz && (i.status === 'sent' || i.status === 'partially_paid') && i.total - (i.credited ?? 0) - i.amountPaid > 0).map((i): ReceivableRow => ({
     saleId: i.id, number: i.number, customerId: i.customerId, customerName: demoInvoiceCustomer(biz, i.customerId), soldAt: `${i.issuedOn}T00:00:00.000Z`,
-    grandTotal: i.total, amountPaid: i.amountPaid, balanceDue: m(c(i.total) - c(i.amountPaid)), ageDays: ageDays(i.issuedOn), source: 'invoice',
+    grandTotal: m(c(i.total) - c(i.credited ?? 0)), amountPaid: i.amountPaid, balanceDue: m(c(i.total) - c(i.credited ?? 0) - c(i.amountPaid)), ageDays: ageDays(i.issuedOn), source: 'invoice',
   }))
   return [...sales, ...invoices]
 }
@@ -169,7 +169,7 @@ export function demoReportSummary(biz: string, from: string, to: string): Report
     cashIn: m(cashIn), cashOut: m(cashOut), operatingSurplus: m(cashIn - cashOut),
     receivablesOpen: m(demoReceivables(biz).reduce((a, r) => a + c(r.balanceDue), 0)), payablesOpen: m(demoPayables(biz).reduce((a, r) => a + c(r.balanceDue), 0)),
     stockValue: Math.round(stock * 100) / 100,
-    invoicedTotal: m(getInvoices().invoices.filter((i) => i.businessId === biz && ['sent', 'partially_paid', 'paid'].includes(i.status) && i.issuedOn >= from && i.issuedOn <= to).reduce((a, i) => a + c(i.total), 0)),
+    invoicedTotal: m(getInvoices().invoices.filter((i) => i.businessId === biz && ['sent', 'partially_paid', 'paid', 'credited'].includes(i.status) && i.issuedOn >= from && i.issuedOn <= to).reduce((a, i) => a + c(i.total) - c(i.credited ?? 0), 0)),
   }
 }
 

@@ -106,8 +106,9 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     // workers, staff and settings are in the account menu (top right), not the sidebar
     for (const code of ['farm-workers', 'staff', 'settings']) expect(link(code), code).toBe(-1)
     expect(entries.some((e) => e.kind === 'heading' && e.label === 'People and administration')).toBe(false)
-    expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'invoices' } }) // an optional shared app sits after the industry's own sections
-    expect(entries.at(-2)).toMatchObject({ kind: 'link', module: { code: 'reports' } })
+    // an optional shared app sits after the industry's own sections (Invoices lists its own parts: Invoices, Statements, Ageing)
+    expect(entries.slice(-3).map((e) => [e.kind, e.kind === 'heading' ? '' : e.module.code])).toEqual([['section', 'invoices'], ['section', 'invoices'], ['section', 'invoices']])
+    expect(entries.at(-5)).toMatchObject({ kind: 'link', module: { code: 'reports' } }) // then its heading
   })
 
   it('offers industry workflows in the Record menu only when their module is usable', () => {

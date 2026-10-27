@@ -93,8 +93,8 @@ describe('the sidebar lists the parts of an app', () => {
     expect(entries.filter(sub(crmModule.definition)).map((e) => (e.kind === 'section' ? e.section.key : ''))).toEqual(['pipeline', 'deals', 'activities', 'customers', 'leads', 'quotes', 'reports'])
     expect(entries.filter(sub(salesModule.definition)).map((e) => (e.kind === 'section' ? e.section.key : ''))).toEqual(['new', 'history', 'today'])
     expect(entries.some((e) => e.kind === 'heading' && e.label === 'CRM')).toBe(true)
-    // an app with no parts of its own is still a single link
-    expect(entries.some((e) => e.kind === 'link' && e.module.code === 'invoices')).toBe(true)
+    // Invoices lists its own parts too; an app with none (Expenses) is still a single link
+    expect(entries.filter(sub({ code: 'invoices' })).map((e) => (e.kind === 'section' ? e.section.key : ''))).toEqual(['invoices', 'statements', 'ageing'])
   })
   it('points each part at its module with ?tab=', () => {
     const s = crmModule.definition.sections!.find((x) => x.key === 'activities')!

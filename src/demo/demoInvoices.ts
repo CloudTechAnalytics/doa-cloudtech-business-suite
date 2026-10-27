@@ -7,15 +7,16 @@ import { demoAllowed, demoInsertCustomer, getTrade } from '@/demo/demoTrade'
  * Browser-only invoices for demo mode. Mirrors supabase/migrations/20261021000047_invoices.sql: totals are worked out here, a payment needs an idempotency
  * key, payments are reversed (never edited or deleted), an accepted quote becomes an invoice once, and Finance reads these records through demoFinance.
  */
-export type InvoiceStatus = 'draft' | 'sent' | 'partially_paid' | 'paid' | 'cancelled'
+export type InvoiceStatus = 'draft' | 'sent' | 'partially_paid' | 'paid' | 'credited' | 'cancelled'
 export interface DInvoiceLine { description: string; quantity: number; unitPrice: number }
 export interface DInvoice {
   id: string; businessId: string; number: string; customerId: string; quoteId: string | null; status: InvoiceStatus; issuedOn: string; dueOn: string | null
-  lines: DInvoiceLine[]; discount: number; taxPercent: number; subtotal: number; taxAmount: number; total: number; amountPaid: number; notes: string; cancelReason: string | null; createdAt: string
+  lines: DInvoiceLine[]; discount: number; taxPercent: number; subtotal: number; taxAmount: number; total: number; amountPaid: number; /** Sum of the credit notes. */ credited?: number; notes: string; cancelReason: string | null; createdAt: string
 }
+export interface DCreditNote { id: string; businessId: string; invoiceId: string; number: string; amount: number; reason: string; issuedOn: string; key: string; createdAt: string }
 export interface DInvoicePayment { id: string; businessId: string; invoiceId: string; amount: number; method: string; paidOn: string; reference: string | null; status: 'successful' | 'reversed'; reversalReason: string | null; key: string; createdAt: string }
 
-interface Inv { invoices: DInvoice[]; payments: DInvoicePayment[]; counter: Record<string, number> }
+interface Inv { invoices: DInvoice[]; payments: DInvoicePayment[]; counter: Record<string, number>; creditNotes?: DCreditNote[]; cnCounter?: Record<string, number> }
 const KEY = 'doa.demo.invoices.v1'
 const empty = (): Inv => ({ invoices: [], payments: [], counter: {} })
 function load(): Inv {
@@ -43,7 +44,8 @@ export const demoInvoicePayments = (biz: string, invoiceId: string) => state.pay
 const customerName = (biz: string, id: string) => getTrade().customers.find((c) => c.businessId === biz && c.id === id)?.name ?? ''
 export const demoInvoiceCustomer = customerName
 /** Customers for the invoice screen: readable without the CRM app, like the customers policy that also allows invoices.read. */
-export const demoInvoiceCustomers = (biz: string) => getTrade().customers.filter((c) => c.businessId === biz).map((c) => ({ id: c.id, name: c.name })).sort((a, z) => a.name.localeCompare(z.name))
+export const demoInvoiceCustomers = (biz: string) => getTrade().customers.filter((c) => c.businessId === biz).map((c) => ({ id: c.id, name: c.name, phone: c.phone ?? null, email: c.email ?? null })).sort((a, z) => a.name.localeCompare(z.name))
+export const demoCreditNotes = (biz: string, invoiceId?: string) => (state.creditNotes ?? []).filter((c) => c.businessId === biz && (!invoiceId || c.invoiceId === invoiceId))
 
 /** Mirrors invoice_add_customer(): reuses an active customer with the same email or phone instead of making a duplicate. */
 export function demoInvoiceAddCustomer(biz: string, v: { name: string; phone: string; email: string }): { error: string | null; id?: string } {
@@ -71,10 +73,13 @@ function tidy(lines: DInvoiceLine[], noun = 'invoice') {
   return { lines: out, subtotal: money(out.reduce((a, l) => a + money(l.quantity * l.unitPrice), 0)) }
 }
 
+/** What has been paid and credited decides the status (mirrors _invoice_recompute). */
 const recompute = (s: Inv, id: string): Inv => {
   const paid = money(s.payments.filter((p) => p.invoiceId === id && p.status === 'successful').reduce((a, p) => a + p.amount, 0))
-  return { ...s, invoices: s.invoices.map((i) => (i.id !== id ? i : { ...i, amountPaid: paid, status: i.status === 'draft' || i.status === 'cancelled' ? i.status : paid >= i.total ? 'paid' : paid > 0 ? 'partially_paid' : 'sent' })) }
+  const cred = money((s.creditNotes ?? []).filter((c) => c.invoiceId === id).reduce((a, c) => a + c.amount, 0))
+  return { ...s, invoices: s.invoices.map((i) => (i.id !== id ? i : { ...i, amountPaid: paid, credited: cred, status: i.status === 'draft' || i.status === 'cancelled' ? i.status : paid + cred >= i.total ? (paid === 0 && cred > 0 ? 'credited' : 'paid') : paid > 0 ? 'partially_paid' : 'sent' })) }
 }
+const owed = (i: DInvoice) => money(i.total - (i.credited ?? 0) - i.amountPaid)
 
 export function demoSaveInvoice(biz: string, v: { id: string | null; customerId: string; dueOn: string | null; lines: DInvoiceLine[]; discount: number; taxPercent: number; notes: string }): string | null {
   return guarded(biz, () => {
@@ -135,6 +140,7 @@ export function demoCancelInvoice(biz: string, id: string, reason: string): stri
     if (!i) throw new Error('invoice not found')
     if (i.status === 'cancelled') throw new Error('the invoice is already cancelled')
     if (state.payments.some((p) => p.invoiceId === id && p.status === 'successful')) throw new Error('reverse the payments on this invoice before cancelling it')
+    if ((state.creditNotes ?? []).some((c) => c.invoiceId === id)) throw new Error('this invoice has credit notes, so it cannot be cancelled')
     if (reason.trim().length < 3) throw new Error('a reason is required')
     commit({ ...state, invoices: state.invoices.map((x) => (x.id === id ? { ...x, status: 'cancelled' as const, cancelReason: reason.trim() } : x)) })
   })
@@ -149,7 +155,7 @@ export function demoRecordInvoicePayment(biz: string, id: string, v: { amount: n
     if (i.status !== 'sent' && i.status !== 'partially_paid') throw new Error('payments can only be recorded on a sent invoice that is not fully paid')
     const amount = money(v.amount || 0)
     if (amount <= 0) throw new Error('enter the amount received')
-    if (amount > money(i.total - i.amountPaid)) throw new Error(`that is more than the balance of ${money(i.total - i.amountPaid)}`)
+    if (amount > owed(i)) throw new Error(`that is more than the balance of ${owed(i)}`)
     const date = v.paidOn || today()
     if (date > today()) throw new Error('the payment date cannot be in the future')
     if (!METHODS.includes(v.method)) throw new Error('choose how it was paid')
@@ -176,8 +182,26 @@ export function demoInvoiceSummary(biz: string): DInvoiceSummary {
   for (const i of list) byStatus[i.status] = (byStatus[i.status] ?? 0) + 1
   const month = today().slice(0, 7)
   return {
-    outstanding: money(open.reduce((a, i) => a + i.total - i.amountPaid, 0)), overdue: money(late.reduce((a, i) => a + i.total - i.amountPaid, 0)), overdueCount: late.length,
+    outstanding: money(open.reduce((a, i) => a + owed(i), 0)), overdue: money(late.reduce((a, i) => a + owed(i), 0)), overdueCount: late.length,
     paidThisMonth: money(state.payments.filter((p) => p.businessId === biz && p.status === 'successful' && p.paidOn.slice(0, 7) === month).reduce((a, p) => a + p.amount, 0)),
     drafts: list.filter((i) => i.status === 'draft').length, byStatus,
   }
+}
+
+/** Mirrors invoice_issue_credit_note(): lowers what is owed on a sent invoice, with its own number and reason; the same key never issues twice; it can never be edited. */
+export function demoIssueCreditNote(biz: string, id: string, v: { amount: number; reason: string }, key: string): string | null {
+  return guarded(biz, () => {
+    if (!key || key.trim().length < 8) throw new Error('an idempotency key of at least 8 characters is required')
+    const i = state.invoices.find((x) => x.id === id && x.businessId === biz)
+    if (!i) throw new Error('invoice not found')
+    if ((state.creditNotes ?? []).some((c) => c.businessId === biz && c.key === key)) return
+    if (i.status !== 'sent' && i.status !== 'partially_paid') throw new Error('a credit note can only be issued on a sent invoice that is not fully paid')
+    if (v.reason.trim().length < 3) throw new Error('a reason is required')
+    const amount = money(v.amount || 0)
+    if (amount <= 0) throw new Error('enter the amount to credit')
+    if (amount > owed(i)) throw new Error(`that is more than the balance of ${owed(i)}`)
+    const n = ((state.cnCounter ?? {})[biz] ?? 0) + 1
+    const note: DCreditNote = { id: newId('cn'), businessId: biz, invoiceId: id, number: `CN-${String(n).padStart(6, '0')}`, amount, reason: v.reason.trim(), issuedOn: today(), key, createdAt: new Date().toISOString() }
+    commit(recompute({ ...state, creditNotes: [...(state.creditNotes ?? []), note], cnCounter: { ...(state.cnCounter ?? {}), [biz]: n } }, id))
+  })
 }

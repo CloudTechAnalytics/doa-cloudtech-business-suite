@@ -102,9 +102,21 @@ Built, on top of the movement ledger, locations, receive / adjust / issue / tran
 
 Not yet: variants and product images, lots and expiry for general goods (pharmacy has its own), bundles / kits, units conversion on the screen, a purchase-order-driven reorder (Purchases is a separate module), per-location reorder levels, barcode label printing, valuation reports by date, and a forecast-based reorder suggestion.
 
+### Invoices (deepened fourth)
+
+Built, on top of drafts, sending, payments (with reversal), cancelling, quotes-to-invoices and print-to-PDF:
+
+- **Credit notes** (`invoice_issue_credit_note`): lower what a customer owes on a sent invoice (goods returned, a price corrected) without cancelling it or touching payments. Each has its own number (CN-000001), a reason, and can never be edited or deleted. The invoice keeps its total; balance = total - credit notes - payments, and neither a payment nor a further credit can exceed it. When credits and payments cover the total the invoice is **Paid**, or **Credited** if nothing was paid. An invoice with credit notes cannot be cancelled. Finance reads the lower figure (receivables, the invoice summary and the invoiced total). A credit note prints.
+- **Customer statements**: pick a customer (and optionally a date range) for every invoice sent to them, every payment and credit note, a running balance, a balance brought forward, and what is owing now. Print or save as PDF, or export CSV. Drafts and cancelled invoices are left out.
+- **Ageing**: open invoices by customer, in how late they are (not yet due, 1-30, 31-60, 61-90, over 90 days), biggest debt first, with totals and CSV export. An invoice with no due date counts from the day it was issued.
+- **Reminders**: on an open invoice, a polite message (what is owed, how late) to send by WhatsApp or email, or copy. DOA sends nothing itself.
+- **Payment terms** (on receipt, 7, 14, 30, 60 days) when setting the due date, **copy as new invoice**, and **CSV export** of the list.
+- Every part is in the sidebar (Invoices, Statements, Ageing).
+
+Not yet: recurring invoices (they need a scheduler), automatic reminders by email or SMS (no delivery integration), a link a customer can open and accept, tax profiles (more than one rate on an invoice, tax-inclusive prices), invoicing from inventory items, partial refunds of a settled invoice (a credit note cannot go below what has already been paid), multi-currency, and a PDF file generated on the server.
+
 ### The other apps (not yet deepened)
 
-- **Invoices:** recurring invoices, payment reminders, credit notes, tax profiles, customer statements, a link a customer can open and accept.
 - **Expenses:** receipt attachments, recurring expenses, budgets, approvals, vendors.
 - **Finance:** profit and loss by category, bank accounts and reconciliation, budget against actual, cash-flow forecast.
 
