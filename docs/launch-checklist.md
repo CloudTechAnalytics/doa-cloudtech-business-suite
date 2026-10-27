@@ -4,10 +4,10 @@ What stands between "it works" and "a real school or business can rely on it". T
 
 ## 1. Email (sign-up, password reset, invitations)
 
-Until a mail provider is connected, Supabase's built-in sender is limited to **2 emails an hour for the whole project**, and it will not let the email templates be changed. A school onboarding parents would stop receiving confirmation emails after the second.
+Before it was connected (27 October 2026), Supabase's built-in sender is limited to **2 emails an hour for the whole project**, and it will not let the email templates be changed. A school onboarding parents would stop receiving confirmation emails after the second.
 
-- [ ] Sign in to the support Gmail account (`doabusinesssuite@gmail.com`), open **Google Account, Security**, turn on **2-Step Verification**, then open **App passwords**, create one called "DOA" and copy the 16-character code.
-- [ ] Give the code to whoever applies the setting. It connects the live project to Gmail (`smtp.gmail.com`, port 465), sets the sender to "DOA Business Suite", raises the limit to 30 an hour, and installs the DOA-branded email templates. The code is used once and is not stored anywhere in the repository.
+- [x] Sign in to the support Gmail account (`doabusinesssuite@gmail.com`), open **Google Account, Security**, turn on **2-Step Verification**, then open **App passwords**, create one called "DOA" and copy the 16-character code.
+- [x] Give the code to whoever applies the setting (done 27 October 2026). It connects the live project to Gmail (`smtp.gmail.com`, port 465), sets the sender to "DOA Business Suite", raises the limit to 30 an hour, and installs the DOA-branded email templates. The code is used once and is not stored anywhere in the repository.
 - [ ] Send a test: use **Forgot your password?** on the live site with a real account and check the email arrives (not in spam) and the link works.
 - Gmail allows about 500 emails a day from one account and the mail comes from a Gmail address, so it can land in spam. **Move to a proper sender on your own domain** (Resend, Brevo or similar, with SPF and DKIM set up) before a school with hundreds of parents starts.
 - The "Site URL" and the allowed redirect addresses in Supabase Auth must match the live address (now `https://project-mq6x9.vercel.app`). **Change them the day a custom domain is added.**
