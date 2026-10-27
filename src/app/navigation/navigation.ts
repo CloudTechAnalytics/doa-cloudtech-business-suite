@@ -1,3 +1,4 @@
+import { BarChart3, Briefcase, CalendarCheck, FileText, Scale, Timer, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { STANDALONE_APPS, startPath } from '@/core/app-catalogue/apps'
 import { INDUSTRIES, getIndustry } from '@/core/industry-registry'
@@ -129,11 +130,21 @@ export function landingApps(): { shared: LandingApp[]; industries: LandingApp[] 
   return { shared, industries }
 }
 
-export interface SiteMenuItem { label: string; icon: LucideIcon; to: string; blurb?: string; tag?: 'Preview' | 'Soon' }
-export interface SiteMenuColumn { id: string; title: string; color: string; icon: LucideIcon; description?: string; items: SiteMenuItem[]; /** Modules not listed (the menu shows the first few so the panel fits the screen). */ more?: number; cta?: { label: string; to: string } }
+export interface SiteMenuItem { label: string; icon: LucideIcon; to: string; blurb?: string; tag?: 'Preview' | 'Soon'; /** The link leaves DOA (it is a full address): shown as a normal link that opens in a new tab. */ external?: boolean }
+export interface SiteMenuColumn { id: string; title: string; color: string; icon: LucideIcon; description?: string; items: SiteMenuItem[]; /** Modules not listed (the menu shows the first few so the panel fits the screen). */ more?: number; cta?: { label: string; to: string; external?: boolean } }
 
 const TAGS = { preview: 'Preview', soon: 'Soon' } as const
 const itemFor = (m: ModuleDefinition, to: string): SiteMenuItem => ({ label: m.name, icon: m.icon, to, blurb: m.description, tag: m.maturity ? TAGS[m.maturity] : undefined })
+
+/** The Legal & Law Firms entry in the Industries menu: wording, features, colour and where it goes. Nothing else in DOA depends on it. */
+export const LEGAL = {
+  title: 'Legal & Law Firms', url: 'https://thecounsels.org', color: '#8c1d40', cta: 'Start with Legal',
+  description: 'Legal practice management for law firms, legal teams, and professional legal practitioners.',
+  features: [
+    { label: 'Clients & Contacts', icon: Users }, { label: 'Matters & Cases', icon: Briefcase }, { label: 'Legal Documents', icon: FileText },
+    { label: 'Calendar & Tasks', icon: CalendarCheck }, { label: 'Time Tracking & Billing', icon: Timer }, { label: 'Reports & Analytics', icon: BarChart3 },
+  ],
+} as const
 
 /** The public site's "Apps" and "Industries" menus, built from the registries so they never drift from the product. */
 export function landingMenus(): { apps: SiteMenuColumn[]; industries: SiteMenuColumn[] } {
@@ -152,6 +163,12 @@ export function landingMenus(): { apps: SiteMenuColumn[]; industries: SiteMenuCo
       items: soon ? [] : mods.map((m) => ({ ...itemFor(m, `/start?type=${d.id}`), blurb: undefined })),
       cta: soon ? undefined : { label: `Start with ${d.name.split(' ')[0]}`, to: `/start?type=${d.id}` },
     }
+  })
+  // Legal & Law Firms is listed in the menu only: it points to The Counsel's own website. It is not an industry of DOA, has no app here and is not in the industry registry.
+  industries.push({
+    id: 'legal', title: LEGAL.title, color: LEGAL.color, icon: Scale, description: LEGAL.description,
+    items: LEGAL.features.map((f) => ({ label: f.label, icon: f.icon, to: LEGAL.url, external: true })),
+    cta: { label: LEGAL.cta, to: LEGAL.url, external: true },
   })
   return { apps, industries }
 }

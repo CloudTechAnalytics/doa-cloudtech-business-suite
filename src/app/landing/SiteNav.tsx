@@ -1,6 +1,6 @@
 import { ArrowRight, ChevronDown, Menu as MenuIcon, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { landingMenus } from '@/app/navigation/navigation'
 import type { SiteMenuColumn, SiteMenuItem } from '@/app/navigation/navigation'
@@ -12,6 +12,13 @@ function Tag({ tag }: { tag: SiteMenuItem['tag'] }) {
   return tag ? <Badge tone={tag === 'Preview' ? 'info' : 'neutral'}>{tag}</Badge> : null
 }
 
+/** An address inside DOA is a router link; one that leaves DOA is a normal link that opens in a new tab. */
+function Go({ to, external, onNavigate, className, style, title, children }: { to: string; external?: boolean; onNavigate: () => void; className: string; style?: CSSProperties; title?: string; children: ReactNode }) {
+  return external
+    ? <a href={to} target="_blank" rel="noopener noreferrer" onClick={onNavigate} title={title} className={className} style={style}>{children}</a>
+    : <Link to={to} onClick={onNavigate} title={title} className={className} style={style}>{children}</Link>
+}
+
 function Column({ col, onNavigate }: { col: SiteMenuColumn; onNavigate: () => void }) {
   return (
     <section aria-label={col.title} style={{ '--c': col.color } as CSSProperties}>
@@ -21,17 +28,17 @@ function Column({ col, onNavigate }: { col: SiteMenuColumn; onNavigate: () => vo
       <ul className="mt-1.5">
         {col.items.map((it) => (
           <li key={it.label}>
-            <Link to={it.to} onClick={onNavigate} title={it.blurb} className="flex items-center gap-1.5 rounded px-1.5 py-[5px] text-[13px] text-ink/80 transition-colors hover:bg-[color-mix(in_srgb,var(--c)_10%,white)] hover:text-[var(--c)]">
+            <Go to={it.to} external={it.external} onNavigate={onNavigate} title={it.blurb} className="flex items-center gap-1.5 rounded px-1.5 py-[5px] text-[13px] text-ink/80 transition-colors hover:bg-[color-mix(in_srgb,var(--c)_10%,white)] hover:text-[var(--c)]">
               {it.label}<Tag tag={it.tag} />
-            </Link>
+            </Go>
           </li>
         ))}
         {!!col.more && <li className="px-1.5 py-[5px] text-xs text-ink/50">+ {col.more} more in the app</li>}
       </ul>
       {col.cta && (
-        <Link to={col.cta.to} onClick={onNavigate} className="mt-1.5 inline-flex items-center gap-1 px-1.5 text-[13px] font-semibold hover:underline" style={{ color: col.color }}>
+        <Go to={col.cta.to} external={col.cta.external} onNavigate={onNavigate} className="mt-1.5 inline-flex items-center gap-1 px-1.5 text-[13px] font-semibold hover:underline" style={{ color: col.color }}>
           {col.cta.label} <ArrowRight className="size-3.5" aria-hidden />
-        </Link>
+        </Go>
       )}
     </section>
   )

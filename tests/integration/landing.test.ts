@@ -38,8 +38,9 @@ describe('the Apps and Industries menus come from the registries', () => {
   })
 
   it('lists every industry, each linking to a pre-selected picker', () => {
-    expect(industries.map((c) => c.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy', 'school'])
-    for (const c of industries) {
+    const own = industries.filter((c) => c.id !== 'legal') // Legal & Law Firms is a link to another website, checked below
+    expect(own.map((c) => c.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy', 'school'])
+    for (const c of own) {
       expect(c.cta?.to).toBe(`/start?type=${c.id}`)
       expect(c.items.length).toBeGreaterThan(0)
       expect(c.items.every((i) => i.to === `/start?type=${c.id}`)).toBe(true)
