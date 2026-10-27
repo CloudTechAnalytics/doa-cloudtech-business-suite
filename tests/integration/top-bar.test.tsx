@@ -85,6 +85,25 @@ describe('searching for records in the demo', () => {
 describe('the search button', () => {
   it('is in the top bar with its shortcut in the label', () => {
     const html = renderToStaticMarkup(<MemoryRouter><GlobalSearch businessId="b" industry="general" usable={usable} pages={[]} /></MemoryRouter>)
-    expect(html).toContain('aria-label="Search (Ctrl+K)"'); expect(html).toContain('Search…')
+    expect(html).toContain('aria-label="Search (Ctrl+K)"'); expect(html).toContain('>Search<')
+  })
+})
+
+describe('page search ranking and the empty state', () => {
+  const index = pageIndex(apps, buildQuickActions('general', usable).map((a) => ({ label: a.label, to: a.to })))
+  it('matches names first and descriptions only when no name matches', () => {
+    expect(searchPages(index, 'sal').every((h) => /sal/i.test(`${h.label} ${h.group}`))).toBe(true)
+    expect(searchPages(index, 'zzzz')).toEqual([])
+  })
+})
+
+describe('what the search offers before anything is typed', () => {
+  it('suggests the main Record actions, then the main pages, and no sub-pages or account pages', async () => {
+    const { suggestions } = await import('@/app/layouts/GlobalSearch')
+    const index = pageIndex(apps, buildQuickActions('general', usable).map((a) => ({ label: a.label, to: a.to })))
+    const s = suggestions(index)
+    expect(s.filter((r) => r.group === 'Create').length).toBeGreaterThan(0); expect(s.filter((r) => r.group === 'Go to').length).toBeGreaterThan(0)
+    expect(s.some((r) => r.label.includes(':'))).toBe(false)
+    expect(s.map((r) => r.key)).toEqual([...new Set(s.map((r) => r.key))])
   })
 })

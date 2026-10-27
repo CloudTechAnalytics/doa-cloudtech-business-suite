@@ -43,14 +43,15 @@ export function pageIndex(apps: AppDef[], quick: { label: string; to: string }[]
   return hits
 }
 
-/** Pages whose name, group or description contains every word typed. Names that start with the text come first. */
+/**
+ * Pages whose name or group contains every word typed; only when none does, those whose description does (so "sal" finds Sales, not every page that mentions sales).
+ * Names that start with the text come first.
+ */
 export function searchPages(index: PageHit[], term: string, limit = 8): PageHit[] {
   const words = term.trim().toLowerCase().split(/\s+/).filter(Boolean)
   if (!words.length) return []
-  return index
-    .map((h) => { const name = h.label.toLowerCase(); const hay = `${name} ${h.group.toLowerCase()} ${h.keywords.toLowerCase()}`; return { h, ok: words.every((w) => hay.includes(w)), starts: words.every((w) => name.split(/[\s:]+/).some((p) => p.startsWith(w))) } })
-    .filter((x) => x.ok)
-    .sort((a, z) => Number(z.starts) - Number(a.starts) || a.h.label.length - z.h.label.length)
-    .slice(0, limit)
-    .map((x) => x.h)
+  const rank = (h: PageHit, hay: string) => { const name = h.label.toLowerCase(); return { h, ok: words.every((w) => hay.includes(w)), starts: words.every((w) => name.split(/[\s:/]+/).some((p) => p.startsWith(w))) } }
+  const byName = index.map((h) => rank(h, `${h.label.toLowerCase()} ${h.group.toLowerCase()}`)).filter((x) => x.ok)
+  const pool = byName.length ? byName : index.map((h) => rank(h, `${h.label.toLowerCase()} ${h.group.toLowerCase()} ${h.keywords.toLowerCase()}`)).filter((x) => x.ok)
+  return pool.sort((a, z) => Number(z.starts) - Number(a.starts) || a.h.label.length - z.h.label.length).slice(0, limit).map((x) => x.h)
 }

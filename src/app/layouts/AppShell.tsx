@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Building2, Check, ChevronDown, LayoutGrid, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronsUpDown, LayoutGrid, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ACCOUNT_MODULES, appPath, buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
 import { breadcrumb, pageIndex } from '@/app/navigation/crumbs'
@@ -44,17 +44,17 @@ function BusinessSwitcher() {
       label="Switch business"
       trigger={({ toggle, open }) => (
         <button type="button" onClick={toggle} aria-haspopup="menu" aria-expanded={open} aria-label={`Business: ${active.name}. Switch business`}
-          className="flex h-8 max-w-[11rem] items-center gap-1.5 rounded-full bg-canvas px-3 text-sm text-ink hover:bg-line">
-          <Building2 className="size-4 shrink-0" aria-hidden />
-          <span className="hidden truncate sm:inline">{active.name}</span>
-          <ChevronDown className="size-4 shrink-0 text-ink/60" aria-hidden />
+          className="flex h-10 max-w-[15rem] items-center gap-2.5 rounded-lg border border-line bg-white pl-1.5 pr-2 text-ink transition hover:border-ink/25 hover:bg-surface">
+          <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-md bg-brand text-xs font-bold text-white">{active.name.trim().charAt(0).toUpperCase() || '?'}</span>
+          <span className="hidden min-w-0 text-left leading-tight sm:block"><span className="block text-[10px] font-medium uppercase tracking-wide text-ink/50">Business</span><span className="block truncate text-sm font-semibold">{active.name}</span></span>
+          <ChevronsUpDown className="size-4 shrink-0 text-ink/50" aria-hidden />
         </button>
       )}
       items={[
-        { label: 'Your businesses', heading: true },
+        { label: 'Switch business', heading: true },
         ...businesses.map((b) => ({ label: b.name, icon: b.id === active.id ? <Check className="size-4 text-brand" /> : <span className="size-4" />, onSelect: () => select(b.id) })),
         { label: 'All businesses', to: '/businesses', icon: <LayoutGrid className="size-4" />, divider: true },
-        { label: 'Add business', to: '/onboarding', icon: <Plus className="size-4" /> },
+        { label: 'Add another business', to: '/onboarding', icon: <Plus className="size-4" /> },
       ]}
     />
   )
@@ -79,7 +79,7 @@ function RecordMenu({ items }: { items: { label: string; to: string }[] }) {
     <Menu
       label="Record"
       trigger={({ toggle }) => (
-        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Record" className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium bg-amber font-semibold text-ink hover:bg-amber-dark`}><Plus className="size-4" aria-hidden /><span className="hidden sm:inline" aria-hidden>Record</span></button>
+        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="Record" className="flex h-9 items-center justify-center gap-2 rounded-lg bg-amber px-3 text-sm font-semibold text-ink shadow-pill transition hover:bg-amber-dark sm:min-w-[8.5rem] sm:px-4"><Plus className="size-4" aria-hidden /><span className="hidden sm:inline" aria-hidden>Record</span><ChevronDown className="hidden size-4 opacity-60 sm:block" aria-hidden /></button>
       )}
       items={items}
     />
