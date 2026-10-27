@@ -1,7 +1,10 @@
 import { Boxes } from 'lucide-react'
+import { lazy } from 'react'
 import { defineIndustry } from '@/core/industry-registry/define'
 import { TAX_QUESTION } from '@/core/industry-registry/common'
 import type { ModuleCode, SharedModuleCode } from '@/shared/types/domain'
+
+const AppsOverviewWidget = lazy(() => import('./components/AppsOverview').then((m) => ({ default: m.AppsOverview })))
 
 /**
  * "Business apps": a business with no industry. It owns no modules of its own; it is the shared apps (CRM, Sales, Inventory, Purchases,
@@ -26,6 +29,6 @@ export const general = defineIndustry({
   navigation: [],
   routes: [],
   onboarding: { questions: [TAX_QUESTION] },
-  dashboardWidgets: [],
+  dashboardWidgets: [{ id: 'apps-overview', title: 'Your apps', component: AppsOverviewWidget }],
   workflows: [],
 })

@@ -1,4 +1,4 @@
-import { BarChart3, CalendarCheck, FileText, KanbanSquare, UserPlus, Users } from 'lucide-react'
+import { BarChart3, Briefcase, CalendarCheck, FileText, KanbanSquare, UserPlus, Users } from 'lucide-react'
 import { lazy } from 'react'
 import type { SharedModule } from '@/core/module-registry/types'
 
@@ -12,7 +12,7 @@ export const crmModule: SharedModule = {
     permission: 'customers.read', icon: Users, navGroup: 'Sales and customers', owner: 'platform',
     // The same parts as the tabs on the page; the sidebar lists them so every part is one click away.
     sections: [
-      { key: 'pipeline', label: 'Pipeline', icon: KanbanSquare }, { key: 'activities', label: 'Activities', icon: CalendarCheck }, { key: 'customers', label: 'Customers', icon: Users },
+      { key: 'pipeline', label: 'Pipeline', icon: KanbanSquare }, { key: 'deals', label: 'Deals', icon: Briefcase }, { key: 'activities', label: 'Activities', icon: CalendarCheck }, { key: 'customers', label: 'Customers', icon: Users },
       { key: 'leads', label: 'Leads', icon: UserPlus }, { key: 'quotes', label: 'Quotes', icon: FileText }, { key: 'reports', label: 'Reports', icon: BarChart3 },
     ],
   },

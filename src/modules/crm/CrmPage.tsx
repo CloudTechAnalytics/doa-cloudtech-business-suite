@@ -15,6 +15,7 @@ import { myTradePermissions } from '@/modules/sales/tradeApi'
 import { Activities } from './CrmActivities'
 import { ActivityForms, Tags } from './CrmParts'
 import { Pipeline } from './CrmDeals'
+import { DealsList } from './CrmDealsList'
 import { ExportButton, ImportDialog } from './CrmImport'
 import { ContactActions } from './ContactActions'
 import { listTeam } from './dealsApi'
@@ -25,7 +26,7 @@ import * as api from './crmApi'
 import type { CustomerRow, LeadRow, LeadStatus, Parent } from './crmApi'
 import { DeleteButton } from '@/shared/components/delete-button'
 
-const TABS = ['Pipeline', 'Activities', 'Customers', 'Leads', 'Quotes', 'Reports'] as const
+const TABS = ['Pipeline', 'Deals', 'Activities', 'Customers', 'Leads', 'Quotes', 'Reports'] as const
 const PAGE = 10
 const LEAD_TONE: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = { new: 'info', contacted: 'neutral', qualified: 'warning', converted: 'success', lost: 'danger' }
 
@@ -50,6 +51,7 @@ export function CrmPage() {
         ))}
       </div>
       {tab === 'Pipeline' && <Pipeline businessId={businessId} can={can} onGo={setTab} />}
+      {tab === 'Deals' && <DealsList businessId={businessId} can={can} />}
       {tab === 'Activities' && <Activities businessId={businessId} can={can} />}
       {tab === 'Quotes' && <Quotes businessId={businessId} businessName={active.name} can={can} />}
       {tab === 'Reports' && <CrmReports businessId={businessId} />}

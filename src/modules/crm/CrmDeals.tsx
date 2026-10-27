@@ -155,7 +155,7 @@ export function GettingStarted({ manage, onGo, onAddDeal }: { manage: boolean; o
   )
 }
 
-function LostDialog({ businessId, deal, stage, onClose, onDone }: { businessId: string; deal: DealRow; stage: StageRow; onClose: () => void; onDone: () => Promise<void> }) {
+export function LostDialog({ businessId, deal, stage, onClose, onDone }: { businessId: string; deal: DealRow; stage: StageRow; onClose: () => void; onDone: () => Promise<void> }) {
   const [reason, setReason] = useState('')
   const runner = useFormRunner(onDone)
   return (
@@ -216,7 +216,7 @@ function StageSettings({ businessId, onClose, onChanged }: { businessId: string;
   )
 }
 
-function DealDialog({ businessId, deal, manage, onClose, onSaved }: { businessId: string; deal: DealRow | null; manage: boolean; onClose: () => void; onSaved: () => Promise<void> }) {
+export function DealDialog({ businessId, deal, manage, onClose, onSaved }: { businessId: string; deal: DealRow | null; manage: boolean; onClose: () => void; onSaved: () => Promise<void> }) {
   const { userId } = useAuth()
   const contacts = useAsync(() => listContacts(businessId), [businessId])
   const team = useAsync(() => listTeam(businessId), [businessId])

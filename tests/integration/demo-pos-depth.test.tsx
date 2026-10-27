@@ -90,14 +90,14 @@ describe('the sidebar lists the parts of an app', () => {
   it('shows the CRM and the till as a heading with a link to each of their parts, in a workspace of apps', () => {
     const apps = buildApps('general', new Set(['dashboard', 'customers', 'sales', 'invoices', 'inventory']))
     const entries = sidebarEntries(apps)
-    expect(entries.filter(sub(crmModule.definition)).map((e) => (e.kind === 'section' ? e.section.key : ''))).toEqual(['pipeline', 'activities', 'customers', 'leads', 'quotes', 'reports'])
+    expect(entries.filter(sub(crmModule.definition)).map((e) => (e.kind === 'section' ? e.section.key : ''))).toEqual(['pipeline', 'deals', 'activities', 'customers', 'leads', 'quotes', 'reports'])
     expect(entries.filter(sub(salesModule.definition)).map((e) => (e.kind === 'section' ? e.section.key : ''))).toEqual(['new', 'history', 'today'])
     expect(entries.some((e) => e.kind === 'heading' && e.label === 'CRM')).toBe(true)
     // an app with no parts of its own is still a single link
     expect(entries.some((e) => e.kind === 'link' && e.module.code === 'invoices')).toBe(true)
   })
   it('points each part at its module with ?tab=', () => {
-    const s = crmModule.definition.sections![1]
+    const s = crmModule.definition.sections!.find((x) => x.key === 'activities')!
     expect(sectionPath(crmModule.definition, s)).toBe('/app/customers?tab=activities')
   })
   it('keeps an app that holds several modules as it was: a heading and one link per module', () => {
