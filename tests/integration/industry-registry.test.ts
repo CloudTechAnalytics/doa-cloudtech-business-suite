@@ -71,7 +71,7 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     const apps = buildApps('farm', usableFor('farm'))
     expect(apps[0].id).toBe('dashboard')
     expect(apps[1].label).toBe('Overview')
-    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Sales and customers', 'Stock and procurement', 'Finance', 'People and administration', 'Invoices'])
+    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Sales and customers', 'Stock and procurement', 'Finance', 'People and administration', 'Invoices', 'Calendar'])
   })
 
   it('gives each app a menu of its own modules and finds the open app from the URL', () => {
@@ -106,9 +106,11 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     // workers, staff and settings are in the account menu (top right), not the sidebar
     for (const code of ['farm-workers', 'staff', 'settings']) expect(link(code), code).toBe(-1)
     expect(entries.some((e) => e.kind === 'heading' && e.label === 'People and administration')).toBe(false)
-    // an optional shared app sits after the industry's own sections (Invoices lists its own parts: Invoices, Payments, Statements, Ageing)
-    expect(entries.slice(-4).map((e) => [e.kind, e.kind === 'heading' ? '' : e.module.code])).toEqual([['section', 'invoices'], ['section', 'invoices'], ['section', 'invoices'], ['section', 'invoices']])
-    expect(entries.at(-6)).toMatchObject({ kind: 'link', module: { code: 'reports' } }) // then its heading
+    // an optional shared app sits after the industry's own sections (Invoices lists its own parts: Invoices, Payments, Statements, Ageing; Calendar its views)
+    const code = (e: (typeof entries)[number]) => (e.kind === 'heading' ? '' : e.module.code)
+    expect(entries.slice(-4).map(code)).toEqual(['calendar', 'calendar', 'calendar', 'calendar']) // the last optional app
+    expect(entries.slice(-10, -5).map(code)).toEqual(['', 'invoices', 'invoices', 'invoices', 'invoices']) // Invoices: its heading and its four parts
+    expect(entries.at(-11)).toMatchObject({ kind: 'link', module: { code: 'reports' } }) // then its heading
   })
 
   it('offers industry workflows in the Record menu only when their module is usable', () => {

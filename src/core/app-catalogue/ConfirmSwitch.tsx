@@ -27,13 +27,13 @@ export function ConfirmSwitch({ app, on, businessId, businessName, keepsOn = [],
   const owed = useAsync(() => (!on && app.id === 'invoices' ? invoiceSummary(businessId).catch(() => null) : Promise.resolve(null)), [businessId, app.id, on])
   const outstanding = owed.data
   return (
-    <Dialog title={on ? `Switch on ${app.name}?` : `Switch off ${app.name}?`} onClose={onCancel}>
+    <Dialog title={on ? `Install ${app.name}?` : `Remove ${app.name}?`} onClose={onCancel}>
       <div className="space-y-3 text-sm">
         {on ? (
           <>
             <p>{app.description}</p>
             {app.modules.length > 1 && <p className="rounded-md bg-surface px-3 py-2 text-xs">It also switches on the products and stock list it sells from, so Inventory will show as on too.</p>}
-            <p className="text-ink/70">Everyone in {businessName} who has access will see it in their menu. You can switch it off later: nothing is deleted.</p>
+            <p className="text-ink/70">Everyone in {businessName} who has access will see it in their menu. You can remove it later: nothing is deleted.</p>
           </>
         ) : (
           <>
@@ -45,13 +45,13 @@ export function ConfirmSwitch({ app, on, businessId, businessName, keepsOn = [],
               </p>
             )}
             {keepsOn.length > 0 && <p className="rounded-md bg-surface px-3 py-2 text-xs">Part of this app stays on because another app you use needs it.</p>}
-            <p className="text-ink/70">Nothing is deleted. Switch it on again and everything is back exactly as it was.</p>
+            <p className="text-ink/70">Nothing is deleted. Install it again and everything is back exactly as it was.</p>
           </>
         )}
         {error && <ErrorState title="Not changed" message={error} />}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-          <Button loading={busy} onClick={onConfirm}>{on ? 'Yes, switch on' : 'Yes, switch off'}</Button>
+          <Button loading={busy} onClick={onConfirm}>{on ? 'Yes, install' : 'Yes, remove'}</Button>
         </div>
       </div>
     </Dialog>

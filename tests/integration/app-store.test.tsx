@@ -16,7 +16,7 @@ describe('the app catalogue as a store', () => {
     expect(app('pos').worksWith.join(' ')).toMatch(/Inventory/)
   })
   it('offers a filter for each category, installed and not installed, and whole businesses', () => {
-    expect(STORE_FILTERS.map((f) => f.key)).toEqual(['all', 'installed', 'not_installed', 'sell', 'stock', 'money', 'businesses'])
+    expect(STORE_FILTERS.map((f) => f.key)).toEqual(['all', 'installed', 'not_installed', 'sell', 'stock', 'money', 'plan', 'businesses'])
   })
 })
 
@@ -26,9 +26,9 @@ describe('listing and searching apps', () => {
     const b = demoCreateBusiness('Freelance Co', 'general')
     expect(await startWithApp(b, 'invoices')).toBeNull()
     const st = demoModuleStatuses(b)
-    expect(ids(filterApps(st, 'all', ''))).toHaveLength(6)
+    expect(ids(filterApps(st, 'all', ''))).toHaveLength(7)
     expect(ids(filterApps(st, 'money', ''))).toEqual(['invoices', 'expenses', 'finance']); expect(ids(filterApps(st, 'stock', ''))).toEqual(['inventory']); expect(ids(filterApps(st, 'sell', ''))).toEqual(['crm', 'pos'])
-    expect(ids(filterApps(st, 'installed', ''))).toEqual(['invoices']); expect(ids(filterApps(st, 'not_installed', ''))).toEqual(['crm', 'pos', 'inventory', 'expenses', 'finance'])
+    expect(ids(filterApps(st, 'installed', ''))).toEqual(['invoices']); expect(ids(filterApps(st, 'not_installed', ''))).toEqual(['crm', 'pos', 'inventory', 'expenses', 'finance', 'calendar'])
     expect(installedCount(st)).toBe(1)
     expect(filterApps(st, 'businesses', '')).toEqual([])
   })
@@ -39,7 +39,7 @@ describe('listing and searching apps', () => {
     expect(ids(filterApps(st, 'all', 'quote'))).toContain('crm'); expect(ids(filterApps(st, 'all', 'receipt'))).toContain('pos')
     expect(ids(filterApps(st, 'all', 'STOCK counts'))).toEqual(['inventory']); expect(filterApps(st, 'all', 'zzzz')).toEqual([])
     expect(ids(filterApps(st, 'installed', 'quote'))).toEqual(['invoices']) // Invoices mentions quotes; CRM is not installed
-    expect(ids(filterApps(st, 'all', '  '))).toHaveLength(6)
+    expect(ids(filterApps(st, 'all', '  '))).toHaveLength(7)
   })
   it('knows what counts as installed', () => {
     for (const s of ['active', 'needs_plan', 'no_permission'] as const) expect(isInstalled(s)).toBe(true)
@@ -90,7 +90,7 @@ describe('whole businesses', () => {
 describe('the public Apps page matches the store', () => {
   it('filters and searches with the same rules, without an installed state', async () => {
     const { publicApps } = await import('@/app/landing/AppsPage')
-    expect(ids(publicApps('all', ''))).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance'])
+    expect(ids(publicApps('all', ''))).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance', 'calendar'])
     expect(ids(publicApps('money', ''))).toEqual(['invoices', 'expenses', 'finance']); expect(ids(publicApps('stock', ''))).toEqual(['inventory']); expect(ids(publicApps('sell', ''))).toEqual(['crm', 'pos'])
     expect(publicApps('businesses', '')).toEqual([]); expect(publicApps('all', 'zzzz')).toEqual([]); expect(ids(publicApps('money', 'stock'))).toEqual([])
     expect(ids(publicApps('all', 'receipt'))).toContain('pos')

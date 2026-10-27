@@ -7,7 +7,7 @@ import type { AppCategory, AppState, StandaloneApp } from './apps'
 export type StoreFilter = 'all' | 'installed' | 'not_installed' | 'businesses' | AppCategory
 export const STORE_FILTERS: { key: StoreFilter; label: string }[] = [
   { key: 'all', label: 'All' }, { key: 'installed', label: 'Installed' }, { key: 'not_installed', label: 'Not installed' },
-  { key: 'sell', label: 'Sell and customers' }, { key: 'stock', label: 'Stock' }, { key: 'money', label: 'Money' }, { key: 'businesses', label: 'Whole businesses' },
+  { key: 'sell', label: 'Sell and customers' }, { key: 'stock', label: 'Stock' }, { key: 'money', label: 'Money' }, { key: 'plan', label: 'Plan and meet' }, { key: 'businesses', label: 'Whole businesses' },
 ]
 
 /** An app is installed when all of its modules are on for this business (whether or not this person may use it). */
@@ -27,7 +27,7 @@ export function filterApps(statuses: ModuleStatus[], filter: StoreFilter, query:
     const st = appState(a, statuses)
     if (filter === 'installed' && !isInstalled(st)) return false
     if (filter === 'not_installed' && isInstalled(st)) return false
-    if ((filter === 'sell' || filter === 'stock' || filter === 'money') && a.category !== filter) return false
+    if ((filter === 'sell' || filter === 'stock' || filter === 'money' || filter === 'plan') && a.category !== filter) return false
     return appMatches(a, query)
   })
 }

@@ -6,3 +6,9 @@ export function downloadCsv(filename: string, rows: (string | number | null | un
   const url = URL.createObjectURL(new Blob([`﻿${toCsv(rows)}`], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
 }
+
+/** Starts the browser download of any text file (for example a calendar file). */
+export function downloadFile(filename: string, text: string, mime = 'text/plain') {
+  const url = URL.createObjectURL(new Blob([text], { type: `${mime};charset=utf-8` }))
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+}

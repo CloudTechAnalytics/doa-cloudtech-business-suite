@@ -16,6 +16,6 @@ export const bakeryConfig = {
     'bakery-ingredients', 'bakery-recipes', 'bakery-production', 'bakery-finished-goods', 'bakery-waste', 'bakery-reports',
     'inventory', 'sales', 'purchases', 'suppliers', 'customers', 'expenses', 'reports',
   ] as ModuleCode[],
-  optionalModules: ['invoices'] as ModuleCode[],
+  optionalModules: ['invoices', 'calendar'] as ModuleCode[],
   requiredModules: ['bakery-production'] as ModuleCode[],
 }

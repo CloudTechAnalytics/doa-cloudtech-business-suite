@@ -9,6 +9,7 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { useModules } from '@/core/module-registry/ModulesProvider'
 import { usePlatformRole } from '@/core/platform-admin/platformUi'
 import { resetDemoBakery } from '@/demo/demoBakery'
+import { resetDemoCalendar } from '@/demo/demoCalendar'
 import { resetDemoCrm } from '@/demo/demoCrm'
 import { resetDemoFarm } from '@/demo/demoFarm'
 import { resetDemoInventory } from '@/demo/demoInventory'
@@ -107,7 +108,7 @@ export function AppShell() {
   }, [namesFor, location.pathname])
   const view = useViewPrefs()
   const mainRef = useRef<HTMLElement>(null)
-  const attention = useWorkspaceAttention(active?.id ?? null, !!active?.isOwner, statuses.some((s) => s.usable && (s.code === 'inventory' || s.code === 'retail-products' || s.code === 'pharmacy-medicines')))
+  const attention = useWorkspaceAttention(active?.id ?? null, !!active?.isOwner, statuses.some((s) => s.usable && (s.code === 'inventory' || s.code === 'retail-products' || s.code === 'pharmacy-medicines')), statuses.some((s) => s.usable && s.code === 'calendar'))
   useGridLabels(true, mainRef) // card view and the phone layout both read the column headings off each cell
   const panel = view.detail === 'panel'
   const [collapsed, setCollapsed] = useState(readCollapsed)
@@ -143,7 +144,7 @@ export function AppShell() {
       {isDemoMode && (
         <div className="no-print flex flex-wrap items-center justify-center gap-3 border-b border-amber/40 bg-amber/20 px-4 py-1 text-xs font-medium text-ink">
           DEMO MODE: browser-only data, not a real backend.
-          <button className="underline" onClick={() => { demoReset(); resetDemoInventory(); resetDemoTrade(); resetDemoCrm(); resetDemoFarm(); resetDemoMart(); resetDemoBakery(); resetDemoPharmacy(); resetDemoSchool() }}>Reset demo data</button>
+          <button className="underline" onClick={() => { demoReset(); resetDemoInventory(); resetDemoTrade(); resetDemoCrm(); resetDemoFarm(); resetDemoMart(); resetDemoBakery(); resetDemoPharmacy(); resetDemoSchool(); resetDemoCalendar() }}>Reset demo data</button>
         </div>
       )}
       <header className={`no-print sticky top-0 z-40 h-12 border-b border-b-line bg-gradient-to-r from-white via-[#f7fafd] to-white text-ink shadow-[0_6px_18px_-14px_rgb(11_42_74/0.35)]`}>

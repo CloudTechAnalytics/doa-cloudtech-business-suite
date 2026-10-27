@@ -33,6 +33,7 @@ An app is one or more shared modules. Switching it on enables its modules in `bu
 | DOA Invoices | `invoices` | invoices and their payments |
 | DOA Expenses | `expenses` | |
 | DOA Finance | `reports` | cash-basis summary, cashbook, receivables and payables |
+| DOA Calendar | `calendar` | appointments, meetings, deadlines and reminders for you and your team |
 
 ## The App Store
 
@@ -150,6 +151,24 @@ Before, the Finance app was one summary page; the cashbook, receivables and paya
 All of it is cash basis, and says so: it is money that moved, not profit.
 
 Not yet: profit and loss on an accrual basis (needs costs matched to sales and a chart of accounts), bank accounts you name and import statements for, **reconciliation** against a bank statement, a forecast beyond what invoices are due (bills have no due dates), budget against actual across all categories (it lives in Expenses), tax and VAT reporting, multi-currency, closing a period, and journals.
+
+### Calendar (the seventh app)
+
+A new standalone app, `calendar` (permissions `calendar.read` and `calendar.manage`), free in every plan, on by default in a Business apps workspace and offered to a shop, farm, bakery or pharmacy (not a school). Built on its own tables (`calendar_events`, `calendar_attendees`), written only through database functions that check the permission, who owns the event and the audit log.
+
+- **Views**: Week (the default), Month, Day and Agenda (the next 30 days), each a sidebar entry; a mini month to jump to a date; Today and previous/next. The week and day views are a 24-hour grid with overlapping events side by side and a line for now; the month view shows three events a day and "+n more".
+- **Events**: title, kind (meeting, appointment, deadline, task, reminder, other, each its own colour), start and end or all day, place, a meeting link, notes, a reminder, who can see it (everyone in the business, or only the maker and the people invited), and who is invited.
+- **Repeats**: every day, weekday, week, month or year, with an optional last day. One day of a repeating event can be taken out without losing the rest ("Only this day"); editing a repeating event edits the series. Monthly and yearly repeats clamp to a shorter month.
+- **Invitations**: only active members of the business can be invited, up to 50, and each answers for themselves (going, maybe, not going). A private event and its invitations are visible only to the maker and the people invited.
+- **Who can change what**: the person who made an event, and the owner or an admin. Everyone else can look; a viewer cannot add events.
+- **Beside your own events**: open **CRM follow-ups** (calls, meetings, to-dos with a time) and **invoices due** (sent invoices still owing, on their due date) are shown read-only, each with its own switch, when those apps are on. Pressing one opens it in its own app.
+- **Reminders** show in the bell at the top when DOA is opened or the page is refreshed (events whose reminder time has come and that have not ended). **Nothing is sent by email, text or push.**
+- **Export**: the events on screen as an .ics file that opens in Google Calendar, Outlook and Apple Calendar; repeats and skipped days are kept as rules.
+- The platform console counts events as use of the app, and adoption counts it with the others.
+
+Not yet: **DOA Meet** (video meetings; see below), accepting an invitation by email (people are invited from the team, not by address), sending reminders by email, text or push, a calendar for a person that follows them across businesses, free/busy and finding a time everyone can meet, resources such as rooms, time zones other than the viewer's own, editing a single day of a repeating event (only skipping it), importing an .ics file, and syncing with Google or Outlook (export only).
+
+**DOA Meet** is planned as the next app (video meetings with a meeting link on a Calendar event, attendance and notes). It will use a third-party real-time video service rather than a video system of our own; DOA would own the scheduling, permissions and the screens. It is not built, and nothing in the product claims it is. The Calendar's "meeting link" field takes a link from any service in the meantime.
 
 ## One workspace, visible to the platform
 

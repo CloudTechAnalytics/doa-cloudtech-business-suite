@@ -1,4 +1,5 @@
 import { STANDALONE_APPS, appsOn } from '@/core/app-catalogue/apps'
+import { getCalendar } from '@/demo/demoCalendar'
 import { PLANS, PLAN_PRICES } from '@/core/subscriptions/plans'
 import { getCrm } from '@/demo/demoCrm'
 import { getFinance } from '@/demo/demoFinance'
@@ -119,6 +120,7 @@ function activityOf(id: string): Record<string, PAppActivity> {
     pos: sum(mine(t.sales).map((s) => ({ at: s.soldAt }))), inventory: sum(mine(stock.movements).map((m) => ({ at: m.at }))),
     invoices: sum(mine(inv.invoices).map((i) => ({ at: i.createdAt }))), expenses: sum(mine(fin.expenses).map((e) => ({ at: e.createdAt ?? `${e.date}T00:00:00.000Z` }))),
     finance: { records: 0, lastAt: null },
+    calendar: sum(mine(getCalendar().events).map((e) => ({ at: e.createdAt }))),
   }
 }
 

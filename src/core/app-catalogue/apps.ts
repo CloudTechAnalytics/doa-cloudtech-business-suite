@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeftRight, BarChart3, Banknote, CalendarCheck, ClipboardList, Clock, CreditCard, FileCheck, FilePlus, FileText, HandCoins, KanbanSquare, Package, PackagePlus, PieChart, Printer, Receipt, ShoppingBasket, Undo2, UserPlus, Users, Wallet } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, BarChart3, Banknote, Bell, CalendarCheck, CalendarDays, CalendarRange, ClipboardList, Clock, CreditCard, FileCheck, FilePlus, FileText, HandCoins, KanbanSquare, Package, PackagePlus, PieChart, Printer, Receipt, Repeat, ShoppingBasket, Undo2, UserPlus, Users, Wallet, Download } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ModuleStatus } from '@/core/module-registry/availability'
 import type { ModuleCode } from '@/shared/types/domain'
@@ -9,7 +9,7 @@ import type { ModuleCode } from '@/shared/types/domain'
  * Industry apps (Farm, Bakery, Mart, Pharmacy, School) are not listed here: they come from the industry registry.
  */
 export interface StandaloneApp {
-  id: 'crm' | 'pos' | 'expenses' | 'finance' | 'inventory' | 'invoices'
+  id: 'crm' | 'pos' | 'expenses' | 'finance' | 'inventory' | 'invoices' | 'calendar'
   name: string
   tagline: string
   description: string
@@ -30,11 +30,12 @@ export interface StandaloneApp {
   worksWith: string[]
 }
 
-export type AppCategory = 'sell' | 'stock' | 'money'
+export type AppCategory = 'sell' | 'stock' | 'money' | 'plan'
 export const APP_CATEGORIES: { key: AppCategory; label: string; blurb: string }[] = [
   { key: 'sell', label: 'Sell and customers', blurb: 'Know your customers and ring up sales' },
   { key: 'stock', label: 'Stock', blurb: 'Know what you have' },
   { key: 'money', label: 'Money', blurb: 'Bill, spend and see where the money is' },
+  { key: 'plan', label: 'Plan and meet', blurb: 'Schedule your time and your team' },
 ]
 
 /** Where an app's link on the public site goes: the sign-in page for that app. After signing in (or creating an account) the person lands on the app's start page. */
@@ -89,6 +90,14 @@ export const STANDALONE_APPS: StandaloneApp[] = [
     free: 'Included in every plan.',
     category: 'money', worksWith: ['It reads what POS, Invoices and Expenses record, so on its own it has nothing to show until one of them is on'],
   },
+  {
+    id: 'calendar', name: 'DOA Calendar', tagline: 'Plan appointments, meetings and deadlines', icon: CalendarDays, color: '#3b5bdb', modules: ['calendar'], home: 'calendar',
+    features: [{ label: 'Week, month, day and agenda views', icon: CalendarRange }, { label: 'Invite your team', icon: Users }, { label: 'Repeating events', icon: Repeat }, { label: 'Reminders in the bell', icon: Bell }, { label: 'CRM follow-ups and invoices due', icon: CalendarCheck }, { label: 'Open in Google, Outlook or Apple', icon: Download }],
+    description: 'One calendar for appointments, meetings, deadlines and reminders. Your own and shared events, people invited from your team, repeats, and your CRM follow-ups and invoices due beside them.',
+    benefits: ['See your day and your team\'s week in one place', 'Repeating events, with a single day taken out when needed', 'Private events only you and the people invited can see'],
+    free: 'Included in every plan.',
+    category: 'plan', worksWith: ['CRM: open follow-ups show on the right day', 'Invoices: sent invoices show on the day they are due', 'Your team: invite people, and they answer for themselves'],
+  },
 ]
 
 /** What switching an app off does, in plain words: what stops, what is kept, and what keeps working. Shown in the confirmation before it happens. */
@@ -99,6 +108,7 @@ export const SWITCH_OFF_EFFECTS: Record<StandaloneApp['id'], string[]> = {
   invoices: ['Nobody can create invoices or record payments.', 'Existing invoices and payments are kept, and unpaid invoices still show in Finance as money owed.'],
   expenses: ['Nobody can record expenses.', 'Past expenses are kept and still count in Finance.'],
   finance: ['Reports, the cashbook and the lists of what is owed are hidden.', 'Nothing changes in the apps that feed it; the figures are back when you switch it on again.'],
+  calendar: ['Nobody can see or add events, and reminders stop showing in the bell.', 'Every event is kept exactly as it was, with who was invited, and comes back when you switch it on again.'],
 }
 
 export type AppState = 'active' | 'needs_plan' | 'no_permission' | 'available' | 'unavailable'

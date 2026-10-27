@@ -17,6 +17,6 @@ export const pharmacyConfig = {
     'pharmacy-products', 'pharmacy-categories', 'pharmacy-batches', 'pharmacy-prescriptions', 'pharmacy-counts', 'pharmacy-losses', 'pharmacy-returns', 'pharmacy-shifts', 'pharmacy-reports',
     'inventory', 'sales', 'purchases', 'suppliers', 'customers', 'expenses', 'reports',
   ] as ModuleCode[],
-  optionalModules: ['invoices'] as ModuleCode[],
+  optionalModules: ['invoices', 'calendar'] as ModuleCode[],
   requiredModules: ['sales'] as ModuleCode[],
 }

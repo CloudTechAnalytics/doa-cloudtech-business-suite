@@ -138,8 +138,8 @@ describe('the printable invoice', () => {
 
 describe('the App Library', () => {
   it('lists six standalone apps that map to real modules', () => {
-    expect(STANDALONE_APPS.map((a) => a.id)).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance'])
-    expect([...new Set(STANDALONE_APPS.flatMap((a) => a.modules))].sort()).toEqual(['customers', 'expenses', 'inventory', 'invoices', 'reports', 'sales'])
+    expect(STANDALONE_APPS.map((a) => a.id)).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance', 'calendar'])
+    expect([...new Set(STANDALONE_APPS.flatMap((a) => a.modules))].sort()).toEqual(['calendar', 'customers', 'expenses', 'inventory', 'invoices', 'reports', 'sales'])
     expect(STANDALONE_APPS.find((a) => a.id === 'pos')!.modules).toEqual(['sales', 'inventory']) // POS carries its product list
   })
 
@@ -169,7 +169,7 @@ describe('starting with one app', () => {
     const b = demoCreateBusiness('Freelance Co', 'general')
     expect(await startWithApp(b, 'invoices')).toBeNull()
     expect(on(b)).toEqual(['invoices'])
-    expect(stateOf(b)).toEqual({ crm: 'available', pos: 'available', inventory: 'available', invoices: 'active', expenses: 'available', finance: 'available' })
+    expect(stateOf(b)).toEqual({ crm: 'available', pos: 'available', inventory: 'available', invoices: 'active', expenses: 'available', finance: 'available', calendar: 'available' })
   })
 
   it('POS alone: Sales and its product list, nothing else', async () => {
@@ -183,7 +183,7 @@ describe('starting with one app', () => {
     const b = demoCreateBusiness('Agency', 'general')
     expect(await startWithApp(b, 'crm')).toBeNull(); expect(on(b)).toEqual(['customers'])
     const all = demoCreateBusiness('Everything', 'general')
-    expect(await startWithApp(all, 'nope')).toBeNull(); expect(on(all)).toEqual(['customers', 'expenses', 'inventory', 'invoices', 'purchases', 'reports', 'sales', 'suppliers'])
+    expect(await startWithApp(all, 'nope')).toBeNull(); expect(on(all)).toEqual(['calendar', 'customers', 'expenses', 'inventory', 'invoices', 'purchases', 'reports', 'sales', 'suppliers'])
   })
 
   it('an app that another app needs cannot be switched off while that app is on', async () => {

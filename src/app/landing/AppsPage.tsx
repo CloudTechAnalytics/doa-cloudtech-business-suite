@@ -13,7 +13,7 @@ import { Mark } from './Mark'
 import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
 
-type Filter = 'all' | 'sell' | 'stock' | 'money' | 'businesses'
+type Filter = 'all' | 'sell' | 'stock' | 'money' | 'plan' | 'businesses'
 const FILTERS: { key: Filter; label: string }[] = [{ key: 'all', label: 'All' }, ...APP_CATEGORIES.map((c) => ({ key: c.key as Filter, label: c.label })), { key: 'businesses', label: 'Whole businesses' }]
 
 /** What the filters and the search show on the public Apps page. Same rules as inside the App Store, without the installed state (there is no workspace yet). */

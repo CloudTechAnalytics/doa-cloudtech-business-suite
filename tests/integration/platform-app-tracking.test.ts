@@ -13,7 +13,7 @@ const workspace = async (u = owner) => (await as(u, () => q<{ id: string }>(`sel
 /** What the browser does when someone starts from an app's link: switch the other defaults off, then record the starting app. */
 const startWith = async (b: string, app: string, u = owner) => {
   const keep = new Set(STANDALONE_APPS.find((a) => a.id === app)!.modules)
-  for (const m of ['inventory', 'sales', 'purchases', 'suppliers', 'customers', 'invoices', 'expenses', 'reports']) if (!keep.has(m)) await as(u, () => q('select public.disable_module($1,$2)', [b, m]))
+  for (const m of ['inventory', 'sales', 'purchases', 'suppliers', 'customers', 'invoices', 'expenses', 'reports', 'calendar']) if (!keep.has(m)) await as(u, () => q('select public.disable_module($1,$2)', [b, m]))
   await as(u, () => q('select public.set_started_with_app($1,$2)', [b, app]))
 }
 const detail = (b: string) => call<{ started_with_app: string | null; apps: string[]; app_activity: Record<string, { records: number; last_at: string | null }>; app_events: { module: string; action: string; by: string | null }[] }>(root, 'public.platform_business_detail($1)', [b])
@@ -36,9 +36,9 @@ describe('the SQL app definitions match the app catalogue', () => {
   it('works out the apps a workspace has on the same way in SQL and in the app', async () => {
     const b = await workspace()
     const sqlApps = async () => (await call<string[]>(root, 'public._business_apps($1)', [b]).catch(async () => (await call<{ apps: string[] }>(root, 'public.platform_business_detail($1)', [b])).apps)) as string[]
-    expect(await sqlApps()).toEqual(appsOn(['inventory', 'sales', 'purchases', 'suppliers', 'customers', 'invoices', 'expenses', 'reports']))
+    expect(await sqlApps()).toEqual(appsOn(['inventory', 'sales', 'purchases', 'suppliers', 'customers', 'invoices', 'expenses', 'reports', 'calendar']))
     await as(owner, () => q('select public.disable_module($1,$2)', [b, 'inventory']))
-    expect(await sqlApps()).toEqual(appsOn(['sales', 'purchases', 'suppliers', 'customers', 'invoices', 'expenses', 'reports'])) // POS needs Inventory, so POS and Inventory both go
+    expect(await sqlApps()).toEqual(appsOn(['sales', 'purchases', 'suppliers', 'customers', 'invoices', 'expenses', 'reports', 'calendar'])) // POS needs Inventory, so POS and Inventory both go
   })
 })
 
@@ -114,7 +114,7 @@ describe('the console', () => {
     const adoption = Object.fromEntries((await call<{ app: string; workspaces: number; started: number; grew: number; active_30d: number }[]>(root, 'public.platform_app_adoption()')).map((a) => [a.app, a]))
     expect(adoption.crm.started).toBeGreaterThanOrEqual(2); expect(adoption.crm.grew).toBeGreaterThanOrEqual(1); expect(adoption.crm.active_30d).toBeGreaterThanOrEqual(1)
     expect(adoption.invoices.workspaces).toBeGreaterThanOrEqual(1)
-    expect(Object.keys(adoption)).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance'])
+    expect(Object.keys(adoption)).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance', 'calendar'])
     for (const a of Object.values(adoption)) expect(a.grew).toBeLessThanOrEqual(a.started)
   })
 

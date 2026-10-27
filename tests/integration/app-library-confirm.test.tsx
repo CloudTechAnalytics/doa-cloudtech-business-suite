@@ -14,7 +14,7 @@ describe('switching an app on or off asks first', () => {
 
   it('off: names the app and the business, lists what stops and what is kept, and offers a way back', () => {
     const html = render('invoices', false)
-    for (const t of ['Switch off DOA Invoices?', 'Acme Studio', 'Nobody can create invoices or record payments', 'Nothing is deleted', 'Cancel', 'Yes, switch off']) expect(html).toContain(t)
+    for (const t of ['Remove DOA Invoices?', 'Acme Studio', 'Nobody can create invoices or record payments', 'Nothing is deleted', 'Cancel', 'Yes, remove']) expect(html).toContain(t)
   })
 
   it('off: says the rest of the business uses it (what still shows in Finance)', () => {
@@ -29,7 +29,7 @@ describe('switching an app on or off asks first', () => {
 
   it('on: says what it adds, that everyone with access will see it, and that nothing is deleted if it is switched off', () => {
     const html = render('crm', true)
-    for (const t of ['Switch on DOA CRM?', 'Everyone in Acme Studio who has access', 'nothing is deleted', 'Yes, switch on']) expect(html).toContain(t)
+    for (const t of ['Install DOA CRM?', 'Everyone in Acme Studio who has access', 'nothing is deleted', 'Yes, install']) expect(html).toContain(t)
   })
 
   it('on: warns that POS also switches on its products list', () => {

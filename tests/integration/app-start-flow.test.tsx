@@ -20,7 +20,7 @@ afterEach(() => { if (original) Object.defineProperty(globalThis, 'localStorage'
 
 describe('an app link goes to sign-in, then to that one app', () => {
   it('points each app at the sign-in page for that app', () => {
-    expect(STANDALONE_APPS.map(startPath)).toEqual(['/sign-in?app=crm', '/sign-in?app=pos', '/sign-in?app=inventory', '/sign-in?app=invoices', '/sign-in?app=expenses', '/sign-in?app=finance'])
+    expect(STANDALONE_APPS.map(startPath)).toEqual(['/sign-in?app=crm', '/sign-in?app=pos', '/sign-in?app=inventory', '/sign-in?app=invoices', '/sign-in?app=expenses', '/sign-in?app=finance', '/sign-in?app=calendar'])
   })
 
   it('remembers the app through sign-in or sign-up and sends the person to its start page afterwards', () => {
