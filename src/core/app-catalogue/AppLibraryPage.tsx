@@ -12,6 +12,7 @@ import { UsagePanel } from '@/core/subscriptions/UsageViews'
 import { canManageStaff } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { Badge, Button, ErrorState, PageHeader } from '@/shared/components'
+import { ConfirmSwitch } from './ConfirmSwitch'
 import { STANDALONE_APPS, appState, canSwitchOff, modulesToSwitchOff, neededBy } from './apps'
 import type { AppState, StandaloneApp } from './apps'
 
@@ -29,6 +30,8 @@ export function AppLibraryPage() {
   const { statuses, refresh } = useModules()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  // The switch is only made after the person confirms what it changes.
+  const [confirm, setConfirm] = useState<{ app: StandaloneApp; on: boolean } | null>(null)
   const perms = usePermissions(active?.id ?? '')
   if (!active) return null
   const industry = getIndustry(active.industry)
@@ -37,13 +40,15 @@ export function AppLibraryPage() {
 
   async function toggle(app: StandaloneApp, on: boolean) {
     setBusy(app.id); setError(null)
+    let failed = false
     for (const m of on ? app.modules : modulesToSwitchOff(app, statuses)) {
       const s = statuses.find((x) => x.code === m)
       if (on && s?.enabled) continue
       const err = on ? await enableModule(active!.id, m) : await disableModule(active!.id, m)
-      if (err) { setError(err); break }
+      if (err) { setError(err); failed = true; break }
     }
     await refresh(); setBusy(null)
+    return !failed
   }
 
   const ownModules = industry.modules.filter((m) => statuses.find((s) => s.code === m.code)?.enabled)
@@ -66,10 +71,10 @@ export function AppLibraryPage() {
               <p className="mt-2 text-xs font-medium text-ink/60">{app.free}</p>
               <div className="mt-auto flex flex-wrap gap-2 pt-3">
                 {st === 'active' && <Link to={appPath(MODULES[app.home])} className="inline-flex h-9 items-center rounded-md bg-amber px-3 text-sm font-semibold text-ink hover:bg-amber-dark">Open</Link>}
-                {st === 'available' && canManage && <Button loading={busy === app.id} onClick={() => void toggle(app, true)}>Switch on</Button>}
+                {st === 'available' && canManage && <Button onClick={() => { setError(null); setConfirm({ app, on: true }) }}>Switch on</Button>}
                 {st === 'available' && !canManage && <span className="text-xs text-ink/60">Ask the business owner to switch it on.</span>}
                 {st === 'active' && canManage && neededBy(app, statuses).length > 0 && <span className="text-xs text-ink/60">Needed by {neededBy(app, statuses).map((o) => o.name).join(', ')}.</span>}
-                {st === 'active' && canManage && canSwitchOff(app, statuses) && <Button variant="secondary" loading={busy === app.id} onClick={() => void toggle(app, false)}>Switch off</Button>}
+                {st === 'active' && canManage && canSwitchOff(app, statuses) && <Button variant="secondary" onClick={() => { setError(null); setConfirm({ app, on: false }) }}>Switch off</Button>}
                 {st === 'needs_plan' && <Link to="/app/settings" className="text-sm font-semibold underline">See plans</Link>}
                 {st === 'unavailable' && <span className="text-xs text-ink/60">{industry.name} has its own tools for this. Create a Business apps workspace to use it on its own.</span>}
               </div>
@@ -77,6 +82,13 @@ export function AppLibraryPage() {
           )
         })}
       </ul>
+
+      {confirm && (
+        <ConfirmSwitch app={confirm.app} on={confirm.on} businessId={active.id} businessName={active.name} busy={busy === confirm.app.id} error={error}
+          keepsOn={confirm.on ? [] : confirm.app.modules.filter((m) => !modulesToSwitchOff(confirm.app, statuses).includes(m))}
+          onCancel={() => { setConfirm(null); setError(null) }}
+          onConfirm={() => void toggle(confirm.app, confirm.on).then((ok) => { if (ok) setConfirm(null) })} />
+      )}
 
       <div className="mt-8"><UsagePanel /></div>
 

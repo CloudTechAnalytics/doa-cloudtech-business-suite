@@ -34,6 +34,8 @@ An app is one or more shared modules. Switching it on enables its modules in `bu
 | DOA Expenses | `expenses` | |
 | DOA Finance | `reports` | cash-basis summary, cashbook, receivables and payables |
 
+Switching an app on or off always asks first (`ConfirmSwitch`). Off lists what stops, what is kept and what keeps working (for example, unpaid invoices stay in Finance as money owed, and the dialog shows how much is still owed), says when part of the app stays on because another app needs it, and that everyone in the business is affected. On says what it adds and that nothing is deleted if it is switched off later. Only the owner or an admin can do either, and the change is written to the audit log.
+
 Which business types can use which app is the industry template (`industry_template_modules`). *Business apps* has all six on when chosen in the picker, or one when started from an app's link. Retail, bakery and pharmacy have all of them except Invoices, which they can switch on. Farm can switch on Purchases, Suppliers, Expenses and Invoices. A school has none of the standalone apps (it has its own fees and expenses).
 
 ## Integration contracts and data ownership

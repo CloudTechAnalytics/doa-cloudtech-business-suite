@@ -74,6 +74,16 @@ export const STANDALONE_APPS: StandaloneApp[] = [
   },
 ]
 
+/** What switching an app off does, in plain words: what stops, what is kept, and what keeps working. Shown in the confirmation before it happens. */
+export const SWITCH_OFF_EFFECTS: Record<StandaloneApp['id'], string[]> = {
+  crm: ['Customers, leads, deals and quotes are kept but hidden from the menu.', 'Nobody can add contacts or send quotes until it is switched back on.', 'Quotes can no longer be turned into invoices.'],
+  pos: ['Selling stops: nobody can record sales or returns.', 'Past sales and receipts are kept and still count in Finance.'],
+  inventory: ['Products and stock are hidden, and stock cannot be received, adjusted or counted.', 'Stock levels are kept exactly as they are.'],
+  invoices: ['Nobody can create invoices or record payments.', 'Existing invoices and payments are kept, and unpaid invoices still show in Finance as money owed.'],
+  expenses: ['Nobody can record expenses.', 'Past expenses are kept and still count in Finance.'],
+  finance: ['Reports, the cashbook and the lists of what is owed are hidden.', 'Nothing changes in the apps that feed it; the figures are back when you switch it on again.'],
+}
+
 export type AppState = 'active' | 'needs_plan' | 'no_permission' | 'available' | 'unavailable'
 
 /**
