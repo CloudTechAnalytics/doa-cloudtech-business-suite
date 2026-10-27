@@ -6,7 +6,7 @@ import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { LEVEL_NAMES, NoSetup, classLevel, fullName, levelsOf, useSchool } from '../components/schoolUi'
-import { deleteClass, deleteDepartment, deleteSession, deleteSubject, deleteTerm, loadStaff, loadStudents, saveClass, saveCohort, saveDepartment, saveHoliday, saveSession, saveSubject, saveTerm, setClassSubjects } from '../services/schoolApi'
+import { deleteClass, deleteDepartment, loadWorks, saveWorks, deleteSession, deleteSubject, deleteTerm, loadStaff, loadStudents, saveClass, saveCohort, saveDepartment, saveHoliday, saveSession, saveSubject, saveTerm, setClassSubjects } from '../services/schoolApi'
 import { STAGES, SUBJECT_LEVELS, stageOk } from '../services/schoolApi'
 import type { SClass, SDepartment, SSession, SSubject, STerm, Stage, SubjectLevel } from '../services/schoolApi'
 import { ConfirmDelete } from '../components/ConfirmDelete'
@@ -20,6 +20,8 @@ export function SchoolClassesPage() {
   const students = useAsync(() => loadStudents(businessId), [businessId])
   const staff = useAsync(() => loadStaff(businessId).catch(() => ({ staff: [], assignments: [] })), [businessId])
   const [panel, setPanel] = useState<Panel>(null); const [openId, setOpenId] = useState<string | null>(null)
+  const works = useAsync(() => loadWorks(businessId).catch(() => []), [businessId])
+  const [worksFor, setWorksFor] = useState<SSubject | null>(null)
   const [sq, setSq] = useState(''); const [sLevel, setSLevel] = useState(''); const [sDept, setSDept] = useState('')
   if (!active) return null
   const manage = can('school.manage')
@@ -28,28 +30,30 @@ export function SchoolClassesPage() {
   const shownSubjects = ctx.visibleSubjects.filter((x) => (!sq.trim() || (x.name + ' ' + (x.code ?? '')).toLowerCase().includes(sq.trim().toLowerCase())) && (!sLevel || x.levels.includes(sLevel as SubjectLevel)) && (!sDept || (sDept === 'none' ? !x.departmentId : x.departmentId === sDept)))
   const filtering = !!(sq.trim() || sLevel || sDept)
   const online = ctx.kind === 'online'
+  const mont = ctx.kind === 'montessori'
+  const alt = online || mont // courses and environments are shown as cards, not as the usual list of classes
   return (
     <>
-      <PageHeader title={online ? 'Courses & Units' : 'Classes & Subjects'} description={online ? 'The courses the school offers, the units in each course, and the terms learners enrol for.' : 'The shape of the school year: sessions and terms, the classes, the subjects, and what each class studies.'} />
-      {online ? <p className="mb-3 rounded-lg bg-surface px-3 py-2 text-sm text-ink/70">How it fits together: add the <b>courses</b> your school offers, with a short description and how long each takes. Open a course to add its <b>units</b> (the topics or modules learners are assessed on). Set each course's fee under School Fees, and enrol learners from Students.</p> : <p className="mb-3 rounded-lg bg-surface px-3 py-2 text-sm text-ink/70">How it fits together: <b>classes</b> are the groups pupils sit in, <b>subjects</b> are what the school teaches, and each class studies the subjects you tick when you open it. Departments only matter for senior secondary.</p>}
+      <PageHeader title={online ? 'Courses & Units' : mont ? 'Environments & Areas' : 'Classes & Subjects'} description={mont ? 'The environments children learn in (by age), the curriculum areas, and the works inside each area.' : online ? 'The courses the school offers, the units in each course, and the terms learners enrol for.' : 'The shape of the school year: sessions and terms, the classes, the subjects, and what each class studies.'} />
+      {mont ? <p className="mb-3 rounded-lg bg-surface px-3 py-2 text-sm text-ink/70">How it fits together: an <b>environment</b> is a mixed-age room (Toddler Community, Children&apos;s House, Lower and Upper Elementary). Each environment works in the Montessori <b>areas</b> (Practical Life, Sensorial, Language, Mathematics, Cultural Studies and more), and each area has <b>works</b>: the materials and lessons a guide presents. Open an environment to choose its areas, and use Works on an area to change its list. Progress is recorded on Progress &amp; Reports.</p> : online ? <p className="mb-3 rounded-lg bg-surface px-3 py-2 text-sm text-ink/70">How it fits together: add the <b>courses</b> your school offers, with a short description and how long each takes. Open a course to add its <b>units</b> (the topics or modules learners are assessed on). Set each course's fee under School Fees, and enrol learners from Students.</p> : <p className="mb-3 rounded-lg bg-surface px-3 py-2 text-sm text-ink/70">How it fits together: <b>classes</b> are the groups pupils sit in, <b>subjects</b> are what the school teaches, and each class studies the subjects you tick when you open it. Departments only matter for senior secondary.</p>}
       {structure.error && <ErrorState message={structure.error} />}
-      {s && !ctx.visibleClasses.length && !online && <NoSetup />}
+      {s && !ctx.visibleClasses.length && !alt && <NoSetup />}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="lg:col-span-2">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{online ? '1. Courses' : '1. Classes'}</h3><p className="text-xs text-ink/60">{online ? 'Open a course to add its units and see who is enrolled.' : 'Open a class to choose the subjects it studies.'}</p></div>{manage && <Button variant="secondary" onClick={() => setPanel({ kind: 'class', v: null })}><Plus className="size-4" aria-hidden /> {online ? 'Add course' : 'Add class'}</Button>}</div>
-          {online && ctx.visibleClasses.length > 0 && (
-            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{ctx.visibleClasses.map((c) => <li key={c.id}><button onClick={() => setOpenId(c.id)} className="flex h-full w-full flex-col gap-1 rounded-lg border border-line px-4 py-3 text-left hover:bg-surface"><span className="flex items-start justify-between gap-2"><span className="font-semibold">{c.name}</span>{!c.active && <Badge>Not open</Badge>}</span>{c.duration && <span className="text-xs font-medium text-accent">{c.duration}</span>}{c.description && <span className="line-clamp-2 text-xs text-ink/70">{c.description}</span>}<span className="mt-auto pt-1 text-xs text-ink/60">{(students.data ?? []).filter((x) => x.classId === c.id && x.status === 'active').length} learners · {(s?.classSubjects ?? []).filter((x) => x.classId === c.id).length} units</span></button></li>)}</ul>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{online ? '1. Courses' : mont ? '1. Environments' : '1. Classes'}</h3><p className="text-xs text-ink/60">{online ? 'Open a course to add its units and see who is enrolled.' : mont ? 'Open an environment to choose its areas and see its children.' : 'Open a class to choose the subjects it studies.'}</p></div>{manage && <Button variant="secondary" onClick={() => setPanel({ kind: 'class', v: null })}><Plus className="size-4" aria-hidden /> {online ? 'Add course' : mont ? 'Add environment' : 'Add class'}</Button>}</div>
+          {alt && ctx.visibleClasses.length > 0 && (
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{ctx.visibleClasses.map((c) => <li key={c.id}><button onClick={() => setOpenId(c.id)} className="flex h-full w-full flex-col gap-1 rounded-lg border border-line px-4 py-3 text-left hover:bg-surface"><span className="flex items-start justify-between gap-2"><span className="font-semibold">{c.name}</span>{!c.active && <Badge>{mont ? 'Not in use' : 'Not open'}</Badge>}</span>{c.duration && <span className="text-xs font-medium text-accent">{c.duration}</span>}{c.description && <span className="line-clamp-2 text-xs text-ink/70">{c.description}</span>}<span className="mt-auto pt-1 text-xs text-ink/60">{(students.data ?? []).filter((x) => x.classId === c.id && x.status === 'active').length} {mont ? 'children' : 'learners'} · {(s?.classSubjects ?? []).filter((x) => x.classId === c.id).length} {mont ? 'areas' : 'units'}</span></button></li>)}</ul>
           )}
-          {!online && ctx.visibleClasses.length ? (
+          {!alt && ctx.visibleClasses.length ? (
             <div className="space-y-4">{(['nursery', 'primary', 'jss', 'sss'] as const).map((lv) => { const list = ctx.visibleClasses.filter((c) => classLevel(c) === lv); if (!list.length) return null; return (
               <section key={lv}><h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink/55">{LEVEL_NAMES[lv]}</h4>
                 <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{list.map((c) => <li key={c.id}><button onClick={() => setOpenId(c.id)} className="flex w-full items-center justify-between gap-2 rounded-lg border border-line px-3 py-2 text-left text-sm hover:bg-surface"><span className="font-medium">{c.name}{!c.active && <> <Badge>Not in use</Badge></>}</span><span className="text-xs text-ink/60">{(students.data ?? []).filter((x) => x.classId === c.id && x.status === 'active').length} pupils · {(s?.classSubjects ?? []).filter((x) => x.classId === c.id).length} subjects</span></button></li>)}</ul></section>
             ) })}</div>
-          ) : !ctx.visibleClasses.length ? (online ? <EmptyState title="No courses yet" description="Add the courses your school offers. Each can have a description, a duration and its own units." /> : <EmptyState title="No classes yet" description="Add a class, or use Start from the standard structure." />) : null}
+          ) : !ctx.visibleClasses.length ? (mont ? <EmptyState title="No environments yet" description="Add an environment, or switch the school to Montessori in School Settings to get the standard four." /> : online ? <EmptyState title="No courses yet" description="Add the courses your school offers. Each can have a description, a duration and its own units." /> : <EmptyState title="No classes yet" description="Add a class, or use Start from the standard structure." />) : null}
         </Card>
         <Card className="lg:col-span-2">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{online ? '2. Units' : '2. Subjects'}</h3><p className="text-xs text-ink/60">{online ? 'Every unit across your courses, listed once. Click one to change or delete it.' : 'Every subject the school teaches, listed once. Click one to change or delete it.'}</p></div>{manage && <Button variant="secondary" onClick={() => setPanel({ kind: 'subject', v: null })}><Plus className="size-4" aria-hidden /> {online ? 'Add unit' : 'Add subject'}</Button>}</div>
-          {ctx.visibleSubjects.length > 6 && !online && (
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{online ? '2. Units' : mont ? '2. Curriculum areas' : '2. Subjects'}</h3><p className="text-xs text-ink/60">{online ? 'Every unit across your courses, listed once. Click one to change or delete it.' : mont ? 'The Montessori areas. Click one to rename or delete it, or use Works to change its list of works.' : 'Every subject the school teaches, listed once. Click one to change or delete it.'}</p></div>{manage && <Button variant="secondary" onClick={() => setPanel({ kind: 'subject', v: null })}><Plus className="size-4" aria-hidden /> {online ? 'Add unit' : mont ? 'Add area' : 'Add subject'}</Button>}</div>
+          {ctx.visibleSubjects.length > 6 && !alt && (
             <div className="mb-3 flex flex-wrap items-end gap-3">
               <div className="w-56"><TextField label="Search subjects" value={sq} onChange={(e) => setSq(e.target.value)} placeholder="Name or code" /></div>
               <div className="w-48"><SelectField label="Taught at" value={sLevel} onChange={(e) => setSLevel(e.target.value)}><option value="">All levels</option>{SUBJECT_LEVELS.filter((l) => levelsOf(ctx.kind).includes(l)).map((l) => <option key={l} value={l}>{LEVEL_NAMES[l]}</option>)}</SelectField></div>
@@ -59,8 +63,8 @@ export function SchoolClassesPage() {
             </div>
           )}
           {filtering && !shownSubjects.length ? <p className="py-4 text-center text-sm text-ink/60">No subject matches. Clear the filters, or add it.</p> : ctx.visibleSubjects.length ? <ul className="divide-y divide-ink/10 text-sm">{shownSubjects.map((x) => { const dept = s?.departments.find((d) => d.id === x.departmentId); const n = (s?.classSubjects ?? []).filter((cs) => cs.subjectId === x.id).length; return (
-            <li key={x.id}><button disabled={!manage} onClick={() => setPanel({ kind: 'subject', v: x })} className="flex w-full flex-wrap items-center justify-between gap-2 py-2 text-left hover:bg-surface"><span className="font-medium">{x.name}{x.code ? <span className="text-ink/50"> ({x.code})</span> : null}</span>
-              <span className="flex flex-wrap items-center gap-1.5 text-xs text-ink/60">{x.levels.map((l) => <Badge key={l}>{LEVEL_NAMES[l]}</Badge>)}{dept && <Badge tone="info">{dept.name} only</Badge>}<span>{n} {n === 1 ? 'class' : 'classes'}</span></span></button></li>) })}</ul> : <EmptyState title={online ? 'No units yet' : 'No subjects yet'} />}
+            <li key={x.id} className={mont ? 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2' : undefined}><button disabled={!manage} onClick={() => setPanel({ kind: 'subject', v: x })} className="flex w-full flex-wrap items-center justify-between gap-2 py-2 text-left hover:bg-surface"><span className="font-medium">{x.name}{x.code ? <span className="text-ink/50"> ({x.code})</span> : null}</span>
+              <span className="flex flex-wrap items-center gap-1.5 text-xs text-ink/60">{!mont && x.levels.map((l) => <Badge key={l}>{LEVEL_NAMES[l]}</Badge>)}{dept && <Badge tone="info">{dept.name} only</Badge>}{mont && <Badge tone="info">{(works.data ?? []).filter((w) => w.subjectId === x.id).length} works</Badge>}<span>{n} {mont ? (n === 1 ? 'environment' : 'environments') : n === 1 ? 'class' : 'classes'}</span></span></button>{mont && manage && <Button variant="secondary" onClick={() => setWorksFor(x)}>Works</Button>}</li>) })}</ul> : <EmptyState title={online ? 'No units yet' : mont ? 'No areas yet' : 'No subjects yet'} />}
         </Card>
         {(ctx.kind === 'secondary' || ctx.kind === 'combined' || (s?.departments.length ?? 0) > 0) && (
           <Card className="lg:col-span-2">
@@ -87,6 +91,7 @@ export function SchoolClassesPage() {
           {s?.holidays.length ? <ul className="divide-y divide-ink/10 text-sm">{s.holidays.map((h) => <li key={h.on} className="flex justify-between py-1.5"><span>{h.name}</span><span className="text-ink/60">{h.on}</span></li>)}</ul> : <p className="text-sm text-ink/60">None. Attendance cannot be taken on a holiday.</p>}
         </Card>
       </div>
+      {worksFor && <WorksDialog ctx={ctx} area={worksFor} works={(works.data ?? []).filter((w) => w.subjectId === worksFor.id).map((w) => w.name)} onClose={() => setWorksFor(null)} onSaved={async () => { setWorksFor(null); await works.refresh() }} />}
       {panel && <Editor ctx={ctx} panel={panel} onClose={() => setPanel(null)} onSaved={done} />}
       {open && <ClassPage ctx={ctx} c={open} students={(students.data ?? []).filter((x) => x.classId === open.id && x.status === 'active')} teachers={staff.data ?? undefined} onClose={() => setOpenId(null)} onEdit={() => setPanel({ kind: 'class', v: open })} onChanged={structure.refresh} />}
     </>
@@ -115,7 +120,8 @@ function Editor({ ctx, panel, onClose, onSaved }: { ctx: ReturnType<typeof useSc
     return runner.run(async () => saveHoliday(b, f.on, f.name.trim()), 'Saved.')
   }
   const isOnline = ctx.kind === 'online'
-  const title = { class: isOnline ? 'Course' : 'Class', subject: isOnline ? 'Unit' : 'Subject', session: isOnline ? 'Cohort' : 'Academic session', term: isOnline ? 'Period' : 'Term', holiday: 'Holiday', department: 'Department' }[panel.kind]
+  const isMont = ctx.kind === 'montessori'
+  const title = { class: isOnline ? 'Course' : isMont ? 'Environment' : 'Class', subject: isOnline ? 'Unit' : isMont ? 'Area' : 'Subject', session: isOnline ? 'Cohort' : 'Academic session', term: isOnline ? 'Period' : 'Term', holiday: 'Holiday', department: 'Department' }[panel.kind]
   const levelsNow = f.levels ? f.levels.split(',') : []
   const toggleLevel = (l: SubjectLevel) => setF((p) => ({ ...p, levels: (levelsNow.includes(l) ? levelsNow.filter((x) => x !== l) : [...levelsNow, l]).join(',') }))
   const departments = ctx.s?.departments ?? []
@@ -123,18 +129,20 @@ function Editor({ ctx, panel, onClose, onSaved }: { ctx: ReturnType<typeof useSc
     <Dialog title={`${'v' in panel && panel.v ? 'Edit' : 'Add'} ${title.toLowerCase()}`} onClose={onClose}>
       <form onSubmit={(e) => { e.preventDefault(); void save() }} noValidate className="space-y-3">
         {panel.kind === 'term' && <SelectField label="Session" value={f.session} onChange={set('session')}>{(ctx.s?.sessions ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</SelectField>}
-        {panel.kind === 'holiday' ? <><TextField label="Date" type="date" value={f.on} onChange={set('on')} /><TextField label="Name" value={f.name} onChange={set('name')} placeholder="Independence Day" /></> : <TextField label={isOnline && panel.kind === 'class' ? 'Course title' : isOnline && panel.kind === 'subject' ? 'Unit name' : 'Name'} value={f.name} onChange={set('name')} autoFocus />}
+        {panel.kind === 'holiday' ? <><TextField label="Date" type="date" value={f.on} onChange={set('on')} /><TextField label="Name" value={f.name} onChange={set('name')} placeholder="Independence Day" /></> : <TextField label={isOnline && panel.kind === 'class' ? 'Course title' : isOnline && panel.kind === 'subject' ? 'Unit name' : isMont && panel.kind === 'subject' ? 'Area name' : 'Name'} value={f.name} onChange={set('name')} autoFocus />}
         {panel.kind === 'class' && isOnline && <><TextField label="Duration (optional)" value={f.duration} onChange={set('duration')} placeholder="12 weeks, 3 months, self-paced" /><label className="block text-sm"><span className="mb-1 block font-medium">Description (optional)</span><textarea value={f.description} onChange={set('description')} rows={4} maxLength={600} className="w-full rounded-md border border-line bg-white px-3 py-2 text-sm" placeholder="What learners will study, who it is for, how it is taught" /></label></>}
-        {panel.kind === 'class' && !isOnline && <SelectField label="Stage" value={f.stage} onChange={set('stage')}>{STAGES.filter((st) => stageOk(ctx.kind, st)).map((st) => <option key={st} value={st}>{st === 'nursery' ? 'Nursery' : st === 'primary' ? 'Primary' : 'Secondary'}</option>)}</SelectField>}
-        {panel.kind === 'class' && !isOnline && <details className="text-sm" open={!!f.arm}><summary className="cursor-pointer text-ink/70">More options</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><TextField label="Order in the school (1 = lowest)" type="number" min={0} value={f.level} onChange={set('level')} /><TextField label="Arm (optional)" value={f.arm} onChange={set('arm')} placeholder="A, B, Gold" /></div><p className="mt-1 text-xs text-ink/60">Leave the order empty and the class goes at the end.</p></details>}
+        {panel.kind === 'class' && isMont && <TextField label="Age range" value={f.description} onChange={set('description')} placeholder="Ages 3 to 6 years" />}
+        {panel.kind === 'class' && !isOnline && !isMont && <SelectField label="Stage" value={f.stage} onChange={set('stage')}>{STAGES.filter((st) => stageOk(ctx.kind, st)).map((st) => <option key={st} value={st}>{st === 'nursery' ? 'Nursery' : st === 'primary' ? 'Primary' : 'Secondary'}</option>)}</SelectField>}
+        {panel.kind === 'class' && !isOnline && !isMont && <details className="text-sm" open={!!f.arm}><summary className="cursor-pointer text-ink/70">More options</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><TextField label="Order in the school (1 = lowest)" type="number" min={0} value={f.level} onChange={set('level')} /><TextField label="Arm (optional)" value={f.arm} onChange={set('arm')} placeholder="A, B, Gold" /></div><p className="mt-1 text-xs text-ink/60">Leave the order empty and the class goes at the end.</p></details>}
         {panel.kind === 'class' && f.stage === 'secondary' && departments.length > 0 && <SelectField label="Department (senior secondary)" value={f.department} onChange={set('department')}><option value="">None (junior secondary)</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</SelectField>}
         {panel.kind === 'subject' && <TextField label="Short code (optional)" value={f.code} onChange={set('code')} />}
-        {panel.kind === 'subject' && !isOnline && <fieldset className="space-y-1"><legend className="mb-1 text-sm font-medium">Taught at</legend><div className="flex flex-wrap gap-x-4 gap-y-1">{SUBJECT_LEVELS.filter((l) => levelsOf(ctx.kind).includes(l)).map((l) => <label key={l} className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={levelsNow.includes(l)} onChange={() => toggleLevel(l)} />{LEVEL_NAMES[l]}</label>)}</div><p className="text-xs text-ink/60">Tick the levels where it is offered. This decides which subjects are suggested for each class.</p></fieldset>}
+        {panel.kind === 'subject' && !isOnline && !isMont && <fieldset className="space-y-1"><legend className="mb-1 text-sm font-medium">Taught at</legend><div className="flex flex-wrap gap-x-4 gap-y-1">{SUBJECT_LEVELS.filter((l) => levelsOf(ctx.kind).includes(l)).map((l) => <label key={l} className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={levelsNow.includes(l)} onChange={() => toggleLevel(l)} />{LEVEL_NAMES[l]}</label>)}</div><p className="text-xs text-ink/60">Tick the levels where it is offered. This decides which subjects are suggested for each class.</p></fieldset>}
         {panel.kind === 'subject' && departments.length > 0 && <SelectField label="Department (senior secondary only)" value={f.department} onChange={set('department')}><option value="">Every department</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</SelectField>}
         {(panel.kind === 'session' || panel.kind === 'term') && <div className="grid gap-3 sm:grid-cols-2"><TextField label="Starts" type="date" value={f.starts} onChange={set('starts')} /><TextField label="Ends" type="date" value={f.ends} onChange={set('ends')} /></div>}
         {(panel.kind === 'session' || panel.kind === 'term') && tick('current')}
         {panel.kind === 'class' && tick('active')}
         {panel.kind === 'class' && isOnline && <p className="-mt-2 text-xs text-ink/60">Untick "In use" to stop offering the course without deleting it.</p>}
+        {panel.kind === 'class' && isMont && <p className="-mt-2 text-xs text-ink/60">Untick "In use" to retire an environment without deleting it.</p>}
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
         <div className="flex justify-between gap-2">{panel.kind === 'holiday' ? <HolidayRemove ctx={ctx} onDone={onSaved} /> : 'v' in panel && panel.v ? <EditorDelete ctx={ctx} panel={panel} onDone={onSaved} /> : <span />}<div className="flex gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>Save</Button></div></div>
       </form>
@@ -174,7 +182,7 @@ function ClassPage({ ctx, c, students, teachers, onClose, onEdit, onChanged }: {
   return (
     <DetailPage title={c.name} onClose={onClose} wide actions={manage ? <div className="flex gap-2"><Button variant="secondary" onClick={onEdit}>Edit</Button><ConfirmDelete label={c.name} noun="class" warning="Its subject choices, teacher assignments and timetable are removed. A class that has students, attendance, results or fees on record cannot be deleted; untick In use under Edit instead." onConfirm={() => deleteClass(ctx.businessId, c.id)} onDeleted={async () => { onClose(); await onChanged() }} /></div> : undefined}>
       <div className="grid gap-6 lg:grid-cols-2">
-        <div>{c.stage === 'online' && (c.duration || c.description) && <div className="mb-4 rounded-lg bg-surface p-3 text-sm">{c.duration && <p className="font-semibold text-accent">{c.duration}</p>}{c.description && <p className="mt-1 whitespace-pre-line text-ink/80">{c.description}</p>}</div>}<h3 className="mb-1 text-sm font-semibold">{c.stage === 'online' ? 'Units in this course' : 'Subjects taken'}</h3>
+        <div>{(c.stage === 'online' || c.stage === 'montessori') && (c.duration || c.description) && <div className="mb-4 rounded-lg bg-surface p-3 text-sm">{c.duration && <p className="font-semibold text-accent">{c.duration}</p>}{c.description && <p className="mt-1 whitespace-pre-line text-ink/80">{c.description}</p>}</div>}<h3 className="mb-1 text-sm font-semibold">{c.stage === 'online' ? 'Units in this course' : c.stage === 'montessori' ? 'Areas in this environment' : 'Subjects taken'}</h3>
           <p className="mb-2 text-xs text-ink/60">Tick the subjects this class studies. The first list shows the subjects that fit the level of this class{c.departmentId ? ' and department' : ''}; the rest are under "Other subjects".</p>
           {ctx.visibleSubjects.length > 8 && <div className="mb-2 max-w-xs"><TextField label="Find a subject" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Type to filter" /></div>}
           {find.trim() && !fit.length && !others.length && <p className="text-sm text-ink/60">No subject matches.</p>}
@@ -182,11 +190,30 @@ function ClassPage({ ctx, c, students, teachers, onClose, onEdit, onChanged }: {
           {others.length > 0 && <details className="mt-3" open={others.some((x) => picked.includes(x.id))}><summary className="cursor-pointer text-sm font-medium text-ink/70">Other subjects ({others.length})</summary><ul className="mt-1 space-y-1 text-sm">{others.map((x) => <li key={x.id}><label className="flex items-center gap-2"><input type="checkbox" disabled={!manage} checked={picked.includes(x.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, x.id] : picked.filter((id) => id !== x.id))} /> {x.name} {x.levels.length > 0 && <span className="text-xs text-ink/50">({x.levels.map((l) => LEVEL_NAMES[l]).join(', ')})</span>}</label></li>)}</ul></details>}
           {manage && <div className="mt-3 space-y-2">{runner.error && <ErrorState title="Not saved" message={runner.error} />}{runner.ok && <Notice>{runner.ok}</Notice>}<Button loading={runner.busy} onClick={() => void runner.run(async () => setClassSubjects(ctx.businessId, c.id, picked), 'Subjects saved.')}>Save subjects</Button></div>}
           <p className="mt-2 text-xs text-ink/60">Removing a subject that already has scores is refused so results are never lost.</p></div>
-        <div><h3 className="mb-1 text-sm font-semibold">{c.stage === 'online' ? 'Instructors' : 'Teachers'}</h3>
+        <div><h3 className="mb-1 text-sm font-semibold">{c.stage === 'online' ? 'Instructors' : c.stage === 'montessori' ? 'Guides' : 'Teachers'}</h3>
           {mine.length ? <ul className="divide-y divide-ink/10 text-sm">{mine.map((a) => <li key={a.id} className="py-1.5">{teachers?.staff.find((x) => x.id === a.staffId)?.name ?? 'Teacher'} <span className="text-ink/60">{a.classTeacher ? 'Class teacher' : ''} {a.subjectId ? ctx.subjectName(a.subjectId) : ''}</span></li>)}</ul> : <p className="text-sm text-ink/60">No teachers assigned. Assign them under Teachers & Staff.</p>}
-          <h3 className="mb-1 mt-4 text-sm font-semibold">{c.stage === 'online' ? 'Learners' : 'Students'} ({students.length})</h3>
+          <h3 className="mb-1 mt-4 text-sm font-semibold">{c.stage === 'online' ? 'Learners' : c.stage === 'montessori' ? 'Children' : 'Students'} ({students.length})</h3>
           {students.length ? <ul className="max-h-60 divide-y divide-ink/10 overflow-auto text-sm">{students.map((x) => <li key={x.id} className="py-1.5">{fullName(x)} <span className="text-ink/60">{x.admissionNo}</span></li>)}</ul> : <p className="text-sm text-ink/60">No students in this class.</p>}</div>
       </div>
     </DetailPage>
+  )
+}
+
+/** The works of one curriculum area, one per line. Works that stay keep every child's progress; a work taken off the list loses the progress recorded on it. */
+function WorksDialog({ ctx, area, works, onClose, onSaved }: { ctx: ReturnType<typeof useSchool>; area: SSubject; works: string[]; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [text, setText] = useState(works.join('\n'))
+  const runner = useFormRunner(onSaved)
+  const names = text.split('\n').map((x) => x.trim()).filter(Boolean)
+  const removed = works.filter((w) => !names.includes(w))
+  return (
+    <Dialog title={`Works in ${area.name}`} onClose={onClose} wide>
+      <div className="space-y-3 text-sm">
+        <p className="text-ink/70">One work per line, in the order a guide would present them. {names.length} work{names.length === 1 ? '' : 's'}.</p>
+        <textarea aria-label={`Works in ${area.name}`} value={text} onChange={(e) => setText(e.target.value)} rows={14} className="w-full rounded-md border border-line bg-white px-3 py-2 font-mono text-[13px]" />
+        {removed.length > 0 && <p role="alert" className="rounded-md bg-warning-soft px-3 py-2 text-xs text-warning">{removed.length} work{removed.length === 1 ? '' : 's'} will be removed, with the progress recorded on {removed.length === 1 ? 'it' : 'them'}: {removed.slice(0, 4).join(', ')}{removed.length > 4 ? '…' : ''}</p>}
+        {runner.error && <ErrorState title="Not saved" message={runner.error} />}
+        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button loading={runner.busy} onClick={() => void runner.run(async () => saveWorks(ctx.businessId, area.id, names), 'Saved.')}>Save works</Button></div>
+      </div>
+    </Dialog>
   )
 }

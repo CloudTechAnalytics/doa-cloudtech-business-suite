@@ -12,6 +12,7 @@ import { ConfirmDelete } from '../components/ConfirmDelete'
 import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
 import { EndOfYearDialog, ImportStudentsDialog } from '../components/StudentBulkDialogs'
 import { StudentDocumentsTab, idCardData } from '../components/StudentDocumentsTab'
+import { ProgressReportView } from './MontessoriProgress'
 import { Avatar, PassportPicker } from '../components/Passport'
 import { printAnnualCards, printIdCards } from '../components/StudentSheets'
 import { NoSetup, downloadCsv, fullName, useSchool } from '../components/schoolUi'
@@ -193,7 +194,7 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
   const mine = (att.data ?? []).filter((a) => a.studentId === st.id)
   const guardians = (links.data?.links ?? []).filter((l) => l.studentId === st.id).map((l) => ({ ...l, g: links.data!.guardians.find((x) => x.id === l.guardianId) })).filter((x) => x.g)
   const myBills = (bills.data ?? []).filter((b) => b.studentId === st.id)
-  const tabs = [['details', 'Details'], ['guardians', 'Parents'], ['attendance', 'Attendance'], ['results', 'Results'], ['fees', 'Fees'], ...(edit ? [['documents', 'Documents'] as const] : [])] as const
+  const tabs = [['details', 'Details'], ['guardians', 'Parents'], ['attendance', 'Attendance'], ['results', 'Results'], ['fees', 'Fees'], ...(ctx.isMontessori ? [['progress', 'Progress'] as const] : []), ...(edit ? [['documents', 'Documents'] as const] : [])] as const
   const rate = mine.length ? Math.round((mine.filter((a) => a.status === 'present' || a.status === 'late').length * 1000) / mine.length) / 10 : null
   const [editing, setEditing] = useState(false)
   async function save(e: FormEvent<HTMLFormElement>) { e.preventDefault(); await runner.run(async () => updateStudent(businessId, st.id, readStudent(new FormData(e.currentTarget), st.classId, st.admittedOn)), 'Saved.', () => setEditing(false)) }
@@ -234,6 +235,10 @@ function Profile({ ctx, student: st, edit, onClose, onChanged }: { ctx: SchoolCt
           <p className="text-sm">{rate === null ? 'No attendance recorded yet.' : <>Present or late on <b>{rate}%</b> of {mine.length} marked days.</>} {mine.filter((a) => a.status === 'absent').length > 0 && <>Absent {mine.filter((a) => a.status === 'absent').length} day(s), late {mine.filter((a) => a.status === 'late').length}, excused {mine.filter((a) => a.status === 'excused').length}.</>}</p>
           {mine.length > 0 && <ul className="max-h-72 divide-y divide-ink/10 overflow-auto text-sm">{[...mine].sort((a, b) => b.on.localeCompare(a.on)).slice(0, 60).map((a) => <li key={a.id} className="flex justify-between py-1.5"><span>{a.on}</span><span className="flex items-center gap-2">{a.note && <span className="text-xs text-ink/60">{a.note}</span>}<Badge tone={a.status === 'present' ? 'success' : a.status === 'absent' ? 'danger' : 'warning'}>{label(a.status)}</Badge></span></li>)}</ul>}
         </div>
+      )}
+
+      {tab === 'progress' && ctx.isMontessori && (
+        <div className="space-y-3"><div className="no-print max-w-xs"><SelectField label="Term" value={term} onChange={(e) => setTerm(e.target.value)}>{(s?.terms ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</SelectField></div><ProgressReportView businessId={businessId} studentId={st.id} termId={term} /></div>
       )}
 
       {tab === 'documents' && edit && <StudentDocumentsTab ctx={ctx} student={st} onPhoto={() => void photo.refresh()} />}

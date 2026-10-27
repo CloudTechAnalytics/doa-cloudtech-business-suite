@@ -13,12 +13,18 @@ const make = async (type: string) => {
 describe('an online school is offered at registration and talks about courses', () => {
   it('is one of the kinds of school you can pick', () => {
     const q = schoolSetupQuestions.find((x) => x.id === 'school_type')!
-    expect(q.options!.map((o) => o.value)).toEqual(['nursery', 'primary', 'secondary', 'combined', 'online'])
+    expect(q.options!.map((o) => o.value)).toEqual(['nursery', 'primary', 'secondary', 'combined', 'online', 'montessori'])
   })
 
   it('renames the menu for an online school only', async () => {
     const labels = getIndustry('school').moduleLabels!
     expect(await labels(await make('online'))).toEqual({ 'school-my-classes': 'My Courses', 'school-classes': 'Courses & Units', 'school-staff': 'Instructors & Staff' })
     for (const type of ['nursery', 'primary', 'secondary', 'combined']) expect(await labels(await make(type))).toEqual({})
+  })
+})
+
+describe('a Montessori school talks about environments, areas and progress', () => {
+  it('renames the menu for a Montessori school', async () => {
+    expect(await getIndustry('school').moduleLabels!(await make('montessori'))).toEqual({ 'school-my-classes': 'My Environment', 'school-classes': 'Environments & Areas', 'school-results': 'Progress & Reports', 'school-staff': 'Guides & Staff' })
   })
 })

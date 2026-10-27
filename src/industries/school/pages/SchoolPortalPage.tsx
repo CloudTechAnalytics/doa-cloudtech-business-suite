@@ -13,6 +13,7 @@ import { claimLinks, loadAnnouncements, loadAttendance, loadBills, loadGuardians
 import type { SAttendance, SStudent } from '../services/schoolApi'
 import { ReportCardSheet, printReportCards } from '../components/ReportCardSheet'
 import { printReceipt, receiptData } from '../components/ReceiptSheet'
+import { ProgressReportView } from './MontessoriProgress'
 
 type Tab = 'overview' | 'attendance' | 'timetable' | 'results' | 'fees' | 'notices' | 'details'
 const TABS: [Tab, string][] = [['overview', 'Overview'], ['attendance', 'Attendance'], ['timetable', 'Timetable'], ['results', 'Results'], ['fees', 'Fees'], ['notices', 'Notices'], ['details', 'My details']]
@@ -127,6 +128,10 @@ function AttendanceTab({ ctx, rows }: { ctx: ReturnType<typeof useSchool>; rows:
 
 /** The chosen term's published report card, and the average for every term so far. */
 function ResultsTab({ ctx, child, term }: { ctx: ReturnType<typeof useSchool>; child: SStudent; term: string }) {
+  return ctx.isMontessori ? <Card><ProgressReportView businessId={ctx.businessId} studentId={child.id} termId={term} /></Card> : <ReportCardResults ctx={ctx} child={child} term={term} />
+}
+
+function ReportCardResults({ ctx, child, term }: { ctx: ReturnType<typeof useSchool>; child: SStudent; term: string }) {
   const terms = ctx.s?.terms ?? []
   const card = useAsync(() => (term ? reportCard(ctx.businessId, child.id, term).catch(() => null) : Promise.resolve(null)), [ctx.businessId, child.id, term])
   const photo = useAsync(async () => (await loadPhotos(ctx.businessId, [child.id]))[child.id] ?? null, [ctx.businessId, child.id])

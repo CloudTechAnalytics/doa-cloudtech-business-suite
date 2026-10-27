@@ -30,7 +30,9 @@ export function useSchool() {
     active, businessId, structure, s, can, currentTerm, kind, visibleClasses, visibleSubjects,
     isTeacher, myAssignments,
     /** What this school calls its groups of learners: an online school has courses. */
-    classWord: kind === 'online' ? 'Course' : 'Class',
+    classWord: kind === 'online' ? 'Course' : kind === 'montessori' ? 'Environment' : 'Class',
+    /** Montessori schools record progress on works instead of marking exams. */
+    isMontessori: kind === 'montessori',
     /** An online school has cohorts where other schools have terms. */
     termWord: kind === 'online' ? 'Cohort' : 'Term',
     /** Classes to choose from: every active class, or for a teacher only the ones assigned to them. */
@@ -45,10 +47,10 @@ export function useSchool() {
 export type SchoolCtx = ReturnType<typeof useSchool>
 
 /** The levels of teaching a kind of school has: a secondary school has junior and senior secondary and nothing below. */
-export const levelsOf = (kind: string | null): SubjectLevel[] => (kind === 'online' ? ['online'] : kind === 'nursery' ? ['nursery'] : kind === 'primary' ? ['primary'] : kind === 'secondary' ? ['jss', 'sss'] : ['nursery', 'primary', 'jss', 'sss'])
-export const LEVEL_NAMES: Record<SubjectLevel, string> = { nursery: 'Nursery', primary: 'Primary', jss: 'Junior secondary', sss: 'Senior secondary', online: 'Online' }
+export const levelsOf = (kind: string | null): SubjectLevel[] => (kind === 'montessori' ? ['montessori'] : kind === 'online' ? ['online'] : kind === 'nursery' ? ['nursery'] : kind === 'primary' ? ['primary'] : kind === 'secondary' ? ['jss', 'sss'] : ['nursery', 'primary', 'jss', 'sss'])
+export const LEVEL_NAMES: Record<SubjectLevel, string> = { nursery: 'Nursery', primary: 'Primary', jss: 'Junior secondary', sss: 'Senior secondary', online: 'Online', montessori: 'Montessori' }
 /** Which level of teaching a class is at. Senior secondary starts at level 12 (SS 1). */
-export const classLevel = (c: Pick<SClass, 'stage' | 'levelOrder'>): SubjectLevel => (c.stage === 'online' ? 'online' : c.stage === 'nursery' ? 'nursery' : c.stage === 'primary' ? 'primary' : c.levelOrder <= 11 ? 'jss' : 'sss')
+export const classLevel = (c: Pick<SClass, 'stage' | 'levelOrder'>): SubjectLevel => (c.stage === 'online' || c.stage === 'montessori' ? c.stage : c.stage === 'nursery' ? 'nursery' : c.stage === 'primary' ? 'primary' : c.levelOrder <= 11 ? 'jss' : 'sss')
 
 export const fullName = (st: Pick<SStudent, 'first' | 'middle' | 'last'>) => `${st.first} ${st.middle ? `${st.middle} ` : ''}${st.last}`
 export const classLabel = (classes: SClass[], id: string | null) => classes.find((c) => c.id === id)?.name ?? '–'

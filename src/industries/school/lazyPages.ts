@@ -7,7 +7,7 @@ export const SchoolGuardiansPage = lazy(() => import('./pages/SchoolGuardiansPag
 export const SchoolClassesPage = lazy(() => import('./pages/SchoolClassesPage').then((m) => ({ default: m.SchoolClassesPage })))
 export const SchoolStaffPage = lazy(() => import('./pages/SchoolStaffPage').then((m) => ({ default: m.SchoolStaffPage })))
 export const SchoolAttendancePage = lazy(() => import('./pages/SchoolAttendancePage').then((m) => ({ default: m.SchoolAttendancePage })))
-export const SchoolResultsPage = lazy(() => import('./pages/SchoolResultsPage').then((m) => ({ default: m.SchoolResultsPage })))
+export const SchoolResultsPage = lazy(() => import('./pages/SchoolResultsRoute').then((m) => ({ default: m.SchoolResultsRoute })))
 export const SchoolFeesPage = lazy(() => import('./pages/SchoolFeesPage').then((m) => ({ default: m.SchoolFeesPage })))
 export const SchoolPaymentsPage = lazy(() => import('./pages/SchoolPaymentsPage').then((m) => ({ default: m.SchoolPaymentsPage })))
 export const SchoolAnnouncementsPage = lazy(() => import('./pages/SchoolAnnouncementsPage').then((m) => ({ default: m.SchoolAnnouncementsPage })))

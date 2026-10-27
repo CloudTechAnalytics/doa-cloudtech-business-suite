@@ -13,17 +13,17 @@ export type ScoreStatus = 'draft' | 'submitted' | 'approved' | 'published'
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
 export const PAY_METHODS = ['cash', 'bank_transfer', 'card', 'pos', 'other'] as const
 
-export interface SSettings { schoolType: 'nursery' | 'primary' | 'secondary' | 'combined' | 'online'; address: string | null; phone: string | null; email: string | null; caMax: number; examMax: number; showPosition: boolean; workingDays: number[] }
+export interface SSettings { schoolType: 'nursery' | 'primary' | 'secondary' | 'combined' | 'online' | 'montessori'; address: string | null; phone: string | null; email: string | null; caMax: number; examMax: number; showPosition: boolean; workingDays: number[] }
 export interface SBand { min: number; grade: string; remark: string | null }
 export interface SSession { id: string; businessId: string; name: string; startsOn: string; endsOn: string; current: boolean }
 export interface STerm { id: string; businessId: string; sessionId: string; name: string; startsOn: string; endsOn: string; current: boolean }
-export type Stage = 'nursery' | 'primary' | 'secondary' | 'online'
-export const STAGES: Stage[] = ['nursery', 'primary', 'secondary', 'online']
+export type Stage = 'nursery' | 'primary' | 'secondary' | 'online' | 'montessori'
+export const STAGES: Stage[] = ['nursery', 'primary', 'secondary', 'online', 'montessori']
 /** A nursery school has nursery classes only, and so on; a combined school has the three physical stages, and an online school has courses only. */
-export const stageOk = (type: string | null | undefined, stage: Stage) => (!type || type === 'combined' ? stage !== 'online' : type === stage)
+export const stageOk = (type: string | null | undefined, stage: Stage) => (!type || type === 'combined' ? stage !== 'online' && stage !== 'montessori' : type === stage)
 export interface SClass { id: string; businessId: string; name: string; levelOrder: number; arm: string | null; active: boolean; stage: Stage; departmentId: string | null; description?: string | null; duration?: string | null }
-export type SubjectLevel = 'nursery' | 'primary' | 'jss' | 'sss' | 'online'
-export const SUBJECT_LEVELS: SubjectLevel[] = ['nursery', 'primary', 'jss', 'sss', 'online']
+export type SubjectLevel = 'nursery' | 'primary' | 'jss' | 'sss' | 'online' | 'montessori'
+export const SUBJECT_LEVELS: SubjectLevel[] = ['nursery', 'primary', 'jss', 'sss', 'online', 'montessori']
 export interface SSubject { id: string; businessId: string; name: string; code: string | null; levels: SubjectLevel[]; departmentId: string | null }
 export interface SDepartment { id: string; businessId: string; name: string }
 export interface SStudent { id: string; businessId: string; admissionNo: string; first: string; middle: string | null; last: string; dob: string | null; gender: string | null; admittedOn: string; sessionId: string | null; classId: string | null; status: StudentStatus; statusReason: string | null; statusOn: string | null; emergencyName: string | null; emergencyPhone: string | null; notes: string | null }
@@ -51,7 +51,12 @@ export interface STemplate { id: string; businessId: string; kind: 'teacher' | '
 export const DOCUMENT_KINDS = [['birth_certificate', 'Birth certificate'], ['previous_results', 'Previous results'], ['medical', 'Medical record'], ['identification', 'Identification'], ['other', 'Other']] as const
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number][0]
 export interface SDocument { id: string; businessId: string; studentId: string; kind: DocumentKind; name: string; mime: string; size: number; data: string; uploadedBy: string | null; createdAt: string }
+export interface SWork { id: string; businessId: string; subjectId: string; name: string; position: number }
+export type ProgressStatus = 'introduced' | 'practising' | 'mastered'
+export interface SProgress { businessId: string; studentId: string; workId: string; status: ProgressStatus; on: string; note: string | null; by: string | null }
+export interface SProgressNote { businessId: string; studentId: string; termId: string; subjectId: string; note: string }
 interface School {
+  works: SWork[]; progress: SProgress[]; progressNotes: SProgressNote[]
   traits: STrait[]; ratings: SRating[]; templates: STemplate[]; photos: Record<string, string>; documents: SDocument[]
   periods: SPeriod[]; timetable: SSlot[]; ttSeeded: string[]; departments: SDepartment[]
   settings: Record<string, SSettings>; bands: Record<string, SBand[]>; sessions: SSession[]; terms: STerm[]; classes: SClass[]; subjects: SSubject[]; classSubjects: { classId: string; subjectId: string }[]
@@ -61,7 +66,7 @@ interface School {
 }
 
 const KEY = 'doa.demo.school.v1'
-const empty = (): School => ({ traits: [], ratings: [], templates: [], photos: {}, documents: [], departments: [], periods: [], timetable: [], ttSeeded: [], settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
+const empty = (): School => ({ works: [], progress: [], progressNotes: [], traits: [], ratings: [], templates: [], photos: {}, documents: [], departments: [], periods: [], timetable: [], ttSeeded: [], settings: {}, bands: {}, sessions: [], terms: [], classes: [], subjects: [], classSubjects: [], students: [], enrollments: [], guardians: [], links: [], admissions: [], staff: [], assignments: [], holidays: [], attendance: [], scores: [], remarks: [], feeItems: [], bills: [], payments: [], announcements: [], audit: [], seq: {}, keys: {}, seeded: [] })
 function load(): School {
   try {
     const raw = localStorage.getItem(KEY)
@@ -179,7 +184,7 @@ export function demoAnnouncements(biz: string): SAnnouncement[] {
 export function demoSaveSettings(biz: string, v: { schoolType: SSettings['schoolType']; address: string; phone: string; email: string; caMax: number; examMax: number; showPosition: boolean; workingDays: number[] }): string | null {
   return run(biz, 'school_settings', null, (s) => {
     guard(biz, 'school-settings', 'school.manage')
-    if (!['nursery', 'primary', 'secondary', 'combined', 'online'].includes(v.schoolType)) throw new Error('choose the type of school')
+    if (!['nursery', 'primary', 'secondary', 'combined', 'online', 'montessori'].includes(v.schoolType)) throw new Error('choose the type of school')
     if (!(v.caMax >= 0) || !(v.examMax >= 0) || v.caMax + v.examMax <= 0 || v.caMax + v.examMax > 1000) throw new Error('the continuous assessment and exam marks must be zero or more and add up to more than zero')
     if (!v.workingDays.length || v.workingDays.some((d) => d < 1 || d > 7)) throw new Error('choose the days the school is open (1 = Monday ... 7 = Sunday)')
     const full = s.classes.filter((c) => c.businessId === biz && c.active && !stageOk(v.schoolType, c.stage) && s.students.some((x) => x.classId === c.id && x.status === 'active'))
@@ -260,10 +265,10 @@ export function demoSaveClass(biz: string, v: { id: string | null; name: string;
   return run(biz, 'school_class', null, (s) => {
     guard(biz, 'school-classes', 'school.manage')
     const type = s.settings[biz]?.schoolType
-    const word = v.stage === 'online' ? 'course' : 'class'
-    if (!trim(v.name)) throw new Error(`enter the ${type === 'online' ? 'course' : 'class'} name`)
-    if (!STAGES.includes(v.stage)) throw new Error('choose the stage of the class (nursery, primary, secondary or online)')
-    if (v.active && !stageOk(type, v.stage)) throw new Error(`this is a ${type} school, so it cannot have ${v.stage} ${word === 'course' ? 'courses' : 'classes'}. Change the kind of school in Settings first`)
+    const word = v.stage === 'online' ? 'course' : v.stage === 'montessori' ? 'environment' : 'class'
+    if (!trim(v.name)) throw new Error(`enter the ${type === 'online' ? 'course' : type === 'montessori' ? 'environment' : 'class'} name`)
+    if (!STAGES.includes(v.stage)) throw new Error('choose the stage of the class (nursery, primary, secondary, online or montessori)')
+    if (v.active && !stageOk(type, v.stage)) throw new Error(`this is a ${type} school, so it cannot have ${v.stage} ${word === 'course' ? 'courses' : word === 'environment' ? 'environments' : 'classes'}. Change the kind of school in Settings first`)
     if (trim(v.description).length > 600 || trim(v.duration).length > 60) throw new Error('the description or duration is too long')
     const dept = v.departmentId ?? null
     if (dept) {
@@ -327,6 +332,7 @@ export function demoDeleteSubject(biz: string, id: string): string | null {
     if (!s.subjects.some((x) => x.id === id && x.businessId === biz)) throw new Error('subject not found')
     if (s.scores.some((x) => x.subjectId === id)) throw new Error('this subject already has results recorded, so it cannot be deleted; take it off the classes that no longer study it instead')
     s.timetable = s.timetable.filter((x) => x.subjectId !== id); s.assignments = s.assignments.filter((x) => x.subjectId !== id)
+    dropWorksOf(s, id)
     s.classSubjects = s.classSubjects.filter((x) => x.subjectId !== id); s.subjects = s.subjects.filter((x) => x.id !== id)
     return null
   }).error
@@ -351,9 +357,17 @@ export function demoSaveHoliday(biz: string, on: string, name: string, remove = 
 }
 
 const DEFAULT_BANDS: SBand[] = [{ min: 70, grade: 'A', remark: 'Excellent' }, { min: 60, grade: 'B', remark: 'Very good' }, { min: 50, grade: 'C', remark: 'Good' }, { min: 45, grade: 'D', remark: 'Fair' }, { min: 40, grade: 'E', remark: 'Pass' }, { min: 0, grade: 'F', remark: 'Fail' }]
-const STRUCTURE: [string, number, 'nursery' | 'primary' | 'secondary'][] = [['Nursery 1', 1, 'nursery'], ['Nursery 2', 2, 'nursery'], ['Primary 1', 3, 'primary'], ['Primary 2', 4, 'primary'], ['Primary 3', 5, 'primary'], ['Primary 4', 6, 'primary'], ['Primary 5', 7, 'primary'], ['Primary 6', 8, 'primary'], ['JSS 1', 9, 'secondary'], ['JSS 2', 10, 'secondary'], ['JSS 3', 11, 'secondary']]
-type Group = 'nursery' | 'primary' | 'jss' | 'sss' | 'online'
-const groupOf = (stage: Stage, order: number): Group => (stage === 'online' ? 'online' : stage === 'nursery' ? 'nursery' : stage === 'primary' ? 'primary' : order <= 11 ? 'jss' : 'sss')
+const STRUCTURE: [string, number, Stage][] = [['Nursery 1', 1, 'nursery'], ['Nursery 2', 2, 'nursery'], ['Primary 1', 3, 'primary'], ['Primary 2', 4, 'primary'], ['Primary 3', 5, 'primary'], ['Primary 4', 6, 'primary'], ['Primary 5', 7, 'primary'], ['Primary 6', 8, 'primary'], ['JSS 1', 9, 'secondary'], ['JSS 2', 10, 'secondary'], ['JSS 3', 11, 'secondary'], ['Toddler Community', 1, 'montessori'], ["Children's House", 2, 'montessori'], ['Lower Elementary', 3, 'montessori'], ['Upper Elementary', 4, 'montessori']]
+const ENVIRONMENT_AGES: Record<string, string> = { 'Toddler Community': 'Ages 18 months to 3 years', "Children's House": 'Ages 3 to 6 years', 'Lower Elementary': 'Ages 6 to 9 years', 'Upper Elementary': 'Ages 9 to 12 years' }
+/** Mirrors _school_describe_environments(): the standard environments carry their age range. */
+function describeEnvironments(s: School, biz: string) { for (const c of s.classes) if (c.businessId === biz && c.stage === 'montessori' && !c.description && ENVIRONMENT_AGES[c.name]) c.description = ENVIRONMENT_AGES[c.name] }
+export const MONTESSORI_WORKS: Record<string, string[]> = {"Practical Life":["Pouring dry materials","Pouring water","Spooning","Transferring with tongs","Opening and closing containers","Folding cloths","Dressing frame: buttons","Dressing frame: zips","Lacing","Bow tying","Hand washing","Table washing","Sweeping","Polishing","Flower arranging","Food preparation","Care of the environment"],"Sensorial":["Cylinder blocks","Pink tower","Brown stair","Red rods","Colour tablets","Geometric solids","Constructive triangles","Binomial cube","Sound cylinders","Touch boards","Fabric matching","Smelling bottles","Tasting bottles"],"Language":["Sound games (I spy)","Sandpaper letters","Moveable alphabet","Metal insets","Object boxes","Pink series reading","Blue series reading","Green series reading","Sentence building","Grammar symbols","Handwriting","Creative writing"],"Mathematics":["Number rods","Sandpaper numerals","Spindle boxes","Cards and counters","Golden beads: introduction","Teen boards","Ten boards","Hundred board","Short bead stair","Addition strip board","Subtraction strip board","Multiplication bead board","Division","Fractions","Stamp game"],"Cultural Studies":["Puzzle maps","Globe: land and water","Continents","Flags","Parts of a plant","Parts of an animal","Life cycles","Living and non-living","Magnetic and non-magnetic","Sink and float","Timeline of life","Calendar","Community helpers"],"Art and Music":["Drawing","Painting","Cutting and pasting","Clay modelling","Songs and rhymes","Bells","Rhythm","Movement"],"Grace and Courtesy":["Greeting","Offering help","Waiting for a turn","Interrupting politely","Walking around work mats","Using a quiet voice","Saying please and thank you"]}
+/** Mirrors _school_seed_works(): the standard works go to an area that has none yet. */
+function seedWorks(s: School, biz: string) {
+  for (const [area, list] of Object.entries(MONTESSORI_WORKS)) { const sub = s.subjects.find((x) => x.businessId === biz && x.name === area); if (!sub || s.works.some((w) => w.subjectId === sub.id)) continue; list.forEach((name, i) => s.works.push({ id: newId('wrk'), businessId: biz, subjectId: sub.id, name, position: i + 1 })) }
+}
+type Group = 'nursery' | 'primary' | 'jss' | 'sss' | 'online' | 'montessori'
+const groupOf = (stage: Stage, order: number): Group => (stage === 'online' || stage === 'montessori' ? stage : stage === 'nursery' ? 'nursery' : stage === 'primary' ? 'primary' : order <= 11 ? 'jss' : 'sss')
 /** The standard subjects by level, and for senior secondary by department (null = every department). The same as the database's catalogue. */
 const CATALOGUE: [string, string, Group, string | null][] = [
   ['Literacy', 'LIT', 'nursery', null], ['Numeracy', 'NUM', 'nursery', null], ['Social and Health Habits', 'SHH', 'nursery', null], ['Creative Arts', 'ART', 'nursery', null], ['Rhymes and Music', 'MUS', 'nursery', null],
@@ -365,6 +379,7 @@ const CATALOGUE: [string, string, Group, string | null][] = [
   ['Biology', 'BIO', 'sss', 'Science'], ['Chemistry', 'CHM', 'sss', 'Science'], ['Physics', 'PHY', 'sss', 'Science'], ['Further Mathematics', 'FMT', 'sss', 'Science'], ['Geography', 'GEO', 'sss', 'Science'],
   ['Literature in English', 'LIT', 'sss', 'Art'], ['Government', 'GOV', 'sss', 'Art'], ['History', 'HIS', 'sss', 'Art'], ['Visual Art', 'VAR', 'sss', 'Art'],
   ['Economics', 'ECO', 'sss', 'Commercial'], ['Financial Accounting', 'ACC', 'sss', 'Commercial'], ['Commerce', 'COM', 'sss', 'Commercial'], ['Marketing', 'MKT', 'sss', 'Commercial'],
+  ['Practical Life', 'PRL', 'montessori', null], ['Sensorial', 'SEN', 'montessori', null], ['Language', 'LAN', 'montessori', null], ['Mathematics', 'MTH', 'montessori', null], ['Cultural Studies', 'CUL', 'montessori', null], ['Art and Music', 'ART', 'montessori', null], ['Grace and Courtesy', 'GRC', 'montessori', null],
 ]
 function buildStructure(s: School, biz: string, type: SSettings['schoolType'], sessionName: string, start: string) {
   s.settings[biz] = { schoolType: type, address: null, phone: null, email: null, caMax: 40, examMax: 60, showPosition: false, workingDays: [1, 2, 3, 4, 5] }
@@ -387,6 +402,8 @@ function buildStructure(s: School, biz: string, type: SSettings['schoolType'], s
       const sub = s.subjects.find((x) => x.businessId === biz && x.name === name); if (sub) s.classSubjects.push({ classId: c.id, subjectId: sub.id })
     }
   }
+  describeEnvironments(s, biz)
+  if (stageOk(type, 'montessori')) seedWorks(s, biz)
   seedSkills(s, biz)
   s.bands[biz] = DEFAULT_BANDS.map((b) => ({ ...b }))
   if (type === 'online') {
@@ -438,11 +455,13 @@ function reshape(s: School, biz: string, oldType: SSettings['schoolType'], type:
   }
   for (const [name, order, kind] of STRUCTURE) if (stageOk(type, kind)) add(name, order, kind, null)
   if (stageOk(type, 'secondary')) for (let year = 1; year <= 3; year++) for (const d of s.departments.filter((x) => x.businessId === biz).sort((a, b) => a.name.localeCompare(b.name))) add(`SS ${year} ${d.name}`, 11 + year, 'secondary', d.id)
+  describeEnvironments(s, biz)
   const classes = s.classes.filter((c) => c.businessId === biz && c.active && stageOk(type, c.stage))
   const groups = new Set(classes.map((c) => groupOf(c.stage, c.levelOrder)))
   for (const x of s.subjects.filter((y) => y.businessId === biz && y.levels.length && !y.levels.some((l) => groups.has(l)))) {
     if (s.scores.some((r) => r.subjectId === x.id)) continue
     s.timetable = s.timetable.filter((t) => t.subjectId !== x.id); s.assignments = s.assignments.filter((a) => a.subjectId !== x.id)
+    dropWorksOf(s, x.id)
     s.classSubjects = s.classSubjects.filter((c) => c.subjectId !== x.id); s.subjects = s.subjects.filter((y) => y.id !== x.id)
   }
   for (const name of [...new Set(CATALOGUE.filter((x) => groups.has(x[2])).map((x) => x[0]))]) {
@@ -453,6 +472,7 @@ function reshape(s: School, biz: string, oldType: SSettings['schoolType'], type:
     const dept = rows.find((x) => x[3])?.[3] ?? null
     s.subjects.push({ id: newId('sub'), businessId: biz, name, code: rows[0][1], levels: levels.sort(), departmentId: dept ? s.departments.find((d) => d.businessId === biz && d.name === dept)?.id ?? null : null })
   }
+  if (stageOk(type, 'montessori')) seedWorks(s, biz)
   for (const c of classes.filter((x) => !s.classSubjects.some((cs) => cs.classId === x.id))) {
     const deptName = s.departments.find((d) => d.id === c.departmentId)?.name ?? null
     for (const [name, , grp, dept] of CATALOGUE) {
@@ -820,6 +840,83 @@ export function demoReportCard(biz: string, studentId: string, termId: string): 
     attendance: { present: att.filter((a) => a.status === 'present').length, absent: att.filter((a) => a.status === 'absent').length, late: att.filter((a) => a.status === 'late').length, excused: att.filter((a) => a.status === 'excused').length, marked: att.length },
     remarks: rem ? { teacherRemark: rem.teacherRemark, principalRemark: rem.principalRemark, promotion: rem.promotion } : null, position, classSize,
     skills: state.ratings.filter((r) => r.studentId === studentId && r.termId === termId).flatMap((r) => { const tr = state.traits.find((x) => x.id === r.traitId); return tr ? [{ domain: tr.domain, name: tr.name, rating: r.rating, position: tr.position }] : [] }).sort((x, y) => x.domain.localeCompare(y.domain) || x.position - y.position).map(({ domain, name, rating }) => ({ domain, name, rating })) }
+}
+
+// ---------------------------------------------------------------------------- Montessori: works, progress and the progress report
+function dropWorksOf(s: School, subjectId: string) {
+  const ids = new Set(s.works.filter((w) => w.subjectId === subjectId).map((w) => w.id))
+  s.works = s.works.filter((w) => w.subjectId !== subjectId); s.progress = s.progress.filter((p) => !ids.has(p.workId)); s.progressNotes = s.progressNotes.filter((n) => n.subjectId !== subjectId)
+}
+export const demoWorks = (biz: string): SWork[] => { ensureDemoSchool(biz); return state.works.filter((w) => w.businessId === biz).sort((a, b) => a.position - b.position) }
+export const demoProgress = (biz: string): SProgress[] => state.progress.filter((p) => p.businessId === biz && state.students.some((st) => st.id === p.studentId && canSee(state, biz, st)))
+export const demoProgressNotes = (biz: string): SProgressNote[] => state.progressNotes.filter((n) => n.businessId === biz && state.students.some((st) => st.id === n.studentId && canSee(state, biz, st)))
+/** Mirrors school_save_works(): the works of one area, replaced by this list (works that stay keep their progress). */
+export function demoSaveWorks(biz: string, subjectId: string, names: string[]): string | null {
+  return run(biz, 'school_works', null, (s) => {
+    guard(biz, 'school-classes', 'school.manage')
+    if (!s.subjects.some((x) => x.id === subjectId && x.businessId === biz)) throw new Error('area not found')
+    const list = names.map(trim).filter(Boolean)
+    if (list.length > 120) throw new Error('an area can have up to 120 works')
+    const keep: SWork[] = []; let pos = 0
+    for (const name of list) { pos += 1; const have = s.works.find((w) => w.subjectId === subjectId && w.name === name); if (have) { have.position = pos; if (!keep.includes(have)) keep.push(have) } else keep.push({ id: newId('wrk'), businessId: biz, subjectId, name, position: pos }) }
+    const ids = new Set(keep.map((k) => k.id))
+    const removed = s.works.filter((w) => w.subjectId === subjectId && !ids.has(w.id)).map((w) => w.id)
+    s.progress = s.progress.filter((p) => !removed.includes(p.workId))
+    s.works = [...s.works.filter((w) => w.subjectId !== subjectId), ...keep]
+    return null
+  }).error
+}
+const mayRecordFor = (s: School, biz: string, st: SStudent) => demoAllowed(biz, 'school-results', 'school.results.approve') || (demoAllowed(biz, 'school-results', 'school.results.enter') && (can(biz, 'school.read') || teachesClass(s, biz, st.classId)))
+/** Mirrors school_record_progress(): guides record for their own environment, managers for anyone; a null status clears. */
+export function demoRecordProgress(biz: string, workId: string, items: { studentId: string; status: ProgressStatus | null; note?: string }[]): string | null {
+  return run(biz, 'school_progress', null, (s) => {
+    if (!s.works.some((w) => w.id === workId && w.businessId === biz)) throw new Error('work not found')
+    if (!items.length) throw new Error('choose the children')
+    for (const it of items) {
+      const st = s.students.find((x) => x.id === it.studentId && x.businessId === biz); if (!st) throw new Error('permission denied')
+      if (!mayRecordFor(s, biz, st)) throw new Error('permission denied')
+      const old = s.progress.find((p) => p.studentId === it.studentId && p.workId === workId)
+      if (it.status === null) { s.progress = s.progress.filter((p) => p !== old); continue }
+      if (!['introduced', 'practising', 'mastered'].includes(it.status)) throw new Error('choose introduced, practising or mastered')
+      if (old) Object.assign(old, { status: it.status, on: today(), note: nul(it.note) ?? old.note, by: me() })
+      else s.progress.push({ businessId: biz, studentId: it.studentId, workId, status: it.status, on: today(), note: nul(it.note), by: me() })
+    }
+    return null
+  }).error
+}
+export function demoSaveProgressNote(biz: string, studentId: string, termId: string, subjectId: string, note: string): string | null {
+  return run(biz, 'school_progress_note', null, (s) => {
+    const st = s.students.find((x) => x.id === studentId && x.businessId === biz); if (!st) throw new Error('permission denied')
+    if (!mayRecordFor(s, biz, st)) throw new Error('permission denied')
+    if (!s.terms.some((x) => x.id === termId && x.businessId === biz) || !s.subjects.some((x) => x.id === subjectId && x.businessId === biz)) throw new Error('term or area not found')
+    s.progressNotes = s.progressNotes.filter((n) => !(n.studentId === studentId && n.termId === termId && n.subjectId === subjectId))
+    if (trim(note)) s.progressNotes.push({ businessId: biz, studentId, termId, subjectId, note: trim(note) })
+    return null
+  }).error
+}
+export interface ProgressReport {
+  student: { name: string; admissionNo: string; class: string | null; age: string | null; gender?: string | null; dob?: string | null }; term: string; session: string | null
+  areas: { subject: string; note: string | null; works: { name: string; status: ProgressStatus | null; on: string | null; note: string | null }[] }[]
+  attendance: { present: number; absent: number; late: number; excused: number; marked: number }; remarks: { teacherRemark: string | null; principalRemark: string | null; promotion: string | null } | null
+  school?: { name: string; address: string | null; phone: string | null; email: string | null }; nextTerm?: { name: string; startsOn: string } | null
+}
+/** Mirrors school_progress_report(): per area, every work with where the child is, plus the guide's note, attendance and the overall comment. */
+export function demoProgressReport(biz: string, studentId: string, termId: string): ProgressReport {
+  const st = state.students.find((x) => x.id === studentId && x.businessId === biz)
+  if (!st || !canSee(state, biz, st)) throw new Error('permission denied')
+  const t = state.terms.find((x) => x.id === termId && x.businessId === biz); if (!t) throw new Error('term not found')
+  const cls = state.classes.find((c) => c.id === st.classId)
+  const areas = state.subjects.filter((a) => a.businessId === biz && a.levels.includes('montessori') && state.classSubjects.some((cs) => cs.classId === st.classId && cs.subjectId === a.id)).sort((a, b) => a.name.localeCompare(b.name)).map((a) => ({
+    subject: a.name, note: state.progressNotes.find((n) => n.studentId === studentId && n.termId === termId && n.subjectId === a.id)?.note ?? null,
+    works: state.works.filter((w) => w.subjectId === a.id).sort((x, y) => x.position - y.position).map((w) => { const p = state.progress.find((q) => q.studentId === studentId && q.workId === w.id); return { name: w.name, status: p?.status ?? null, on: p?.on ?? null, note: p?.note ?? null } }),
+  }))
+  const att = state.attendance.filter((a) => a.studentId === studentId && a.on >= t.startsOn && a.on <= t.endsOn)
+  const rem = state.remarks.find((r) => r.studentId === studentId && r.termId === termId)
+  const set = state.settings[biz]; const next = state.terms.filter((x) => x.businessId === biz && x.startsOn > t.endsOn).sort((a, b) => a.startsOn.localeCompare(b.startsOn))[0]
+  return { student: { name: studentName(st), admissionNo: st.admissionNo, class: cls?.name ?? null, age: cls?.description ?? null, gender: st.gender, dob: st.dob }, term: t.name, session: state.sessions.find((x) => x.id === t.sessionId)?.name ?? null, areas,
+    attendance: { present: att.filter((a) => a.status === 'present').length, absent: att.filter((a) => a.status === 'absent').length, late: att.filter((a) => a.status === 'late').length, excused: att.filter((a) => a.status === 'excused').length, marked: att.length },
+    remarks: rem ? { teacherRemark: rem.teacherRemark, principalRemark: rem.principalRemark, promotion: rem.promotion } : null,
+    school: { name: getDemoState().businesses.find((b) => b.id === biz)?.name ?? 'School', address: set?.address ?? null, phone: set?.phone ?? null, email: set?.email ?? null }, nextTerm: next ? { name: next.name, startsOn: next.startsOn } : null }
 }
 
 // ---------------------------------------------------------------------------- skills, comments, annual cards
@@ -1208,6 +1305,7 @@ export function demoDeleteStudent(biz: string, studentId: string, reason: string
     if (s.payments.some((p) => p.studentId === studentId)) throw new Error('this student has fee payments on record. Records of money are never erased; mark the student as withdrawn instead')
     s.scores = s.scores.filter((x) => x.studentId !== studentId); s.attendance = s.attendance.filter((x) => x.studentId !== studentId); s.remarks = s.remarks.filter((x) => x.studentId !== studentId)
     s.ratings = s.ratings.filter((x) => x.studentId !== studentId); s.documents = s.documents.filter((x) => x.studentId !== studentId); delete s.photos[studentId]
+    s.progress = s.progress.filter((x) => x.studentId !== studentId); s.progressNotes = s.progressNotes.filter((x) => x.studentId !== studentId)
     s.bills = s.bills.filter((x) => x.studentId !== studentId); s.enrollments = s.enrollments.filter((x) => x.studentId !== studentId); s.links = s.links.filter((x) => x.studentId !== studentId)
     s.admissions.forEach((a) => { if (a.studentId === studentId) a.studentId = null })
     s.students = s.students.filter((x) => x.id !== studentId)

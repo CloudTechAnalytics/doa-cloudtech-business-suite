@@ -25,7 +25,7 @@ export const school = defineIndustry({
   afterCreate: async (businessId, answers) => {
     const { setupSchool } = await import('./services/schoolApi')
     const picked = String(answers.school_type ?? '')
-    const type = (['nursery', 'primary', 'secondary', 'combined', 'online'] as const).find((x) => x === picked) ?? 'combined'
+    const type = (['nursery', 'primary', 'secondary', 'combined', 'online', 'montessori'] as const).find((x) => x === picked) ?? 'combined'
     const y = new Date().getFullYear()
     const session = String(answers.session_name ?? '').trim() || `${y}/${y + 1}`
     const err = await setupSchool(businessId, type, session, new Date().toISOString().slice(0, 10))
@@ -34,7 +34,10 @@ export const school = defineIndustry({
   // An online school talks about courses, units and instructors.
   moduleLabels: async (businessId): Promise<Record<string, string>> => {
     const { loadSchoolKind } = await import('./services/schoolApi')
-    return (await loadSchoolKind(businessId)) === 'online' ? { 'school-my-classes': 'My Courses', 'school-classes': 'Courses & Units', 'school-staff': 'Instructors & Staff' } : {}
+    const kind = await loadSchoolKind(businessId)
+    if (kind === 'online') return { 'school-my-classes': 'My Courses', 'school-classes': 'Courses & Units', 'school-staff': 'Instructors & Staff' }
+    if (kind === 'montessori') return { 'school-my-classes': 'My Environment', 'school-classes': 'Environments & Areas', 'school-results': 'Progress & Reports', 'school-staff': 'Guides & Staff' }
+    return {}
   },
   dashboardWidgets: [{ id: 'school-kpis', title: 'School overview', component: SchoolDashboardWidget }],
   workflows: [

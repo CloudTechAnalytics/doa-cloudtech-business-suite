@@ -1,11 +1,11 @@
 import * as sc from '@/demo/demoSchool'
-import type { AnnualCard, DocumentKind, DocumentRow, SRating, STemplate, STrait, ApplicationInput, AttendanceStatus, SPeriod, SSlot, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, SDepartment, Stage, SubjectLevel, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
+import type { ProgressReport, ProgressStatus, SProgress, SProgressNote, SWork, AnnualCard, DocumentKind, DocumentRow, SRating, STemplate, STrait, ApplicationInput, AttendanceStatus, SPeriod, SSlot, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, SDepartment, Stage, SubjectLevel, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus } from '@/demo/demoSchool'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 
 /** School data access. Live mode reads row-level-secured tables and calls database functions; demo mode runs the browser mirror.
  *  Mutations return an error message or null. */
-export type { AnnualCard, DocumentKind, DocumentRow, SRating, STemplate, STrait }
+export type { ProgressReport, ProgressStatus, SProgress, SProgressNote, SWork, AnnualCard, DocumentKind, DocumentRow, SRating, STemplate, STrait }
 export { DOCUMENT_KINDS } from '@/demo/demoSchool'
 export type { SDepartment, SubjectLevel, SPeriod, SSlot, ApplicationInput, AttendanceStatus, BillRow, GuardianInput, ReportCard, SAdmission, SAnnouncement, SAssignment, SAttendance, SBand, SClass, Stage, SEnrollment, SFeeItem, SGuardian, SHoliday, SLink, SPayment, SRemark, SScore, SSession, SSettings, SStaff, SStudent, SSubject, STerm, SchoolOverviewData, StudentInput, StudentStatus }
 export { PAY_METHODS, STAGES, SUBJECT_LEVELS, stageOk } from '@/demo/demoSchool'
@@ -376,6 +376,44 @@ export async function addDocument(b: string, studentId: string, kind: DocumentKi
 export async function deleteDocument(b: string, id: string) {
   if (isDemoMode) return sc.demoDeleteDocument(b, id)
   return msg((await db().rpc('school_delete_document', { p_id: id })).error)
+}
+// ----------------------------------------------------------------- Montessori: works, progress, notes and the progress report
+export async function loadWorks(b: string): Promise<SWork[]> {
+  await ready(b)
+  if (isDemoMode) return sc.demoWorks(b)
+  return must<Row[]>(await db().from('school_works').select('*').eq('business_id', b).order('position')).map((r) => ({ id: String(r.id), businessId: b, subjectId: String(r.subject_id), name: String(r.name), position: n(r.position) }))
+}
+export async function loadProgress(b: string): Promise<SProgress[]> {
+  await ready(b)
+  if (isDemoMode) return sc.demoProgress(b)
+  return must<Row[]>(await db().from('school_work_progress').select('*').eq('business_id', b)).map((r) => ({ businessId: b, studentId: String(r.student_id), workId: String(r.work_id), status: r.status as ProgressStatus, on: String(r.on_date).slice(0, 10), note: r.note as string | null, by: r.recorded_by as string | null }))
+}
+export async function loadProgressNotes(b: string): Promise<SProgressNote[]> {
+  await ready(b)
+  if (isDemoMode) return sc.demoProgressNotes(b)
+  return must<Row[]>(await db().from('school_progress_notes').select('*').eq('business_id', b)).map((r) => ({ businessId: b, studentId: String(r.student_id), termId: String(r.term_id), subjectId: String(r.subject_id), note: String(r.note) }))
+}
+export async function saveWorks(b: string, subjectId: string, names: string[]) {
+  if (isDemoMode) return sc.demoSaveWorks(b, subjectId, names)
+  return msg((await db().rpc('school_save_works', { p_business: b, p_subject: subjectId, p_names: names })).error)
+}
+/** Records where children are on one work (introduced, practising, mastered, or null to clear). */
+export async function recordProgress(b: string, workId: string, items: { studentId: string; status: ProgressStatus | null; note?: string }[]) {
+  if (isDemoMode) return sc.demoRecordProgress(b, workId, items)
+  return msg((await db().rpc('school_record_progress', { p_business: b, p_work: workId, p_items: items.map((i) => ({ student_id: i.studentId, status: i.status, note: i.note ?? null })) })).error)
+}
+export async function saveProgressNote(b: string, studentId: string, termId: string, subjectId: string, note: string) {
+  if (isDemoMode) return sc.demoSaveProgressNote(b, studentId, termId, subjectId, note)
+  return msg((await db().rpc('school_save_progress_note', { p_business: b, p_student: studentId, p_term: termId, p_subject: subjectId, p_note: note })).error)
+}
+export async function progressReport(b: string, studentId: string, termId: string): Promise<ProgressReport> {
+  await ready(b)
+  if (isDemoMode) return sc.demoProgressReport(b, studentId, termId)
+  const { data, error } = await db().rpc('school_progress_report', { p_student: studentId, p_term: termId })
+  if (error) throw new Error(error.message)
+  const x = data as { student: { name: string; admission_no: string; class: string | null; age: string | null; gender: string | null; dob: string | null }; term: string; session: string | null; areas: { subject: string; note: string | null; works: { name: string; status: ProgressStatus | null; on: string | null; note: string | null }[] }[]; attendance: ProgressReport['attendance']; remarks: { teacher_remark: string | null; principal_remark: string | null; promotion: string | null } | null; school: { name: string; address: string | null; phone: string | null; email: string | null }; next_term: { name: string; starts_on: string } | null }
+  return { student: { name: x.student.name, admissionNo: x.student.admission_no, class: x.student.class, age: x.student.age, gender: x.student.gender, dob: x.student.dob ? String(x.student.dob).slice(0, 10) : null }, term: x.term, session: x.session,
+    areas: x.areas.map((a) => ({ ...a, works: a.works.map((w) => ({ ...w, on: w.on ? String(w.on).slice(0, 10) : null })) })), attendance: x.attendance, remarks: x.remarks ? { teacherRemark: x.remarks.teacher_remark, principalRemark: x.remarks.principal_remark, promotion: x.remarks.promotion } : null, school: x.school, nextTerm: x.next_term ? { name: x.next_term.name, startsOn: String(x.next_term.starts_on).slice(0, 10) } : null }
 }
 export async function cancelLogin(b: string, staffId: string) {
   if (isDemoMode) return sc.demoCancelLogin(b, staffId)
