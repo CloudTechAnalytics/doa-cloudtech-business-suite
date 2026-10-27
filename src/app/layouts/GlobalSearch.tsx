@@ -65,12 +65,14 @@ export function GlobalSearch({ businessId, industry, usable, pages }: { business
 
   return (
     <>
+      <div className="flex flex-none justify-start sm:min-w-0 sm:flex-1 sm:pr-3">
       <button type="button" onClick={() => setOpen(true)} aria-label="Search (Ctrl+K)" title="Search (Ctrl+K)"
-        className="flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-2.5 text-sm text-ink/55 transition hover:border-ink/25 hover:text-ink sm:w-44 lg:w-60">
+        className="flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-2.5 text-sm text-ink/55 transition hover:border-ink/25 hover:text-ink sm:w-full sm:max-w-xl sm:px-3">
         <Search className="size-4 shrink-0" aria-hidden />
         <span className="hidden flex-1 truncate text-left sm:inline">Search</span>
         <kbd className="hidden rounded bg-surface px-1.5 py-0.5 font-sans text-[10px] font-medium text-ink/50 lg:inline">Ctrl K</kbd>
       </button>
+      </div>
       {open && (
         <div className="no-print fixed inset-0 z-[60] flex items-start justify-center px-3 pt-[10vh]" role="dialog" aria-modal="true" aria-label="Search">
           <div className="absolute inset-0 bg-ink/40 backdrop-blur-[1px]" onClick={close} />

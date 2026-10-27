@@ -152,7 +152,7 @@ export function AppShell() {
             <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface lg:hidden"><MenuIcon className="size-5" aria-hidden /></button>
           )}
           <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface"><LayoutGrid className="size-5" aria-hidden /></NavLink>
-          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center px-2 text-[15px] max-[380px]:hidden">
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center px-2 text-[15px] max-[380px]:hidden lg:w-[max(9rem,calc(var(--side-w)-2rem))] lg:flex-none">
             <ol className="flex min-w-0 items-center gap-1.5">
               {trail.map((c, i) => {
                 const last = i === trail.length - 1
@@ -165,8 +165,9 @@ export function AppShell() {
               })}
             </ol>
           </nav>
-          <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            <GlobalSearch businessId={active.id} industry={active.industry} usable={usable} pages={pageIndex(apps, quick)} />
+          {/* The search takes the middle of the bar, so it sits straight above the page content. */}
+          <GlobalSearch businessId={active.id} industry={active.industry} usable={usable} pages={pageIndex(apps, quick)} />
+          <div className="ml-auto flex items-center gap-1 sm:ml-0 sm:gap-2">
             {/* On a phone the bar keeps only what is used all the time; refresh and the list style are for bigger screens (a phone pulls down to refresh, and always shows cards). */}
             <div className="hidden sm:contents"><RefreshButton onRefresh={() => { setRefreshKey((k) => k + 1); return attention.refresh() }} /></div>
             <AttentionBell items={attention.items} loading={attention.loading} />
