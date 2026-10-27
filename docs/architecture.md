@@ -25,6 +25,10 @@ Navigation is Odoo-style: `app/navigation/navigation.ts` turns the usable module
 
 Dependency direction: `app → core → shared`, `modules → core, shared`, `industries → core (contract only), shared`. Shared modules never import an industry; an industry never imports another industry or reaches into a shared module's internals. `core/industry-registry` is the only place that imports industries.
 
+## Industries and apps
+
+Two layers sit side by side. An **industry** (retail, farm, bakery, pharmacy, school) is a whole business with its own modules. An **app** (CRM, Sales, Inventory, Purchases, Finance) is a shared module any business can use. The business type `general` ("Business apps") has no industry modules at all, only the shared apps, so a consultancy or service business can use the CRM on its own. The public Apps menu lists the apps; the Industries menu lists the industries. The CRM is the shared module `customers`: contacts, leads, a deal pipeline, printable quotes, follow-ups and a report (`src/modules/crm`).
+
 ## Four separate ideas
 
 | Concept | Where it is decided |

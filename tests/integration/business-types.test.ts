@@ -8,16 +8,17 @@ import { demoCreateBusiness, demoModuleStatuses, demoSignIn } from '@/demo/demoS
 describe('the business-type picker is driven by the industry registry', () => {
   it('groups every industry under its category, keeping registry order', () => {
     const groups = groupByCategory(listIndustries())
-    expect(groups.map((g) => g.category)).toEqual(['Shops & trade', 'Farming & food', 'Education'])
+    expect(groups.map((g) => g.category)).toEqual(['Shops & trade', 'Farming & food', 'Education', 'Any business'])
     expect(groups[0].items.map((d) => d.id)).toEqual(['retail', 'pharmacy'])
     expect(groups[1].items.map((d) => d.id)).toEqual(['farm', 'bakery'])
     expect(groups[2].items.map((d) => d.id)).toEqual(['school'])
+    expect(groups[3].items.map((d) => d.id)).toEqual(['general'])
     expect(groups.flatMap((g) => g.items)).toHaveLength(listIndustries().length)
   })
 
   it('offers every industry as available, pharmacy included', () => {
     expect(INDUSTRIES.pharmacy.status).toBe('active')
-    expect(listIndustries().filter((d) => d.status === 'active').map((d) => d.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy', 'school'])
+    expect(listIndustries().filter((d) => d.status === 'active').map((d) => d.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy', 'school', 'general'])
   })
 
   it('requires a category on every industry definition', () => {

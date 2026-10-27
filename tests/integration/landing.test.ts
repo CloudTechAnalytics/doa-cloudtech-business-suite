@@ -22,19 +22,18 @@ describe('the Apps and Industries menus come from the registries', () => {
   const { apps, industries } = landingMenus()
   const labels = (id: string) => apps.find((c) => c.id === id)!.items.map((i) => i.label)
 
-  it('groups shared modules by area and gives each active industry its own column', () => {
-    expect(apps.map((c) => c.title)).toEqual(['Sales', 'Stock and purchasing', 'Mart', 'Farm operations', 'Bakery production', 'Pharmacy', 'School', 'Finance', 'Administration'])
-    expect(labels('Sales and customers')).toEqual(['Sales / POS', 'CRM'])
-    expect(labels('farm')).toContain('Farm Batches')
+  it('lists apps (CRM first, then sales, stock, finance), not industries; industries have their own menu', () => {
+    expect(apps.map((c) => c.title)).toEqual(['CRM', 'Sales', 'Stock and purchasing', 'Finance', 'Administration'])
+    expect(labels('crm')).toEqual(['Contacts & customers', 'Leads', 'Deals pipeline', 'Quotes', 'Follow-ups', 'CRM reports'])
+    expect(apps.find((c) => c.id === 'crm')!.cta?.to).toBe('/start?type=general')
+    expect(labels('Sales and customers')).toEqual(['Sales / POS'])
+    expect(apps.some((c) => ['retail', 'farm', 'bakery', 'pharmacy', 'school'].includes(c.id))).toBe(false)
     expect(labels('Stock and purchasing')).toEqual(['Inventory', 'Purchases', 'Suppliers'])
   })
 
   it('labels unfinished modules honestly and finished ones not at all', () => {
     const tag = (col: string, label: string) => apps.find((c) => c.id === col)!.items.find((i) => i.label === label)!.tag
-    expect(tag('bakery', 'Recipes')).toBeUndefined() // built
     expect(tag('Finance', 'Expenses')).toBeUndefined() // built
-    expect(tag('farm', 'Mortality')).toBeUndefined() // built
-    expect(tag('farm', 'Farm Batches')).toBeUndefined()
     expect(tag('Sales and customers', 'Sales / POS')).toBeUndefined()
   })
 

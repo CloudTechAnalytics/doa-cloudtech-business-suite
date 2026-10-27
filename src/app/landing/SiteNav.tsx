@@ -94,7 +94,7 @@ export function SiteNav() {
       </button>
 
       {open && <div aria-hidden className="fixed inset-x-0 bottom-0 top-16 z-0 bg-ink/30" onClick={close} />}
-      {open === 'apps' && panel('apps', menus.apps, 'Every app is included. Modules switch on per business.')}
+      {open === 'apps' && panel('apps', menus.apps, 'Use any app on its own, or inside your industry.')}
       {open === 'industries' && panel('industries', menus.industries, 'Run more than one business? Pick them all.')}
 
       {mobile && (

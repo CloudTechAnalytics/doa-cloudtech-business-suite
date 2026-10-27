@@ -11,31 +11,37 @@ import { DataTable } from '@/shared/tables/DataTable'
 import { dateTime, label, naira } from '@/shared/utilities/format'
 import { myTradePermissions } from '@/modules/sales/tradeApi'
 import { ActivityForms, Tags } from './CrmParts'
+import { Pipeline } from './CrmDeals'
+import { Quotes } from './CrmQuotes'
+import { CrmReports } from './CrmReports'
 import { CustomerProfile } from './CustomerProfile'
 import * as api from './crmApi'
 import type { CustomerRow, LeadRow, LeadStatus, Parent } from './crmApi'
 import { DeleteButton } from '@/shared/components/delete-button'
 
-const TABS = ['Customers', 'Leads', 'Follow-ups'] as const
+const TABS = ['Pipeline', 'Customers', 'Leads', 'Quotes', 'Follow-ups', 'Reports'] as const
 const PAGE = 10
 const LEAD_TONE: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = { new: 'info', contacted: 'neutral', qualified: 'warning', converted: 'success', lost: 'danger' }
 
 export function CrmPage() {
   const { active } = useBusiness()
-  const [tab, setTab] = useState<(typeof TABS)[number]>('Customers')
+  const [tab, setTab] = useState<(typeof TABS)[number]>('Pipeline')
   const businessId = active?.id ?? ''
   const perms = useAsync(() => myTradePermissions(businessId), [businessId])
   if (!active) return null
   const can = (p: string) => perms.data?.includes(p) ?? false
   return (
     <>
-      <PageHeader title="CRM" description="Track leads and customers, keep notes, schedule follow-ups and see each customer's history in one place." />
-      <div role="tablist" aria-label="CRM sections" className="mb-4 flex gap-1 border-b border-ink/10">
+      <PageHeader title="CRM" description="Leads, customers and a deal pipeline: keep notes, send quotes, schedule follow-ups and see what is likely to close." />
+      <div role="tablist" aria-label="CRM sections" className="mb-4 flex flex-wrap gap-x-1 border-b border-ink/10">
         {TABS.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>
+            className={clsx('-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>
         ))}
       </div>
+      {tab === 'Pipeline' && <Pipeline businessId={businessId} can={can} />}
+      {tab === 'Quotes' && <Quotes businessId={businessId} businessName={active.name} can={can} />}
+      {tab === 'Reports' && <CrmReports businessId={businessId} />}
       {tab === 'Customers' && <Customers businessId={businessId} can={can} />}
       {tab === 'Leads' && <Leads businessId={businessId} can={can} />}
       {tab === 'Follow-ups' && <FollowUps businessId={businessId} can={can} />}

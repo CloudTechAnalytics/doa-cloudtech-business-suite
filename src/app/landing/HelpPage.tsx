@@ -31,6 +31,12 @@ const TOPICS: Topic[] = [
     { q: 'How do I record damaged or expired goods?', a: 'Use Damaged & Expired. The goods leave your stock and the loss is recorded with the reason.' },
     { q: 'Where do I see what I owe suppliers?', a: 'On the Suppliers page and in Reports. Orders, deliveries and payments are on the Purchases page.' },
   ] },
+  { id: 'crm', title: 'CRM and Business apps', blurb: 'Customers, deals and quotes, with or without an industry.', icon: Users, color: '#d6336c', articles: [
+    { q: 'Can I use DOA without choosing an industry?', a: 'Yes. Choose Business apps when you sign up. You get the shared apps (CRM, Sales, Inventory, Purchases, Expenses and Reports) with no industry screens. The same apps are also inside every industry.' },
+    { q: 'What does the CRM do?', a: 'It keeps your customers and leads, a deal pipeline (new, qualified, proposal, negotiation, won, lost), numbered quotes you can print, follow-up tasks, and a report of what is open, won and lost.' },
+    { q: 'How do I move a deal along?', a: 'Open CRM, then Pipeline. Drag a deal to another column, or use the Move to menu on its card (best on a phone). Moving a deal to Lost asks why, and the reason shows in the CRM report.' },
+    { q: 'Does an accepted quote create a sale?', a: 'Not yet. A quote is a printable offer you mark sent, accepted or declined. When the customer buys, record the sale in Sales as usual.' },
+  ] },
   { id: 'industries', title: 'Farm, bakery and pharmacy', blurb: 'Apps built for these businesses.', icon: Building2, color: '#7048e8', articles: [
     { q: 'What does the farm app do?', a: 'It tracks batches of animals or crops, feeding, mortality, harvests, health and equipment, and shows live animals and losses on the dashboard.' },
     { q: 'What does the bakery app do?', a: 'It keeps recipes, records production batches, takes ingredients out of stock, tracks waste and shows the cost of what you bake.' },

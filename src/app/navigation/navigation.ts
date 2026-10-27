@@ -1,3 +1,4 @@
+import { BarChart3, CalendarCheck, FileText, KanbanSquare, UserPlus, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { INDUSTRIES, getIndustry } from '@/core/industry-registry'
 import { ALL_MODULES, MODULES } from '@/core/module-registry/registry'
@@ -116,6 +117,16 @@ export function landingApps(): { shared: LandingApp[]; industries: LandingApp[] 
 export interface SiteMenuItem { label: string; icon: LucideIcon; to: string; blurb?: string; tag?: 'Preview' | 'Soon' }
 export interface SiteMenuColumn { id: string; title: string; color: string; icon: LucideIcon; description?: string; items: SiteMenuItem[]; /** Modules not listed (the menu shows the first few so the panel fits the screen). */ more?: number; cta?: { label: string; to: string } }
 
+/** What the CRM app does, in the order a sale moves; shown on the public Apps menu. */
+export const CRM_FEATURES: { label: string; blurb: string; icon: LucideIcon }[] = [
+  { label: 'Contacts & customers', blurb: 'Everyone you sell to, with their history, notes and tags', icon: Users },
+  { label: 'Leads', blurb: 'Enquiries to follow up, turned into customers in one click', icon: UserPlus },
+  { label: 'Deals pipeline', blurb: 'Drag deals from new to won, with values and expected dates', icon: KanbanSquare },
+  { label: 'Quotes', blurb: 'Numbered, printable quotes for a customer or deal', icon: FileText },
+  { label: 'Follow-ups', blurb: 'Tasks and reminders, with what is overdue first', icon: CalendarCheck },
+  { label: 'CRM reports', blurb: 'Pipeline value, win rate and why deals were lost', icon: BarChart3 },
+]
+
 const TAGS = { preview: 'Preview', soon: 'Soon' } as const
 const itemFor = (m: ModuleDefinition, to: string): SiteMenuItem => ({ label: m.name, icon: m.icon, to, blurb: m.description, tag: m.maturity ? TAGS[m.maturity] : undefined })
 
@@ -126,21 +137,23 @@ export function landingMenus(): { apps: SiteMenuColumn[]; industries: SiteMenuCo
     const mods = platform.filter((m) => m.navGroup === group)
     return mods.length ? { id: group, title, color, icon: mods[0].icon, items: mods.map((m) => itemFor(m, '/start')) } : null
   }
-  const owned = Object.values(INDUSTRIES).filter((d) => d.status === 'active' && d.modules.length > 0).map((d): SiteMenuColumn => ({
-    id: d.id, title: d.appName ?? d.navigation[0]?.label ?? d.name, color: industryColor(d.id), icon: d.icon,
-    // The panel must fit the screen without scrolling, so each column lists its first six modules; the rest are in the product.
-    items: d.modules.slice(0, 6).map((m) => itemFor(m, `/start?type=${d.id}`)),
-    more: Math.max(d.modules.length - 6, 0),
-  }))
+  // Apps are tools any business can use on its own or inside an industry; industries have their own menu.
+  const crm: SiteMenuColumn = {
+    id: 'crm', title: 'CRM', color: '#d6336c', icon: MODULES.customers.icon, description: 'A customer and sales pipeline for any business.',
+    items: CRM_FEATURES.map((f) => ({ label: f.label, icon: f.icon, to: '/start?type=general', blurb: f.blurb })),
+    cta: { label: 'Start with CRM', to: '/start?type=general' },
+  }
+  const sales = shared('Sales', 'Sales and customers', '#2f9e44')
+  if (sales) sales.items = sales.items.filter((i) => i.label !== MODULES.customers.name)
   const apps = [
-    shared('Sales', 'Sales and customers', '#2f9e44'),
+    crm,
+    sales,
     shared('Stock and purchasing', 'Stock and purchasing', '#e8590c'),
-    ...owned,
     shared('Finance', 'Finance', '#017e84'),
     shared('Administration', 'Administration', '#7048e8'),
-  ].filter((c): c is SiteMenuColumn => c !== null)
+  ].filter((c): c is SiteMenuColumn => c !== null && c.items.length > 0)
 
-  const industries = Object.values(INDUSTRIES).map((d): SiteMenuColumn => {
+  const industries = Object.values(INDUSTRIES).filter((d) => d.id !== 'general').map((d): SiteMenuColumn => {
     const soon = d.status !== 'active'
     const mods = d.defaultModules.map((c) => MODULES[c]).filter((m): m is ModuleDefinition => !!m).slice(0, 6)
     return {

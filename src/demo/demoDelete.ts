@@ -25,7 +25,7 @@ export function demoDeleteRecord(biz: string, kind: DeleteKind, id: string): str
     case 'customer': {
       const c = trade.customers.find((x) => x.id === id && x.businessId === biz); if (!c) return denied
       if (!demoAllowed(biz, 'customers', 'customers.manage')) return denied
-      if (trade.sales.some((s) => s.customerId === id) || getOrders().orders.some((o) => o.customerId === id) || pharm.prescriptions.some((r) => r.customerId === id)) return refuse(c.name, kind)
+      if (trade.sales.some((s) => s.customerId === id) || getOrders().orders.some((o) => o.customerId === id) || pharm.prescriptions.some((r) => r.customerId === id) || getCrm().deals.some((d) => d.customerId === id) || getCrm().quotes.some((q) => q.customerId === id)) return refuse(c.name, kind)
       mutateTrade((t) => ({ ...t, customers: t.customers.filter((x) => x.id !== id) }))
       mutateCrm((s) => ({ ...s, interactions: s.interactions.filter((i) => i.customerId !== id), tasks: s.tasks.filter((t) => t.customerId !== id), entityTags: s.entityTags.filter((t) => t.customerId !== id), leads: s.leads.map((l) => (l.customerId === id ? { ...l, customerId: null } : l)) }))
       return null
@@ -80,6 +80,7 @@ export function demoDeleteRecord(biz: string, kind: DeleteKind, id: string): str
     case 'lead': {
       const l = crm.leads.find((x) => x.id === id && x.businessId === biz); if (!l) return denied
       if (!demoAllowed(biz, 'customers', 'customers.manage')) return denied
+      if (crm.deals.some((d) => d.leadId === id) || crm.quotes.some((q) => q.leadId === id)) return refuse(l.name, kind)
       mutateCrm((s) => ({ ...s, leads: s.leads.filter((x) => x.id !== id), interactions: s.interactions.filter((i) => i.leadId !== id), tasks: s.tasks.filter((t) => t.leadId !== id), entityTags: s.entityTags.filter((t) => t.leadId !== id) }))
       return null
     }

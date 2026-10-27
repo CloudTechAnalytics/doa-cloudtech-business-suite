@@ -15,7 +15,7 @@ import { Reveal } from './Reveal'
  * start with it. It also steps through them by itself until you take over.
  */
 export function IndustryExplorer() {
-  const industries = listIndustries()
+  const industries = listIndustries().filter((d) => d.id !== 'general') // "Business apps" is the other side of the site, not an industry
   const active = industries.filter((x) => x.status === 'active')
   const ref = useRef<HTMLDivElement>(null)
   const [auto, setAuto] = useCycle(active.length, 5200, ref)

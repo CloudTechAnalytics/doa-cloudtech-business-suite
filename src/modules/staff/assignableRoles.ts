@@ -3,6 +3,7 @@ import type { IndustryCode } from '@/shared/types/domain'
 const COMMON = ['business_admin', 'manager']
 const BY_INDUSTRY: Record<IndustryCode, string[]> = {
   retail: [...COMMON, 'accountant', 'cashier', 'inventory_officer', 'viewer'],
+  general: [...COMMON, 'accountant', 'cashier', 'inventory_officer', 'viewer'],
   bakery: [...COMMON, 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'viewer'],
   farm: [...COMMON, 'accountant', 'inventory_officer', 'operations_staff', 'viewer'],
   pharmacy: [...COMMON, 'accountant', 'cashier', 'inventory_officer', 'pharmacist', 'pharmacy_technician', 'viewer'],

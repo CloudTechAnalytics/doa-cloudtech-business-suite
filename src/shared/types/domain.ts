@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 
 // Typed domain interfaces mirroring the PRD schema (section 8).
 
-export type IndustryCode = 'retail' | 'farm' | 'bakery' | 'pharmacy' | 'school'
+export type IndustryCode = 'retail' | 'farm' | 'bakery' | 'pharmacy' | 'school' | 'general'
 
 /** Modules owned by the platform. Industry modules add their own codes (prefixed with the industry id). */
 export const SHARED_MODULE_CODES = [
