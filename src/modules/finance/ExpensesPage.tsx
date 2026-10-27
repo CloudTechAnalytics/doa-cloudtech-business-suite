@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react'
+import { UsageNotice } from '@/core/subscriptions/UsageViews'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
@@ -46,6 +47,7 @@ export function ExpensesPage() {
         description="Money paid out. Each entry shows in the cashbook and lowers the operating surplus. A wrong entry is voided with a reason, never deleted."
         actions={canRecord ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> Record expense</Button> : undefined}
       />
+      <UsageNotice keys={['expenses_per_month']} />
       {expenses.error && <ErrorState message={expenses.error} />}
       {expenses.loading ? <Spinner /> : (
         <>

@@ -7,8 +7,8 @@ export const schoolNavigation: NavSection[] = [
   { label: 'Students', modules: ['school-students', 'school-guardians'] },
   { label: 'Classroom', modules: ['school-attendance', 'school-results', 'school-classes', 'school-timetable'] },
   { label: 'Fees', modules: ['school-fees', 'school-payments', 'expenses'] },
-  { label: 'Staff', modules: ['school-staff'] },
+  { label: 'Teachers & staff', modules: ['school-staff'] },
   { label: 'Announcements', modules: ['school-announcements'] },
   { label: 'Reports', modules: ['school-reports'] },
-  { label: 'Settings', modules: ['school-settings'] },
+  { label: 'School settings', modules: ['school-settings'] },
 ]

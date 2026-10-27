@@ -8,6 +8,7 @@ import { useModules } from '@/core/module-registry/ModulesProvider'
 import { disableModule, enableModule } from '@/core/module-registry/moduleActions'
 import { MODULES } from '@/core/module-registry/registry'
 import { usePermissions } from '@/core/permissions/usePermissions'
+import { UsagePanel } from '@/core/subscriptions/UsageViews'
 import { canManageStaff } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { Badge, Button, ErrorState, PageHeader } from '@/shared/components'
@@ -76,6 +77,8 @@ export function AppLibraryPage() {
           )
         })}
       </ul>
+
+      <div className="mt-8"><UsagePanel /></div>
 
       <h2 className="mb-2 mt-8 text-lg font-semibold">Industry app for this business</h2>
       <div className="rounded-xl border border-line bg-white p-4 shadow-card">

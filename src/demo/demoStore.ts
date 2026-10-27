@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { IndustryCode, ModuleCode, PlanCode, RoleName } from '@/shared/types/domain'
 import { PLANS } from '@/core/subscriptions/plans'
+import { registerPlanOf } from '@/demo/demoUsage'
 import { THEMES } from '@/core/theme/themes'
 import { computeModuleStatuses } from '@/core/module-registry/availability'
 import { rolePermissions } from '@/core/permissions/roles'
@@ -116,6 +117,7 @@ function load(): State {
 }
 
 let state = load()
+registerPlanOf((biz) => state.modules[biz]?.plan ?? null)
 const listeners = new Set<() => void>()
 
 function commit(next: State) {

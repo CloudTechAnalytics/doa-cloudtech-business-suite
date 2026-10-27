@@ -1,5 +1,6 @@
 import { getCrm } from '@/demo/demoCrm'
 import { newId } from '@/demo/demoInventory'
+import { demoUsageCheck, monthStart, registerUsageCounter } from '@/demo/demoUsage'
 import { demoAllowed, demoInsertCustomer, getTrade } from '@/demo/demoTrade'
 
 /**
@@ -22,6 +23,7 @@ function load(): Inv {
   return empty()
 }
 let state = load()
+registerUsageCounter('invoices_per_month', (biz) => state.invoices.filter((i) => i.businessId === biz && i.status !== 'cancelled' && i.createdAt.slice(0, 10) >= monthStart()).length)
 function commit(next: Inv) {
   state = next
   try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* storage unavailable */ }
@@ -83,6 +85,8 @@ export function demoSaveInvoice(biz: string, v: { id: string | null; customerId:
     if (tax < 0 || tax > 100) throw new Error('the tax rate must be between 0 and 100')
     const taxAmount = money(((subtotal - discount) * tax) / 100)
     if (v.id === null) {
+      const full = demoUsageCheck(biz, 'invoices_per_month')
+      if (full) throw new Error(full)
       if (v.dueOn && v.dueOn < today()) throw new Error('the due date cannot be before the invoice date')
       const n = (state.counter[biz] ?? 0) + 1
       const inv: DInvoice = { id: newId('inv'), businessId: biz, number: `INV-${String(n).padStart(6, '0')}`, customerId: v.customerId, quoteId: null, status: 'draft', issuedOn: today(), dueOn: v.dueOn, lines, discount, taxPercent: tax, subtotal, taxAmount, total: money(subtotal - discount + taxAmount), amountPaid: 0, notes: v.notes, cancelReason: null, createdAt: new Date().toISOString() }
@@ -104,6 +108,8 @@ export function demoInvoiceFromQuote(biz: string, quoteId: string): string | nul
     if (!q) throw new Error('quote not found')
     if (q.status !== 'accepted') throw new Error('only an accepted quote can be turned into an invoice')
     if (state.invoices.some((i) => i.businessId === biz && i.quoteId === quoteId)) throw new Error('this quote has already been invoiced')
+    const full = demoUsageCheck(biz, 'invoices_per_month')
+    if (full) throw new Error(full)
     const deal = crm.deals.find((d) => d.id === q.dealId)
     const customerId = q.customerId ?? deal?.customerId ?? crm.leads.find((l) => l.id === (q.leadId ?? deal?.leadId))?.customerId ?? null
     if (!customerId) throw new Error('this quote is for a lead; convert the lead to a customer first')

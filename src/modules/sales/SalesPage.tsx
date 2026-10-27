@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { UsageNotice } from '@/core/subscriptions/UsageViews'
 import { Minus, Plus, Receipt as ReceiptIcon, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -35,6 +36,7 @@ export function SalesPage() {
   return (
     <>
       <PageHeader title="Sales" description="Ring up sales, take payments, issue receipts and handle returns. Totals are confirmed by the server." />
+      <UsageNotice keys={['sales_per_month']} />
       <div role="tablist" aria-label="Sales sections" className="mb-4 flex gap-1 border-b border-ink/10">
         {TABS.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}

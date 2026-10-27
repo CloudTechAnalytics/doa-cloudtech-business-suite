@@ -53,14 +53,21 @@ CRM contacts are the shared `customers`. School students, parents and pharmacy p
 
 ## Free tier
 
-The Starter plan (price 0) includes every standalone app: CRM, POS, Inventory, Invoices, Expenses and Finance reports. Purchases and Suppliers need Basic or above. Limits per plan live in `subscription_plans.limits` and `plan_modules.usage_limit`; the interface reads them from the plan data and does not hard-code them. Only the member and branch limits are enforced today (see below).
+The Starter plan (price 0) includes every standalone app: CRM, POS, Inventory, Invoices, Expenses and Finance reports. Purchases and Suppliers need Basic or above. ## Usage limits
+
+Limits are plan data (`subscription_plans.limits`), not code. The keys are `customers`, `invoices_per_month`, `sales_per_month` and `expenses_per_month`; a plan with no such key has no limit, and **no plan has any yet**: the numbers are a commercial decision, set by updating the plan data (for example `update subscription_plans set limits = limits || '{"invoices_per_month": 30}' where code = 'starter'`). Members and branches keep their own limits.
+
+- **Enforced in the database**: a `before insert` trigger on `customers`, `invoices`, `expenses` and `sales` stops a new record when the plan's limit is used up (`enforce_usage_limit`), so no screen, import or API call can get around it. Months are counted in UTC; cancelled invoices, voided sales and voided expenses do not count.
+- **Only new records are blocked.** Nothing existing is locked, hidden or removed, and lowering a plan's limit later removes nothing. Moving to a bigger plan lifts the limit at once.
+- **Told in advance**: `my_usage()` returns used and allowed for each limit. The App Library shows a Plan usage panel, and the Invoices, CRM, Sales and Expenses pages show a notice from 80% of a limit, and again when it is full, with a link to the plans.
+- Products are not limited, because industries create products themselves (a bakery's finished goods, for example).
 
 ## Not built yet
 
 These were asked for and are **not** done; none is claimed anywhere in the product:
 
-- **Usage limits per app** (for example a cap on invoices a month). `plan_modules.usage_limit` exists but no function enforces it, and there is no usage screen. Only members and branches are limited.
-- **Deactivation warnings and upgrade prompts** before a limit is reached.
+- **Limit numbers.** The mechanism is built and tested, but no plan has a limit set. Choose the numbers and set them in the plan data. There is also no screen for editing them (the Platform console shows plans read-only).
+- **Upgrading from the notice.** The notice links to Settings, where the plan can be changed in demo mode; live billing is not connected, so a plan change is made by the platform team.
 - **An integration outbox / failed-event monitor.** Integration is by shared views and one transaction, so there are no events to fail or retry. If POS sales start feeding anything asynchronously, an outbox will be needed.
 - **A separate personal workspace type.** A personal workspace is a *Business apps* business. There is no other distinction.
 - **Invoice reminders by email or SMS** (no delivery integration), and **a PDF file download.** Invoices and quotes print, and "Save as PDF" in the print dialog makes a real PDF; the app does not generate files on the server.

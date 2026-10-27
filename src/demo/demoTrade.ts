@@ -4,6 +4,7 @@ import { rolePermissions } from '@/core/permissions/roles'
 import { cloneInv, commitInv, getInv, newId, postMovement } from '@/demo/demoInventory'
 import type { Inv } from '@/demo/demoInventory'
 import { demoModuleStatuses, demoRoleIn, getDemoState } from '@/demo/demoStore'
+import { demoUsageCheck, monthStart, registerUsageCounter } from '@/demo/demoUsage'
 
 /**
  * Browser-only customers, suppliers, sales, payments, returns and purchasing for demo mode.
@@ -33,6 +34,8 @@ function load(): Trade {
   return empty()
 }
 let state = load()
+registerUsageCounter('customers', (biz) => state.customers.filter((c) => c.businessId === biz).length)
+registerUsageCounter('sales_per_month', (biz) => state.sales.filter((s) => s.businessId === biz && s.status !== 'voided' && s.soldAt.slice(0, 10) >= monthStart()).length)
 const listeners = new Set<() => void>()
 function commit(next: Trade) {
   state = next
@@ -145,6 +148,8 @@ const clean = (v: string | undefined) => v?.trim() || null
 export function demoCreateCustomer(biz: string, name: string, phone: string, extra: CustomerExtras = {}): string | null {
   if (!allowed(biz, 'customers', 'customers.manage')) return 'permission denied'
   if (!name.trim()) return 'Enter the customer name.'
+  const full = demoUsageCheck(biz, 'customers')
+  if (full) return full
   commit({ ...state, customers: [...state.customers, { id: newId('c'), businessId: biz, name: name.trim(), phone: phone.trim() || null, email: extra.email?.trim() || null, source: extra.source?.trim() || null, category: extra.category?.trim() || null, creditLimit: 0, createdAt: new Date().toISOString(), company: clean(extra.company), contactPerson: clean(extra.contactPerson), city: clean(extra.city), address: clean(extra.address), notes: clean(extra.notes) }] })
   return null
 }
@@ -180,6 +185,8 @@ export function demoCustomerTopProducts(biz: string, id: string, limit = 5): { p
 }
 
 export function demoInsertCustomer(c: DCustomer) {
+  const full = demoUsageCheck(c.businessId, 'customers')
+  if (full) throw new Error(full)
   commit({ ...state, customers: [...state.customers, c] })
 }
 export function demoSetCreditLimit(biz: string, customerId: string, limit: number): string | null {
@@ -215,6 +222,8 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
     if (!inv.locations.some((l) => l.id === locationId && l.businessId === biz)) throw new Error('unknown or inactive location')
     if (customerId && !t.customers.some((c) => c.id === customerId && c.businessId === biz)) throw new Error('unknown customer')
     if (!lines.length || lines.length > 100) throw new Error('a sale needs 1 to 100 lines')
+    const full = demoUsageCheck(biz, 'sales_per_month')
+    if (full) throw new Error(full)
     const prods = lines.map((l, i) => {
       const p = inv.products.find((x) => x.id === l.productId && x.businessId === biz && x.status === 'active')
       if (!p) throw new Error(`invalid product on line ${i + 1}`)

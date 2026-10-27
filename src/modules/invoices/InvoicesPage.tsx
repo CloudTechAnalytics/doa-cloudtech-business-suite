@@ -2,6 +2,7 @@ import { Plus, Printer, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
+import { UsageNotice } from '@/core/subscriptions/UsageViews'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -69,6 +70,7 @@ export function InvoicesPage() {
   return (
     <>
       <PageHeader title="Invoices" description="Bill your customers, record what they pay and see what is still owed. Payments appear in Finance without being entered again." />
+      <UsageNotice keys={['invoices_per_month', 'customers']} />
       {s && (
         <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {([['Outstanding', naira(s.outstanding), 'Sent and not fully paid'], ['Overdue', naira(s.overdue), `${s.overdueCount} ${s.overdueCount === 1 ? 'invoice' : 'invoices'} past due`], ['Received this month', naira(s.paidThisMonth), 'Invoice payments'], ['Drafts', String(s.drafts), 'Not sent yet']] as const).map(([t, v, h]) => (

@@ -1,5 +1,6 @@
 import { getInv, newId } from '@/demo/demoInventory'
 import { demoInvoiceCustomer, getInvoices } from '@/demo/demoInvoices'
+import { demoUsageCheck, monthStart, registerUsageCounter } from '@/demo/demoUsage'
 import { demoAllowed, getTrade } from '@/demo/demoTrade'
 
 /**
@@ -12,7 +13,7 @@ export const PAY_METHODS = ['cash', 'bank_transfer', 'card', 'pos', 'other'] as 
 
 export interface DExpense {
   id: string; businessId: string; number: string; category: ExpenseCategory; amount: number; method: string; description: string
-  date: string; supplierId: string | null; batchId: string | null; source: 'manual' | 'maintenance'; status: 'posted' | 'voided'; voidReason: string | null
+  date: string; supplierId: string | null; batchId: string | null; source: 'manual' | 'maintenance'; status: 'posted' | 'voided'; voidReason: string | null; createdAt?: string
 }
 interface Fin { expenses: DExpense[]; seq: Record<string, number>; keys: Record<string, string> }
 
@@ -23,6 +24,7 @@ function load(): Fin {
   return empty()
 }
 let state = load()
+registerUsageCounter('expenses_per_month', (biz) => state.expenses.filter((e) => e.businessId === biz && e.status === 'posted' && (e.createdAt ?? e.date).slice(0, 10) >= monthStart()).length)
 function commit(next: Fin) {
   state = next
   try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* storage unavailable */ }
@@ -59,6 +61,8 @@ export interface NewExpense { category: ExpenseCategory; amount: number; method:
 
 /** Shared by the manual form and by modules that create expenses (equipment maintenance). */
 export function postExpense(f: Fin, biz: string, v: NewExpense, source: DExpense['source'] = 'manual'): DExpense {
+  const full = demoUsageCheck(biz, 'expenses_per_month')
+  if (full) throw new Error(full)
   if (!(v.amount > 0) || Math.round(v.amount * 100) / 100 !== v.amount) throw new Error('amount must be positive with at most 2 decimals')
   if (!v.date || v.date > today()) throw new Error('the expense date cannot be in the future')
   if (v.description.trim().length < 2) throw new Error('describe the expense (at least 2 characters)')
@@ -69,7 +73,7 @@ export function postExpense(f: Fin, biz: string, v: NewExpense, source: DExpense
   f.seq[k] = (f.seq[k] ?? 0) + 1
   const e: DExpense = {
     id: newId('x'), businessId: biz, number: `EXP-${String(f.seq[k]).padStart(6, '0')}`, category: v.category, amount: v.amount, method: v.method,
-    description: v.description.trim(), date: v.date, supplierId: v.supplierId, batchId: v.batchId, source, status: 'posted', voidReason: null,
+    description: v.description.trim(), date: v.date, supplierId: v.supplierId, batchId: v.batchId, source, status: 'posted', voidReason: null, createdAt: new Date().toISOString(),
   }
   f.expenses.push(e)
   return e

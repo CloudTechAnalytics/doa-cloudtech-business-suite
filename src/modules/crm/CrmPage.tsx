@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
+import { UsageNotice } from '@/core/subscriptions/UsageViews'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -33,6 +34,7 @@ export function CrmPage() {
   return (
     <>
       <PageHeader title="CRM" description="Leads, customers and a deal pipeline: keep notes, send quotes, schedule follow-ups and see what is likely to close." />
+      <UsageNotice keys={['customers']} />
       <div role="tablist" aria-label="CRM sections" className="mb-4 flex flex-wrap gap-x-1 border-b border-ink/10">
         {TABS.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
