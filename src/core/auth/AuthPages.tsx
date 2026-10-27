@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { STANDALONE_APPS } from '@/core/app-catalogue/apps'
@@ -11,6 +11,7 @@ import { Button, ErrorState } from '@/shared/components'
 import { BrandLockup } from '@/app/layouts/Brand'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { CheckEmail } from './CheckEmail'
+import { suggestEmail } from './emailHelp'
 
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -86,6 +87,10 @@ function AuthForm({ mode }: { mode: Mode }) {
   // An address waiting for its confirmation email: shows the "Check your email" screen instead of the form.
   const [pending, setPending] = useState<{ email: string; reason: 'signup' | 'unconfirmed' } | null>(null)
   const [busy, setBusy] = useState(false)
+  // An address that looks like a typo of a well-known one is asked about once, because a mistyped address bounces and hurts later emails.
+  const [typo, setTypo] = useState<{ typed: string; fix: string } | null>(null)
+  const keepTypo = useRef(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -103,6 +108,11 @@ function AuthForm({ mode }: { mode: Mode }) {
     setErrors(next)
     setFormError(null)
     if (Object.keys(next).length) return
+    if (mode === 'signup' && !isDemoMode && !keepTypo.current) {
+      const fix = suggestEmail(email)
+      if (fix) { setTypo({ typed: email, fix }); return }
+    }
+    setTypo(null)
     if (isDemoMode) {
       const err = mode === 'signin' ? demoSignIn(email, password) : demoSignUp(name, email, password)
       if (err) setFormError(err)
@@ -129,7 +139,7 @@ function AuthForm({ mode }: { mode: Mode }) {
   if (pending) return <CheckEmail email={pending.email} reason={pending.reason} onBack={() => setPending(null)} />
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-4">
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-4">
       {mode === 'signup' && <Field label="Full name" name="name" autoComplete="name" placeholder="Enter your name" error={errors.name} />}
       <Field label="Email" name="email" type="email" autoComplete="email" placeholder="Enter your email" error={errors.email} />
       <Field
@@ -137,6 +147,15 @@ function AuthForm({ mode }: { mode: Mode }) {
         autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
         hint={mode === 'signup' ? (isDemoMode ? 'At least 8 characters.' : 'At least 10 characters, with a lowercase letter, an uppercase letter and a number.') : undefined}
       />
+      {typo && (
+        <div role="alert" className="rounded-lg border border-amber/60 bg-amber/10 p-3 text-sm">
+          <p>Did you mean <b className="break-all">{typo.fix}</b>? The address you typed, <span className="break-all">{typo.typed}</span>, may have a typing mistake, and the confirmation email would not arrive.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button type="button" onClick={() => { const el = formRef.current?.elements.namedItem('email') as HTMLInputElement | null; if (el) el.value = typo.fix; setTypo(null) }}>Yes, use {typo.fix.split('@')[1]}</Button>
+            <Button type="button" variant="secondary" onClick={() => { keepTypo.current = true; setTypo(null); formRef.current?.requestSubmit() }}>No, keep mine</Button>
+          </div>
+        </div>
+      )}
       {formError && <ErrorState title="Could not continue" message={formError} />}
       <Button type="submit" className="h-11 w-full text-sm font-semibold uppercase tracking-wide" loading={busy}>
         {mode === 'signin' ? 'Sign in' : 'Create account'}
