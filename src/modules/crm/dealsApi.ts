@@ -127,6 +127,10 @@ export async function saveDeal(b: string, d: DealInput) {
   if (isDemoMode) return demo.demoSaveDeal(b, d)
   return err((await db().rpc('crm_save_deal', { p_business: b, p_id: d.id, p_title: d.title, p_customer: d.customerId, p_lead: d.leadId, p_value: d.value, p_expected: d.expectedClose, p_owner: d.ownerId, p_notes: d.notes })).error)
 }
+export async function deleteDeal(b: string, id: string) {
+  if (isDemoMode) return demo.demoDeleteDeal(b, id)
+  return err((await db().rpc('crm_delete_deal', { p_deal: id })).error)
+}
 export async function moveDeal(b: string, id: string, stageId: string, reason = '') {
   if (isDemoMode) return demo.demoMoveDeal(b, id, stageId, reason)
   return err((await db().rpc('crm_move_deal', { p_deal: id, p_stage: stageId, p_reason: reason })).error)

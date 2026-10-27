@@ -155,3 +155,27 @@ describe('the CRM report', () => {
     await expect(as(other, () => q('select public.crm_report($1)', [fresh]))).rejects.toThrow(/permission denied/)
   })
 })
+
+describe('deleting a deal', () => {
+  it('removes the deal with its stage history, activity and to-dos, leaves the customer, and writes the audit log', async () => {
+    const id = await deal(owner, biz, { title: 'Delete me' })
+    await as(owner, () => q(`insert into public.crm_interactions (business_id, customer_id, deal_id, kind, summary) values ($1,$2,$3,'call','Rang them')`, [biz, customer, id]))
+    await as(owner, () => q(`insert into public.crm_tasks (business_id, customer_id, deal_id, title) values ($1,$2,$3,'Follow up')`, [biz, customer, id]))
+    await as(owner, () => q('select public.crm_delete_deal($1)', [id]))
+    const left = async (t: string) => Number((await q<{ n: string }>(`select count(*)::text n from public.${t} where deal_id=$1`, [id]))[0].n)
+    expect((await q<{ n: string }>('select count(*)::text n from public.crm_deals where id=$1', [id]))[0].n).toBe('0')
+    expect(await left('crm_deal_events')).toBe(0); expect(await left('crm_interactions')).toBe(0); expect(await left('crm_tasks')).toBe(0)
+    expect((await q<{ n: string }>('select count(*)::text n from public.customers where id=$1', [customer]))[0].n).toBe('1')
+    expect((await q<{ metadata: { name: string } }>(`select metadata from public.audit_logs where entity_id=$1 and action='crm_deals.delete'`, [id]))[0].metadata.name).toBe('Delete me')
+  })
+
+  it('keeps a deal that has a quote, and refuses people who cannot manage customers or belong elsewhere', async () => {
+    const id = await deal(owner, biz, { title: 'Quoted' })
+    await quote(owner, biz, { deal: id })
+    await expect(as(owner, () => q('select public.crm_delete_deal($1)', [id]))).rejects.toThrow(/has quotes/)
+    const other1 = await deal(owner, biz, { title: 'Not yours' })
+    await expect(as(viewer, () => q('select public.crm_delete_deal($1)', [other1]))).rejects.toThrow(/permission denied/)
+    await expect(as(other, () => q('select public.crm_delete_deal($1)', [other1]))).rejects.toThrow(/permission denied/)
+    expect((await q<{ n: string }>('select count(*)::text n from public.crm_deals where id=$1', [other1]))[0].n).toBe('1')
+  })
+})

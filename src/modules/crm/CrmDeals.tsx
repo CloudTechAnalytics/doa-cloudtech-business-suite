@@ -9,7 +9,7 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { dateTime, label, naira } from '@/shared/utilities/format'
 import { ContactActions } from './ContactActions'
-import { ACTIVITY_KINDS, dealEvents, dealInteractions, deleteStage, listActivities, listContacts, listDeals, listStages, listTeam, logOnDeal, moveDeal, reorderStages, saveDeal, saveStage, setNextStep, createActivity } from './dealsApi'
+import { ACTIVITY_KINDS, deleteDeal, dealEvents, dealInteractions, deleteStage, listActivities, listContacts, listDeals, listStages, listTeam, logOnDeal, moveDeal, reorderStages, saveDeal, saveStage, setNextStep, createActivity } from './dealsApi'
 import type { ActivityKind, Contact, DealRow, StageRow } from './dealsApi'
 
 const PALETTE = ['#1c7ed6', '#7048e8', '#e8590c', '#f08c00', '#0ca678', '#d6336c', '#5c940d', '#4263eb']
@@ -231,6 +231,8 @@ export function DealDialog({ businessId, deal, manage, onClose, onSaved }: { bus
   const [notes, setNotes] = useState(deal?.notes ?? '')
   const [step, setStep] = useState(deal?.nextStep ?? '')
   const runner = useFormRunner(onSaved)
+  const remover = useFormRunner(onSaved)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const pick = (c: Contact) => `${c.kind}:${c.id}`
   const [kind, id] = contact.split(':')
   const list = contacts.data ?? []
@@ -253,7 +255,15 @@ export function DealDialog({ businessId, deal, manage, onClose, onSaved }: { bus
         <TextField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} disabled={!manage} />
         {deal && <p className="text-xs text-ink/60">Stage: <b>{deal.stageName}</b>{deal.stageKind === 'open' ? ` · ${deal.probability}% chance of winning` : ''}{deal.stageKind === 'lost' && deal.lostReason ? ` · lost because: ${deal.lostReason}` : ''}</p>}
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
-        {manage && <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Close</Button>
+        {remover.error && <ErrorState title="Not deleted" message={remover.error} />}
+        {manage && deal && confirmDelete && (
+          <div role="alertdialog" aria-label="Delete this deal" className="rounded-lg border border-danger/40 bg-danger-soft p-3">
+            <p className="font-semibold">Delete this deal?</p>
+            <p className="mt-1 text-xs text-ink/70">Its stage history, activity log and to-dos are deleted with it. The customer or lead is not touched. This cannot be undone. If you only lost the deal, move it to Lost instead.</p>
+            <div className="mt-2 flex gap-2"><Button variant="secondary" onClick={() => setConfirmDelete(false)}>Keep it</Button><Button variant="secondary" className="text-danger" loading={remover.busy} onClick={() => void remover.run(async () => deleteDeal(businessId, deal.id), 'Deleted.')}>Delete deal</Button></div>
+          </div>
+        )}
+        {manage && <div className="flex justify-end gap-2">{deal && !confirmDelete && <Button variant="ghost" className="mr-auto text-danger" onClick={() => setConfirmDelete(true)}><Trash2 className="size-4" aria-hidden /> Delete</Button>}<Button variant="secondary" onClick={onClose}>Close</Button>
           <Button loading={runner.busy} onClick={() => void runner.run(async () => saveDeal(businessId, { id: deal?.id ?? null, title, customerId: kind === 'customer' ? id : null, leadId: kind === 'lead' ? id : null, value: Number(value || 0), expectedClose: expected || null, ownerId: ownerId || null, notes }), 'Saved.')}>{deal ? 'Save deal' : 'Add deal'}</Button></div>}
         {deal && (
           <div className="space-y-3 border-t border-line pt-3">

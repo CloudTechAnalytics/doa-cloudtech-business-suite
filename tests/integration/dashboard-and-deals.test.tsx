@@ -33,3 +33,23 @@ describe('the deals list', () => {
     expect(csv[0][0]).toBe('Deal'); expect(csv[1][5]).toBe(50); expect(csv[2][5]).toBeNull(); expect(csv[2][9]).toBe('Price')
   })
 })
+
+describe('deleting a deal in the demo mirror', () => {
+  it('removes the deal with its history, activity and to-dos, and keeps one that has a quote', async () => {
+    const { demoSignIn, demoSignOut, demoCreateBusiness } = await import('@/demo/demoStore')
+    const { getIndustry } = await import('@/core/industry-registry')
+    const crm = await import('@/demo/demoCrm')
+    const { demoCreateCustomer, getTrade } = await import('@/demo/demoTrade')
+    demoSignOut(); demoSignIn('owner@demo.test', 'demo1234')
+    const biz = demoCreateBusiness('Deal Co', 'general'); await getIndustry('general').afterCreate?.(biz, {})
+    demoCreateCustomer(biz, 'Ada', '0800'); const customer = getTrade().customers.find((c) => c.businessId === biz)!.id
+    const mk = (title: string) => { expect(crm.demoSaveDeal(biz, { id: null, title, customerId: customer, leadId: null, value: 100, expectedClose: null, ownerId: null, notes: '' })).toBeNull(); return crm.demoDeals(biz).find((d) => d.title === title)!.id }
+    const a = mk('Gone'); const b = mk('Kept')
+    expect(crm.demoAddInteraction(biz, { dealId: a }, 'call', 'Rang them')).toBeNull()
+    expect(crm.demoSaveQuote(biz, { id: null, dealId: b, customerId: customer, leadId: null, validUntil: null, lines: [{ description: 'x', quantity: 1, unitPrice: 100 }], discount: 0, notes: '' })).toBeNull()
+    expect(crm.demoDeleteDeal(biz, a)).toBeNull()
+    expect(crm.demoDeals(biz).some((d) => d.id === a)).toBe(false); expect(crm.demoDealEvents(biz, a)).toEqual([]); expect(crm.getCrm().interactions.some((i) => i.dealId === a)).toBe(false)
+    expect(crm.demoDeleteDeal(biz, b)).toMatch(/has quotes/); expect(crm.demoDeals(biz).some((d) => d.id === b)).toBe(true)
+    expect(crm.demoDeleteDeal(biz, 'nope')).toMatch(/permission denied/)
+  })
+})

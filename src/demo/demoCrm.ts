@@ -244,6 +244,16 @@ export function demoMoveDeal(biz: string, dealId: string, stageId: string, reaso
   })
 }
 
+/** Mirrors crm_delete_deal(): the deal goes with its stage history, activity log and to-dos; a deal with a quote is kept. */
+export function demoDeleteDeal(biz: string, dealId: string): string | null {
+  return guarded(biz, () => {
+    const d = state.deals.find((x) => x.id === dealId && x.businessId === biz)
+    if (!d) throw new Error('permission denied')
+    if (state.quotes.some((q) => q.dealId === dealId)) throw new Error(`"${d.title}" has quotes, so it cannot be deleted. Move it to Lost instead.`)
+    commit({ ...state, deals: state.deals.filter((x) => x.id !== dealId), dealEvents: state.dealEvents.filter((e) => e.dealId !== dealId), interactions: state.interactions.filter((i) => i.dealId !== dealId), tasks: state.tasks.filter((t) => t.dealId !== dealId) })
+  })
+}
+
 export function demoSetNextStep(biz: string, dealId: string, text: string): string | null {
   return guarded(biz, () => {
     if (!state.deals.some((x) => x.id === dealId && x.businessId === biz)) throw new Error('deal not found')
