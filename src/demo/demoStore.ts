@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { IndustryCode, ModuleCode, PlanCode, RoleName } from '@/shared/types/domain'
+import { STANDALONE_APPS } from '@/core/app-catalogue/apps'
 import { PLANS } from '@/core/subscriptions/plans'
 import { registerPlanOf } from '@/demo/demoUsage'
 import { THEMES } from '@/core/theme/themes'
@@ -15,7 +16,8 @@ import { INDUSTRY_TEMPLATES, compatibleModules, defaultModules } from '@/core/mo
 
 export interface DemoUser { id: string; email: string; password: string; name: string; mustChange?: boolean }
 export interface DemoSettings { tax_rate_percent?: number; theme?: string; setup?: Record<string, string | number | boolean> }
-export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean; suspended?: boolean; createdAt?: string }
+export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean; suspended?: boolean; createdAt?: string; startedWithApp?: string | null }
+export interface DemoAppEvent { businessId: string; module: string; action: 'start' | 'on' | 'off'; at: string; by: string | null }
 export interface DemoMember { id: string; businessId: string; userId: string | null; email: string; name: string; role: RoleName; status: 'active' | 'suspended' | 'revoked' | 'invited' }
 
 export interface DemoBusinessModules { plan: PlanCode | null; enabled: ModuleCode[]; disabledHistory: ModuleCode[] }
@@ -26,6 +28,8 @@ interface State {
   users: DemoUser[]
   businesses: DemoBusiness[]
   members: DemoMember[]
+  /** Modules switched on and off, newest last (the database keeps the same history with a trigger). */
+  appEvents?: DemoAppEvent[]
 }
 
 const KEY = 'doa.demo.v2'
@@ -285,12 +289,15 @@ function patchModules(businessId: string, patch: Partial<DemoBusinessModules>) {
   commit({ ...state, modules: { ...state.modules, [businessId]: { ...state.modules[businessId], ...patch } } })
 }
 
+const logModule = (businessId: string, module: string, action: DemoAppEvent['action']) =>
+  commit({ ...state, appEvents: [...(state.appEvents ?? []), { businessId, module, action, at: new Date().toISOString(), by: state.users.find((u) => u.id === state.userId)?.name ?? null }] })
+
 export function demoEnableModule(businessId: string, code: ModuleCode): string | null {
   const b = state.businesses.find((x) => x.id === businessId)
   if (!b || !canManageSettings(businessId)) return 'permission denied'
   if (!compatibleModules(b.industry).includes(code)) return 'module is not compatible with this industry'
   const cur = state.modules[businessId]
-  if (!cur.enabled.includes(code)) patchModules(businessId, { enabled: [...cur.enabled, code] })
+  if (!cur.enabled.includes(code)) { patchModules(businessId, { enabled: [...cur.enabled, code] }); logModule(businessId, code, 'on') }
   return null
 }
 
@@ -301,6 +308,21 @@ export function demoDisableModule(businessId: string, code: ModuleCode): string 
   if (!status || status.isRequired) return 'this module cannot be disabled'
   const cur = state.modules[businessId]
   patchModules(businessId, { enabled: cur.enabled.filter((c) => c !== code), disabledHistory: [...new Set([...cur.disabledHistory, code])] })
+  if (cur.enabled.includes(code)) logModule(businessId, code, 'off')
+  return null
+}
+
+/** Mirrors set_started_with_app(): once, by the owner, on a new Business apps workspace; the setup noise is replaced by one "start" entry per module of the app. */
+export function demoSetStartedWithApp(businessId: string, app: string): string | null {
+  const b = state.businesses.find((x) => x.id === businessId)
+  if (!b || !isOwner(businessId)) return 'permission denied'
+  if (b.industry !== 'general') return 'only a Business apps workspace starts with an app'
+  if (b.startedWithApp) return 'this workspace already has a starting app'
+  if (b.createdAt && Date.now() - new Date(b.createdAt).getTime() > 3600000) return 'the starting app can only be set when the workspace is new'
+  const def = STANDALONE_APPS.find((a) => a.id === app)
+  if (!def) return 'unknown app'
+  const at = new Date().toISOString(); const by = state.users.find((u) => u.id === state.userId)?.name ?? null
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, startedWithApp: app } : x)), appEvents: [...(state.appEvents ?? []).filter((e) => e.businessId !== businessId), ...def.modules.map((module) => ({ businessId, module, action: 'start' as const, at, by }))] })
   return null
 }
 

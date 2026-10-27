@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Card, EmptyState, ErrorState, PageHeader, Spinner } from '@/shared/components'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { naira } from '@/shared/utilities/format'
+import { AdoptionCard } from './PlatformApps'
 import { loadHealth, loadOverview } from './platformApi'
 import { Kpi, StateBadge, daysFrom, day, industryName } from './platformUi'
 
@@ -47,6 +48,8 @@ export function PlatformDashboard() {
           </Card>
         </div>
       </div>
+
+      <div className="mt-4"><AdoptionCard /></div>
 
       {x.trialsEnding.length > 0 && (
         <Card className="mt-4">

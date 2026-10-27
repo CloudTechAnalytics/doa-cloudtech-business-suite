@@ -1,5 +1,8 @@
 import { getIndustry } from '@/core/industry-registry'
 import { disableModule } from '@/core/module-registry/moduleActions'
+import { demoSetStartedWithApp } from '@/demo/demoStore'
+import { isDemoMode } from '@/shared/utilities/env'
+import { supabase } from '@/shared/utilities/supabase'
 import { STANDALONE_APPS } from './apps'
 
 /**
@@ -15,5 +18,7 @@ export async function startWithApp(businessId: string, appId: string): Promise<s
     const err = await disableModule(businessId, code)
     if (err) return `could not start with only ${app.name} (${err})`
   }
-  return null
+  // Remember which app they came for, so the platform team can tell what the workspace began as.
+  const recorded = isDemoMode ? demoSetStartedWithApp(businessId, appId) : (await supabase!.rpc('set_started_with_app', { p_business: businessId, p_app: appId })).error?.message ?? null
+  return recorded ? `started, but could not record the starting app (${recorded})` : null
 }

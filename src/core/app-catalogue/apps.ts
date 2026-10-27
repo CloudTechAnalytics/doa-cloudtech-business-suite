@@ -110,3 +110,8 @@ export const modulesToSwitchOff = (app: StandaloneApp, statuses: ModuleStatus[])
 
 /** An app can be switched off unless a module is required by the business type or another app that is on still needs it. */
 export const canSwitchOff = (app: StandaloneApp, statuses: ModuleStatus[]) => app.modules.every((m) => { const s = statuses.find((x) => x.code === m); return !!s && !s.isCore && !s.isRequired }) && neededBy(app, statuses).length === 0
+
+/** The apps whose modules are all on, in catalogue order. The database twin is _business_apps(); a test keeps the two in step. */
+export const appsOn = (enabledModules: readonly string[]): StandaloneApp['id'][] => STANDALONE_APPS.filter((a) => a.modules.every((m) => enabledModules.includes(m))).map((a) => a.id)
+
+export const appName = (id: string) => STANDALONE_APPS.find((a) => a.id === id)?.name ?? id

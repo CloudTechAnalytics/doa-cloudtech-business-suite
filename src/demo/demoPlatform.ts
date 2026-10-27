@@ -1,4 +1,10 @@
+import { STANDALONE_APPS, appsOn } from '@/core/app-catalogue/apps'
 import { PLANS, PLAN_PRICES } from '@/core/subscriptions/plans'
+import { getCrm } from '@/demo/demoCrm'
+import { getFinance } from '@/demo/demoFinance'
+import { getInv } from '@/demo/demoInventory'
+import { getInvoices } from '@/demo/demoInvoices'
+import { getTrade } from '@/demo/demoTrade'
 import { demoPlatformPatchBusiness, demoPlatformPatchMembers, demoPlatformRemoveBusiness, demoPlatformRemoveUsers, demoPlatformSetPlan, demoPlatformSetSuspended, getDemoState } from '@/demo/demoStore'
 import type { DemoBusiness } from '@/demo/demoStore'
 import type { PlanCode } from '@/shared/types/domain'
@@ -11,7 +17,10 @@ export type PlatformRole = 'owner' | 'engineer' | 'support'
 export type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
 export type BusinessState = 'active' | 'suspended' | 'archived'
 
-export interface PBusinessRow { id: string; name: string; industry: string; status: BusinessState; createdAt: string; ownerName: string | null; ownerEmail: string | null; members: number; planCode: string | null; planName: string | null; subscriptionStatus: SubStatus | null; trialEnd: string | null; periodEnd: string | null }
+export interface PBusinessRow { id: string; name: string; industry: string; status: BusinessState; createdAt: string; ownerName: string | null; ownerEmail: string | null; members: number; planCode: string | null; planName: string | null; subscriptionStatus: SubStatus | null; trialEnd: string | null; periodEnd: string | null; startedWithApp: string | null; apps: string[] }
+export interface PAppActivity { records: number; lastAt: string | null }
+export interface PAppEvent { at: string; module: string; action: 'start' | 'on' | 'off'; by: string | null }
+export interface PAppAdoption { app: string; workspaces: number; started: number; grew: number; active30d: number }
 export interface POverview {
   businesses: number; suspended: number; archived: number; newThisMonth: number; paid: number; trial: number; pastDue: number; mrr: number; users: number; platformTeam: number; activeToday: number | null
   byIndustry: { industry: string; businesses: number }[]; trialsEnding: { id: string; name: string; trialEnd: string }[]; recent: { id: string; name: string; industry: string; createdAt: string; status: BusinessState }[]
@@ -22,6 +31,7 @@ export interface PBusinessDetail {
   subscription: { planCode: string; planName: string; status: SubStatus; trialEnd: string | null; periodEnd: string | null; price: number } | null
   members: { userId: string | null; name: string; email: string; role: string; status: string; joinedAt: string | null }[]
   modules: string[]; activity: { at: string; action: string; entity: string }[]; platformActions: { at: string; action: string; by: string | null; reason: string | null }[]
+  startedWithApp: string | null; apps: string[]; appActivity: Record<string, PAppActivity>; appEvents: PAppEvent[]
 }
 export interface PUserRow { id: string; name: string; email: string; createdAt: string | null; lastSignIn: string | null; platformRole: PlatformRole | null; businesses: { businessId: string; business: string; role: string; status: string }[] }
 export interface PPlan { code: string; name: string; price: number; currency: string; interval: string; maxMembers: number; maxBranches: number; businesses: number }
@@ -96,7 +106,32 @@ export function demoPlatformOverview(): POverview {
 function rowOf(b: DemoBusiness): PBusinessRow {
   const st = getDemoState(); const s = subOf(b); const o = ownerOf(b.id)
   return { id: b.id, name: b.name, industry: b.industry, status: statusOf(b), createdAt: created(b), ownerName: o?.name ?? null, ownerEmail: o?.email ?? null, members: st.members.filter((m) => m.businessId === b.id && m.status === 'active').length,
-    planCode: planOf(b), planName: PLANS[planOf(b)].name, subscriptionStatus: s.status, trialEnd: s.trialEnd, periodEnd: s.periodEnd }
+    planCode: planOf(b), planName: PLANS[planOf(b)].name, subscriptionStatus: s.status, trialEnd: s.trialEnd, periodEnd: s.periodEnd, startedWithApp: b.startedWithApp ?? null, apps: appsOn(getDemoState().modules[b.id]?.enabled ?? []) }
+}
+
+/** How much each app has really been used in a business: records and the time of the latest one (the database twin is _app_activity()). */
+function activityOf(id: string): Record<string, PAppActivity> {
+  const t = getTrade(); const crm = getCrm(); const inv = getInvoices(); const fin = getFinance(); const stock = getInv()
+  const sum = (rows: { at: string | undefined }[]): PAppActivity => ({ records: rows.length, lastAt: rows.map((r) => r.at).filter((x): x is string => !!x).sort().at(-1) ?? null })
+  const mine = <T extends { businessId: string }>(xs: T[]) => xs.filter((x) => x.businessId === id)
+  return {
+    crm: sum([...mine(t.customers).map((c) => ({ at: c.createdAt })), ...mine(crm.leads).map((l) => ({ at: l.createdAt })), ...mine(crm.deals).map((d) => ({ at: d.createdAt })), ...mine(crm.quotes).map((q) => ({ at: q.createdAt }))]),
+    pos: sum(mine(t.sales).map((s) => ({ at: s.soldAt }))), inventory: sum(mine(stock.movements).map((m) => ({ at: m.at }))),
+    invoices: sum(mine(inv.invoices).map((i) => ({ at: i.createdAt }))), expenses: sum(mine(fin.expenses).map((e) => ({ at: e.createdAt ?? `${e.date}T00:00:00.000Z` }))),
+    finance: { records: 0, lastAt: null },
+  }
+}
+
+/** Per app, across Business apps workspaces: using it now, started with it, started with it and later added another, used in the last 30 days. */
+export function demoPlatformAppAdoption(): PAppAdoption[] {
+  need('read')
+  const ws = getDemoState().businesses.filter((b) => b.industry === 'general' && !b.archived).map((b) => ({ b, apps: appsOn(getDemoState().modules[b.id]?.enabled ?? []), act: activityOf(b.id) }))
+  const cutoff = new Date(Date.now() - 30 * DAY).toISOString()
+  return STANDALONE_APPS.map((a) => ({
+    app: a.id, workspaces: ws.filter((w) => w.apps.includes(a.id)).length, started: ws.filter((w) => w.b.startedWithApp === a.id).length,
+    grew: ws.filter((w) => w.b.startedWithApp === a.id && w.apps.length > 1).length,
+    active30d: ws.filter((w) => w.apps.includes(a.id) && (w.act[a.id].lastAt ?? '') >= cutoff).length,
+  }))
 }
 export function demoPlatformBusinesses(search = ''): PBusinessRow[] {
   need('read'); const q = search.trim().toLowerCase()
@@ -112,6 +147,9 @@ export function demoPlatformBusiness(id: string): PBusinessDetail {
     members: st.members.filter((m) => m.businessId === id).map((m) => ({ userId: m.userId, name: m.name, email: m.email, role: m.role, status: m.status, joinedAt: null })),
     modules: [...(st.modules[id]?.enabled ?? [])].sort(), activity: [],
     platformActions: state.audit.filter((a) => a.businessId === id).slice(0, 20).map((a) => ({ at: a.at, action: a.action, by: a.by, reason: a.reason })),
+    startedWithApp: b.startedWithApp ?? null, apps: appsOn(st.modules[id]?.enabled ?? []), appActivity: activityOf(id),
+    // The first minute of setup is noise, except the "start" entries that say which app it began with.
+    appEvents: (st.appEvents ?? []).filter((e) => e.businessId === id && (e.action === 'start' || new Date(e.at).getTime() > new Date(created(b)).getTime() + 60000)).reverse().sort((x, y) => y.at.localeCompare(x.at)).slice(0, 60).map((e) => ({ at: e.at, module: e.module, action: e.action, by: e.by })),
   }
 }
 export function demoPlatformUsers(search = ''): PUserRow[] {

@@ -1,11 +1,11 @@
 import * as pl from '@/demo/demoPlatform'
-import type { PAdmin, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus } from '@/demo/demoPlatform'
+import type { PAdmin, PAppAdoption, PAppActivity, PAppEvent, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus } from '@/demo/demoPlatform'
 import { env, isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import type { PlanCode } from '@/shared/types/domain'
 
 /** Platform console data access. Live mode calls database functions that check the platform team table; demo mode runs the browser mirror. */
-export type { PAdmin, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus }
+export type { PAdmin, PAppAdoption, PAppActivity, PAppEvent, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus }
 export type { BusinessState } from '@/demo/demoPlatform'
 
 type Row = Record<string, unknown>
@@ -40,7 +40,13 @@ export async function loadBusinesses(search = ''): Promise<PBusinessRow[]> {
   return (await rpc<Row[]>('platform_businesses', { p_search: search.trim() || null })).map((r) => ({
     id: String(r.id), name: String(r.name), industry: String(r.industry), status: r.status as PBusinessRow['status'], createdAt: String(r.created_at), ownerName: s(r.owner_name), ownerEmail: s(r.owner_email), members: n(r.members),
     planCode: s(r.plan_code), planName: s(r.plan_name), subscriptionStatus: s(r.subscription_status) as SubStatus | null, trialEnd: s(r.trial_end), periodEnd: s(r.current_period_end),
+    startedWithApp: s(r.started_with_app), apps: ((r.apps as string[] | null) ?? []),
   }))
+}
+
+export async function loadAppAdoption(): Promise<PAppAdoption[]> {
+  if (isDemoMode) return pl.demoPlatformAppAdoption()
+  return (await rpc<Row[]>('platform_app_adoption')).map((r) => ({ app: String(r.app), workspaces: n(r.workspaces), started: n(r.started), grew: n(r.grew), active30d: n(r.active_30d) }))
 }
 export async function loadBusiness(id: string): Promise<PBusinessDetail> {
   if (isDemoMode) return pl.demoPlatformBusiness(id)
@@ -53,6 +59,9 @@ export async function loadBusiness(id: string): Promise<PBusinessDetail> {
     members: ((x.members as Row[]) ?? []).map((m) => ({ userId: s(m.user_id), name: String(m.name ?? ''), email: String(m.email ?? ''), role: String(m.role), status: String(m.status), joinedAt: s(m.joined_at) })),
     modules: ((x.modules as string[]) ?? []), activity: ((x.activity as Row[]) ?? []).map((a) => ({ at: String(a.at), action: String(a.action), entity: String(a.entity) })),
     platformActions: ((x.platform_actions as Row[]) ?? []).map((a) => ({ at: String(a.at), action: String(a.action), by: s(a.by), reason: s(a.reason) })),
+    startedWithApp: s(x.started_with_app), apps: ((x.apps as string[] | null) ?? []),
+    appActivity: Object.fromEntries(Object.entries((x.app_activity as Record<string, Row> | null) ?? {}).map(([k, v]) => [k, { records: n(v.records), lastAt: s(v.last_at) }])),
+    appEvents: ((x.app_events as Row[]) ?? []).map((e) => ({ at: String(e.at), module: String(e.module), action: e.action as PAppEvent['action'], by: s(e.by) })),
   }
 }
 export async function loadUsers(search = ''): Promise<PUserRow[]> {

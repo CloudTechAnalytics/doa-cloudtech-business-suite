@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import { Link } from 'react-router-dom'
+import { appName } from '@/core/app-catalogue/apps'
 import { INDUSTRIES } from '@/core/industry-registry'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { Badge, Card } from '@/shared/components'
@@ -19,7 +20,14 @@ export function usePlatformRole() {
   return useAsync(() => (userId ? platformRole() : Promise.resolve(null)), [userId])
 }
 
-export const industryName = (code: string) => (code in INDUSTRIES ? INDUSTRIES[code as keyof typeof INDUSTRIES].name : label(code))
+/** A Business apps workspace has no industry, so it is shown as what it is: an apps workspace (its apps are listed beside it). */
+export const industryName = (code: string) => (code === 'general' ? 'Apps workspace' : code in INDUSTRIES ? INDUSTRIES[code as keyof typeof INDUSTRIES].name : label(code))
+
+/** The apps a workspace has on, as small chips. The app it started with is marked. */
+export function AppChips({ apps, startedWith }: { apps: string[]; startedWith?: string | null }) {
+  if (!apps.length) return <span className="text-xs text-ink/60">No apps on</span>
+  return <span className="flex flex-wrap gap-1">{apps.map((a) => <Badge key={a} tone={a === startedWith ? 'info' : 'neutral'}>{appName(a).replace('DOA ', '')}{a === startedWith ? ' (started)' : ''}</Badge>)}</span>
+}
 export const day = (iso: string | null | undefined) => (iso ? String(iso).slice(0, 10) : '–')
 export const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' }) : '–')
 export const daysFrom = (iso: string | null | undefined) => (iso ? Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000) : null)

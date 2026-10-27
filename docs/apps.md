@@ -64,6 +64,18 @@ Limits are plan data (`subscription_plans.limits`), not code. The keys are `cust
 - **Told in advance**: `my_usage()` returns used and allowed for each limit. The App Library shows a Plan usage panel, and the Invoices, CRM, Sales and Expenses pages show a notice from 80% of a limit, and again when it is full, with a link to the plans.
 - Products are not limited, because industries create products themselves (a bakery's finished goods, for example).
 
+## One workspace, visible to the platform
+
+Apps are **not** split into separate workspaces. Customers, invoice payments and Finance share data inside one workspace, and sharing across workspaces would break tenant isolation; a person who adds Invoices to a CRM workspace should not re-enter their customers. Instead the Platform console shows what a workspace really is:
+
+- **The starting app** is recorded once (`businesses.started_with_app`), so a workspace that began as CRM is still known as a CRM sign-up after it grows.
+- **The apps on now** are shown as chips in the workspace list (with an *App in use* filter) and on the workspace page. A Business apps workspace is labelled "Apps workspace", not an industry.
+- **Use, not just on/off**: per app, the number of records and the time of the latest one. An app that is on but has no records shows "Not used yet".
+- **A history of switching apps on and off**, with who did it, written by a database trigger (`business_module_events`). The workspace setup noise (every default switched on, then most off) is replaced by one "start" entry for the chosen app.
+- **Adoption** on the console home: per app, workspaces using it now, started with it, *grew* (started with it and later added another app, the upgrade signal) and active in the last 30 days. It counts Business apps workspaces only, because industry businesses switch several shared apps on by default.
+
+Because each app's on and off dates are recorded per workspace, pricing per app later does not need a different workspace model.
+
 ## Not built yet
 
 These were asked for and are **not** done; none is claimed anywhere in the product:

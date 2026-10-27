@@ -12,7 +12,9 @@ import { label, naira } from '@/shared/utilities/format'
 import type { PlanCode } from '@/shared/types/domain'
 import { archiveBusiness, loadBusiness, loadBusinesses, purgeBusiness, setBusinessStatus, setSubscription, transferOwnership, updateBusiness } from './platformApi'
 import type { BusinessState, SubStatus } from './platformApi'
-import { StateBadge, SUB_LABEL, SubBadge, day, daysFrom, industryName, usePlatform, when } from './platformUi'
+import { STANDALONE_APPS } from '@/core/app-catalogue/apps'
+import { AppsCard } from './PlatformApps'
+import { AppChips, StateBadge, SUB_LABEL, SubBadge, day, daysFrom, industryName, usePlatform, when } from './platformUi'
 
 export type Action = 'plan' | 'extend' | 'suspend' | 'reactivate' | 'paid' | 'cancel' | 'edit' | 'transfer' | 'delete' | 'purge'
 /** What the action dialog needs to know about a business; the table and the detail page both supply it. */
@@ -47,17 +49,18 @@ export function BusinessMenu({ b, onAction }: { b: Target; onAction: (a: Action)
 /** A table of businesses with the actions menu on every row. */
 export function BusinessTable() {
   const [params] = useSearchParams()
-  const [q, setQ] = useState(params.get('q') ?? ''); const [state, setState] = useState(''); const [sub, setSub] = useState(''); const [industry, setIndustry] = useState('')
+  const [q, setQ] = useState(params.get('q') ?? ''); const [state, setState] = useState(''); const [sub, setSub] = useState(''); const [industry, setIndustry] = useState(''); const [app, setApp] = useState('')
   const list = useAsync(() => loadBusinesses(q), [q])
   const navigate = useNavigate()
   const [acting, setActing] = useState<{ b: Target; action: Action } | null>(null)
-  const rows = (list.data ?? []).filter((b) => (!state || b.status === state) && (!sub || b.subscriptionStatus === sub) && (!industry || b.industry === industry))
+  const rows = (list.data ?? []).filter((b) => (!state || b.status === state) && (!sub || b.subscriptionStatus === sub) && (!industry || b.industry === industry) && (!app || (b.industry === 'general' && b.apps.includes(app))))
   const industries = [...new Set((list.data ?? []).map((b) => b.industry))]
   return (
     <>
       <div className="my-4 flex flex-wrap items-end gap-3">
         <div className="w-72"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Business, owner name or email" /></div>
         <div className="w-40"><SelectField label="Kind" value={industry} onChange={(e) => setIndustry(e.target.value)}><option value="">All kinds</option>{industries.map((i) => <option key={i} value={i}>{industryName(i)}</option>)}</SelectField></div>
+        <div className="w-44"><SelectField label="App in use" value={app} onChange={(e) => setApp(e.target.value)}><option value="">Any app</option>{STANDALONE_APPS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</SelectField></div>
         <div className="w-40"><SelectField label="Subscription" value={sub} onChange={(e) => setSub(e.target.value)}><option value="">All</option>{(Object.keys(SUB_LABEL) as SubStatus[]).map((s) => <option key={s} value={s}>{SUB_LABEL[s]}</option>)}</SelectField></div>
         <div className="w-40"><SelectField label="Business" value={state} onChange={(e) => setState(e.target.value)}><option value="">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="archived">Deleted</option></SelectField></div>
         <p className="pb-2 text-sm text-ink/60">{rows.length} shown</p>
@@ -70,7 +73,7 @@ export function BusinessTable() {
             <tbody className="divide-y divide-ink/10">
               {rows.map((b) => (
                 <tr key={b.id} onClick={() => navigate(`/platform/businesses/${b.id}`)} className="cursor-pointer hover:bg-surface">
-                  <td className="p-3 font-medium"><Link to={`/platform/businesses/${b.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{b.name}</Link><div className="text-xs font-normal text-ink/60">{industryName(b.industry)}</div></td>
+                  <td className="p-3 font-medium"><Link to={`/platform/businesses/${b.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{b.name}</Link><div className="text-xs font-normal text-ink/60">{b.industry === 'general' ? <AppChips apps={b.apps} startedWith={b.startedWithApp} /> : industryName(b.industry)}</div></td>
                   <td className="p-3">{b.ownerName ?? '–'}<div className="text-xs text-ink/60">{b.ownerEmail}</div></td>
                   <td className="p-3">{b.planName ?? '–'}</td><td className="p-3"><SubBadge status={b.subscriptionStatus} /></td>
                   <td className="tabular p-3 text-right">{b.members}</td><td className="p-3"><StateBadge status={b.status} /></td><td className="p-3">{day(b.createdAt)}</td>
@@ -131,13 +134,15 @@ export function PlatformBusinessPage() {
           <tbody className="divide-y divide-ink/10">{b.members.map((m, i) => <tr key={i}><td className="p-3 font-medium">{m.name || '–'}</td><td className="p-3">{m.email}</td><td className="p-3">{label(m.role)}</td><td className="p-3"><Badge tone={m.status === 'active' ? 'success' : m.status === 'invited' ? 'info' : 'neutral'}>{label(m.status)}</Badge></td></tr>)}</tbody></table>
       </Card>
 
+      {b.industry === 'general' && <AppsCard b={b} />}
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <div className="mb-2 flex items-center justify-between"><h2 className="font-semibold">Changes made from this console</h2><Link to={`/platform/audit?business=${b.id}`} className="text-sm font-semibold underline">Open audit log</Link></div>
           {b.platformActions.length ? <ul className="divide-y divide-ink/10 text-sm">{b.platformActions.map((a, i) => <li key={i} className="py-2"><b>{label(a.action.replace(/[._]/g, ' '))}</b> <span className="text-ink/60">by {a.by ?? 'unknown'} · {when(a.at)}</span>{a.reason && <div className="text-ink/80">&ldquo;{a.reason}&rdquo;</div>}</li>)}</ul> : <p className="text-sm text-ink/60">None yet.</p>}
         </Card>
         <Card>
-          <h2 className="mb-2 font-semibold">Apps switched on ({b.modules.length})</h2>
+          <h2 className="mb-2 font-semibold">Modules switched on ({b.modules.length})</h2>
           {b.modules.length ? <p className="flex flex-wrap gap-1.5 text-xs">{b.modules.map((m) => <Badge key={m}>{m}</Badge>)}</p> : <p className="text-sm text-ink/60">None.</p>}
           {b.activity.length > 0 && <><h2 className="mb-2 mt-4 font-semibold">Recent activity inside the business</h2><ul className="divide-y divide-ink/10 text-sm">{b.activity.slice(0, 8).map((a, i) => <li key={i} className="flex justify-between py-1.5"><span>{a.action}</span><span className="text-xs text-ink/60">{when(a.at)}</span></li>)}</ul></>}
         </Card>
