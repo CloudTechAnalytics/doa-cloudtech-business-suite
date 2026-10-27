@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, LayoutGrid, LogOut, Settings, ShieldCheck, Trash2, UserCircle } from 'lucide-react'
+import { ArrowRight, ChevronDown, LayoutGrid, LogOut, Plus, Search, Settings, ShieldCheck, Trash2, UserCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
@@ -10,15 +10,13 @@ import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { getIndustry } from '@/core/industry-registry'
 import { archiveBusiness } from '@/core/businesses/businessActions'
 import { usePlatformRole } from '@/core/platform-admin/platformUi'
-import { ViewMenu } from '@/shared/view/ViewMenu'
-import { useViewPrefs } from '@/shared/view/viewPrefs'
+import { useProfile } from '@/core/auth/useProfile'
+import { arrange, firstName, greeting, needsSearch, roleLine } from './chooser'
 import type { BusinessSummary } from '@/core/business-context/BusinessProvider'
-import { Badge, Button, ErrorState, Spinner } from '@/shared/components'
+import { Button, ErrorState, Spinner } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
 import { AccessSuspended } from '@/app/layouts/AccessSuspended'
 import { Menu } from '@/shared/components/menu'
-
-const roleLabel = (role: string) => role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
 
 /** Owner-only: deleting archives the business (its records are kept), after typing its exact name. */
 function DeleteDialog({ business, onClose, onDeleted }: { business: BusinessSummary; onClose: () => void; onDeleted: () => void }) {
@@ -60,10 +58,11 @@ function DeleteDialog({ business, onClose, onDeleted }: { business: BusinessSumm
 export function BusinessesPage() {
   const navigate = useNavigate()
   const { email, signOut } = useAuth()
-  const { businesses, blocked, loading, error, select, refresh } = useBusiness()
+  const { businesses, active, blocked, loading, error, select, refresh } = useBusiness()
   const [deleting, setDeleting] = useState<BusinessSummary | null>(null)
+  const [query, setQuery] = useState('')
   const platform = usePlatformRole()
-  const view = useViewPrefs()
+  const profile = useProfile()
 
   if (loading || platform.loading) return <Spinner />
   // Someone whose only access was suspended is told so, rather than being offered a new business.
@@ -72,6 +71,7 @@ export function BusinessesPage() {
   if (!businesses.length && !error) return <Navigate to={platform.data ? '/platform' : '/start'} replace />
 
   const open = (id: string) => { select(id); navigate('/app') }
+  const shown = arrange(businesses, active?.id ?? null, (b) => getIndustry(b.industry).name, query)
 
   return (
     <div className="min-h-dvh bg-white">
@@ -96,53 +96,66 @@ export function BusinessesPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-8 sm:px-6">
-        <h1 className="text-3xl font-bold text-ink sm:text-4xl">Your businesses</h1>
-        <Link to="/start" className="inline-flex h-10 items-center rounded-md bg-amber px-5 text-sm font-bold text-ink hover:bg-amber-dark">Create</Link>
-        <div className="ml-auto"><ViewMenu detail={false} /></div>
-      </div>
+      <section className="border-b border-line/70 bg-gradient-to-br from-[#eef6fb] via-white to-[#fff6e5]">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4 px-4 py-9 sm:px-6 sm:py-12">
+          <div>
+            <p className="text-sm font-semibold text-ink/55">{greeting(new Date().getHours())}{firstName(profile.name) ? `, ${firstName(profile.name)}` : ''}</p>
+            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Which business today?</h1>
+            <p className="mt-2 text-sm text-ink/65">{businesses.length === 1 ? 'You have one business.' : `You have ${businesses.length} businesses.`} Open one to get to work, or start another: each has its own team, records and plan.</p>
+          </div>
+          <Link to="/start" className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-sm font-bold text-white shadow-card hover:bg-ink/90"><Plus className="size-4" aria-hidden /> New business</Link>
+        </div>
+      </section>
 
-      {error && <div className="mx-auto max-w-5xl px-4 sm:px-6"><ErrorState title="Could not load your businesses" message={error} /></div>}
+      {error && <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6"><ErrorState title="Could not load your businesses" message={error} /></div>}
 
-      <ul className={view.list === 'grid' ? 'mx-auto grid max-w-5xl gap-4 px-4 pb-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-3' : 'border-y border-line bg-surface'}>
-        {businesses.map((b) => {
-          const d = getIndustry(b.industry)
-          const grid = view.list === 'grid'
-          const icon = <span className={`grid shrink-0 place-items-center rounded-lg text-white ${grid ? 'size-12' : 'size-11'}`} style={{ background: industryColor(b.industry) }}><d.icon className="size-5" aria-hidden /></span>
-          const text = (
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-lg font-bold text-ink/80">{b.name}</p>
-              <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-ink/60">{d.name}{b.role && <Badge>{roleLabel(b.role)}</Badge>}</p>
-            </div>
-          )
-          const options = b.isOwner && (
-            <Menu
-              label={`${b.name} options`}
-              trigger={({ toggle }) => (
-                <button type="button" onClick={toggle} aria-haspopup="menu" aria-label={`${b.name} options`} className="grid size-9 place-items-center rounded-md text-ink/50 hover:bg-white hover:text-ink">
-                  <Settings className="size-5" aria-hidden />
-                </button>
-              )}
-              items={[{ label: 'Delete business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setDeleting(b) }]}
-            />
-          )
-          const connect = (
-            <button type="button" onClick={() => open(b.id)} aria-label={`Connect to ${b.name}`} className={`inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-md bg-amber px-5 text-base font-bold text-ink hover:bg-amber-dark ${grid ? 'w-full' : ''}`}>
-              Connect <ChevronRight className="size-5" aria-hidden />
-            </button>
-          )
-          return grid ? (
-            <li key={b.id} className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-raised">
-              <div className="flex items-start gap-3">{icon}{text}{options}</div>
-              {connect}
+      <main className="mx-auto max-w-5xl px-4 pb-14 pt-8 sm:px-6">
+        {needsSearch(businesses.length) && (
+          <label className="relative mb-5 block max-w-sm">
+            <span className="sr-only">Find a business</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink/50" aria-hidden />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a business" className="h-10 w-full rounded-full border border-line bg-white pl-9 pr-3 text-sm" />
+          </label>
+        )}
+        {shown.length === 0 && <p className="py-10 text-center text-ink/60">No business matches &ldquo;{query}&rdquo;.</p>}
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {shown.map((b) => {
+            const d = getIndustry(b.industry); const color = industryColor(b.industry)
+            return (
+              <li key={b.id} className="group relative overflow-hidden rounded-2xl border border-line bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-raised">
+                <div className="flex items-start justify-between gap-3 px-5 pb-10 pt-5 text-white" style={{ background: `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 55%, white))` }}>
+                  <span className="grid size-11 place-items-center rounded-xl bg-white/20 ring-1 ring-white/40"><d.icon className="size-6" aria-hidden /></span>
+                  <div className="flex items-center gap-1">
+                    {b.id === active?.id && <span className="rounded-full bg-white/25 px-2.5 py-0.5 text-[11px] font-semibold">Last opened</span>}
+                    {b.isOwner && (
+                      <Menu
+                        label={`${b.name} options`}
+                        trigger={({ toggle }) => <button type="button" onClick={toggle} aria-haspopup="menu" aria-label={`${b.name} options`} className="grid size-8 place-items-center rounded-full text-white/85 hover:bg-white/20"><Settings className="size-[18px]" aria-hidden /></button>}
+                        items={[{ label: 'Delete business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setDeleting(b) }]}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="-mt-5 rounded-t-2xl bg-white px-5 pb-5 pt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color }}>{d.name}</p>
+                  <h2 className="mt-0.5 truncate text-xl font-bold text-ink">{b.name}</h2>
+                  <p className="mt-1 text-sm text-ink/60">{roleLine(b)}</p>
+                  <button type="button" onClick={() => open(b.id)} aria-label={`Open ${b.name}`} className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber text-sm font-bold text-ink hover:bg-amber-dark">Open <ArrowRight className="size-4 transition group-hover:translate-x-0.5" aria-hidden /></button>
+                </div>
+              </li>
+            )
+          })}
+          {!query.trim() && (
+            <li>
+              <Link to="/start" className="flex h-full min-h-56 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-surface/50 p-6 text-center text-ink/70 transition hover:border-ink/30 hover:bg-surface">
+                <span className="grid size-11 place-items-center rounded-full bg-white shadow-card"><Plus className="size-5" aria-hidden /></span>
+                <span className="font-semibold text-ink">Start another business</span>
+                <span className="text-xs">A shop, farm, bakery, pharmacy, school, or just the apps you need.</span>
+              </Link>
             </li>
-          ) : (
-            <li key={b.id} className="border-b border-line last:border-b-0">
-              <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-4 sm:px-6">{icon}{text}{options}{connect}</div>
-            </li>
-          )
-        })}
-      </ul>
+          )}
+        </ul>
+      </main>
       {deleting && <DeleteDialog business={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setDeleting(null); void refresh() }} />}
     </div>
   )
