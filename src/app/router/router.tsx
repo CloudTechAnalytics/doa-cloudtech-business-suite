@@ -10,6 +10,8 @@ import { ContactPage, PrivacyPage, TermsPage } from '@/app/landing/LegalPages'
 import { LandingPage } from '@/app/landing/LandingPage'
 import { PricingPage } from '@/app/landing/PricingPage'
 import { SignInPage, SignUpPage } from '@/core/auth/AuthPages'
+import { useAuth } from '@/core/auth/AuthProvider'
+import { entryDone, firstEntry, homeRedirect, isReturning } from '@/core/auth/returning'
 import { ProfilePage } from '@/core/auth/ProfilePage'
 import { EmailConfirmedPage, ForgotPasswordPage, ResetPasswordPage, SetPasswordPage } from '@/core/auth/ResetPages'
 import { RequireAuth } from '@/core/auth/AuthProvider'
@@ -47,13 +49,22 @@ function ScrollToTop() {
   return null
 }
 
+/** The website's front page. Someone who has signed in here before, opening the address fresh, goes straight on (to their businesses if still signed in, else to sign-in). */
+function Home() {
+  const { userId, loading } = useAuth()
+  useEffect(() => { if (!loading) entryDone() }, [loading])
+  if (loading) return <Spinner />
+  const to = homeRedirect(!!userId, firstEntry(), isReturning())
+  return to ? <Navigate to={to} replace /> : <LandingPage />
+}
+
 export function AppRoutes() {
   return (
     <>
     <SitePalette />
     <ScrollToTop />
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<Home />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/apps" element={<AppsPage />} />
       <Route path="/help" element={<HelpPage />} />

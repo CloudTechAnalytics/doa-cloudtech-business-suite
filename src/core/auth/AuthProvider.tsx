@@ -5,6 +5,7 @@ import { demoSignOut, useDemoState } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { Spinner } from '@/shared/components'
+import { markReturning, markSignedOut } from './returning'
 
 interface AuthState {
   userId: string | null
@@ -49,9 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: demo.users.find((u) => u.id === demo.userId)?.email ?? null,
         loading: false,
         mustChange: demo.users.find((u) => u.id === demo.userId)?.mustChange === true,
-        signOut: demoSignOut,
+        signOut: () => { markSignedOut(); demoSignOut() },
       }
-    : { ...real, signOut: () => void supabase?.auth.signOut() }
+    : { ...real, signOut: () => { markSignedOut(); void supabase?.auth.signOut() } }
+  const signedInId = value.userId
+  useEffect(() => { if (signedInId) markReturning() }, [signedInId])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

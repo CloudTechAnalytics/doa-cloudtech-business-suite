@@ -10,6 +10,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Button, ErrorState } from '@/shared/components'
 import { BrandLockup } from '@/app/layouts/Brand'
 import { useAuth } from '@/core/auth/AuthProvider'
+import { takeSignedOut } from '@/core/auth/returning'
 import { CheckEmail } from './CheckEmail'
 import { suggestEmail } from './emailHelp'
 
@@ -169,8 +170,10 @@ function AuthForm({ mode }: { mode: Mode }) {
 export function SignInPage() {
   const { userId, email } = useAuth()
   const app = useAppFromLink()
+  const [signedOut] = useState(takeSignedOut)
   return (
     <AuthLayout title={app ? `Sign in to ${app.name}` : 'Sign in'}>
+      {signedOut && !userId && <p role="status" className="mb-4 rounded-lg border border-line bg-surface p-3 text-center text-sm text-ink/80">You have been signed out.</p>}
       {userId && (
         <div className="mb-4 rounded-lg border border-line bg-surface p-3 text-sm">
           <p>You are already signed in{email ? <> as <b>{email}</b></> : null}.</p>
