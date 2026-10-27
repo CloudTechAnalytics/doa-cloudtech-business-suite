@@ -71,6 +71,10 @@ export function InvoicesPage() {
   const [open, setOpen] = useState<InvoiceRow | 'new' | { copyOf: InvoiceRow } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [params, setParams] = useSearchParams()
+  // ?open=<id> (from the search box) opens that invoice once the list has loaded.
+  const [dismissed, setDismissed] = useState(false)
+  const wanted = params.get('open')
+  const shownOpen = open ?? (!dismissed && wanted ? (list.data ?? []).find((i) => i.id === wanted) ?? null : null)
   const tab = TABS.find(([k, l]) => k === (params.get('tab') ?? '').toLowerCase() || l.toLowerCase() === (params.get('tab') ?? '').toLowerCase())?.[0] ?? 'invoices'
   if (!active) return null
   const manage = perms.can('invoices.manage')
@@ -119,7 +123,7 @@ export function InvoicesPage() {
         </ul>
       )}
       </>}
-      {open && <InvoiceDialog businessId={businessId} businessName={active.name} invoice={open === 'new' || 'copyOf' in open ? null : open} seed={typeof open === 'object' && 'copyOf' in open ? open.copyOf : undefined} manage={manage} onClose={() => setOpen(null)} onChanged={refresh} onCopy={(i) => setOpen({ copyOf: i })} />}
+      {shownOpen && <InvoiceDialog businessId={businessId} businessName={active.name} invoice={shownOpen === 'new' || 'copyOf' in shownOpen ? null : shownOpen} seed={typeof shownOpen === 'object' && 'copyOf' in shownOpen ? shownOpen.copyOf : undefined} manage={manage} onClose={() => { setOpen(null); setDismissed(true) }} onChanged={refresh} onCopy={(i) => setOpen({ copyOf: i })} />}
     </>
   )
 }

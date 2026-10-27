@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, Check, ChevronDown, LayoutGrid, Menu as MenuIcon, Plus, ShieldCheck, X } from 'lucide-react'
-import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ACCOUNT_MODULES, appPath, buildApps, buildQuickActions, findCurrentApp } from '@/app/navigation/navigation'
+import { breadcrumb, pageIndex } from '@/app/navigation/crumbs'
+import { GlobalSearch } from './GlobalSearch'
 import type { ModuleDefinition } from '@/shared/types/domain'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { useModules } from '@/core/module-registry/ModulesProvider'
@@ -134,6 +136,7 @@ export function AppShell() {
   const current = findCurrentApp(apps, location.pathname)
   const isHome = location.pathname.replace(/\/$/, '') === '/app'
   const quick = buildQuickActions(active.industry, usable).map((a) => ({ label: a.label, to: a.to }))
+  const trail = breadcrumb(apps, location.pathname, location.search)
 
   return (
     <div className="min-h-dvh bg-surface" style={{ ['--side-w' as string]: isHome ? '0px' : collapsed ? '4rem' : '15rem' }}>
@@ -143,14 +146,27 @@ export function AppShell() {
           <button className="underline" onClick={() => { demoReset(); resetDemoInventory(); resetDemoTrade(); resetDemoCrm(); resetDemoFarm(); resetDemoMart(); resetDemoBakery(); resetDemoPharmacy(); resetDemoSchool() }}>Reset demo data</button>
         </div>
       )}
-      <header className={`no-print sticky top-0 z-40 h-12 border-b-2 border-b-amber bg-gradient-to-r from-white via-[#f7fafd] to-white text-ink shadow-[0_6px_18px_-14px_rgb(11_42_74/0.35)]`}>
+      <header className={`no-print sticky top-0 z-40 h-12 border-b border-b-line bg-gradient-to-r from-white via-[#f7fafd] to-white text-ink shadow-[0_6px_18px_-14px_rgb(11_42_74/0.35)]`}>
         <div className="flex h-full items-center gap-1 px-2 sm:px-3">
           {!isHome && (
             <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface lg:hidden"><MenuIcon className="size-5" aria-hidden /></button>
           )}
           <NavLink to="/app" end aria-label="Apps home" className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-surface"><LayoutGrid className="size-5" aria-hidden /></NavLink>
-          <span className="truncate px-2 text-[15px] font-semibold max-[380px]:hidden">{current?.label ?? 'DOA'}</span>
-          <div className="ml-auto flex items-center gap-2">
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center px-2 text-[15px] max-[380px]:hidden">
+            <ol className="flex min-w-0 items-center gap-1.5">
+              {trail.map((c, i) => {
+                const last = i === trail.length - 1
+                return (
+                  <li key={`${c.label}-${i}`} className={`flex min-w-0 items-center gap-1.5 ${last ? '' : 'max-md:hidden'}`}>
+                    {i > 0 && <span aria-hidden className="text-ink/30 max-md:hidden">/</span>}
+                    {c.to ? <Link to={c.to} className="truncate text-ink/60 hover:text-ink hover:underline">{c.label}</Link> : <span aria-current={last ? 'page' : undefined} className={`truncate ${last ? 'font-semibold' : 'text-ink/60'}`}>{c.label}</span>}
+                  </li>
+                )
+              })}
+            </ol>
+          </nav>
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <GlobalSearch businessId={active.id} industry={active.industry} usable={usable} pages={pageIndex(apps, quick)} />
             {/* On a phone the bar keeps only what is used all the time; refresh and the list style are for bigger screens (a phone pulls down to refresh, and always shows cards). */}
             <div className="hidden sm:contents"><RefreshButton onRefresh={() => { setRefreshKey((k) => k + 1); return attention.refresh() }} /></div>
             <AttentionBell items={attention.items} loading={attention.loading} />

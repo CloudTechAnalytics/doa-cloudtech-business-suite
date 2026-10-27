@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/core/auth/AuthProvider'
 import { Badge, Button, Card, EmptyState, ErrorState, SelectField, Spinner, TextField } from '@/shared/components'
 import { useAsync } from '@/shared/hooks/useAsync'
@@ -31,6 +32,11 @@ export function DealsList({ businessId, can }: { businessId: string; can: (p: st
   const team = useAsync(() => listTeam(businessId), [businessId])
   const [q, setQ] = useState(''); const [status, setStatus] = useState<'open' | 'won' | 'lost' | 'all'>('open'); const [stage, setStage] = useState(''); const [owner, setOwner] = useState('all'); const [sort, setSort] = useState<Sort>('newest')
   const [editing, setEditing] = useState<DealRow | 'new' | null>(null)
+  // ?open=<id> (from the search box) opens that deal once the list has loaded.
+  const wanted = useSearchParams()[0].get('open')
+  const [dismissed, setDismissed] = useState(false)
+  const shown = editing ?? (!dismissed && wanted ? (deals.data ?? []).find((d) => d.id === wanted) ?? null : null)
+  const closeDeal = () => { setEditing(null); setDismissed(true) }
   const [losing, setLosing] = useState<{ deal: DealRow; stage: StageRow } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const manage = can('customers.manage')
@@ -93,7 +99,7 @@ export function DealsList({ businessId, can }: { businessId: string; can: (p: st
           </table>
         </Card>
       )}
-      {editing && <DealDialog businessId={businessId} deal={editing === 'new' ? null : editing} manage={manage} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await refresh() }} />}
+      {shown && <DealDialog businessId={businessId} deal={shown === 'new' ? null : shown} manage={manage} onClose={closeDeal} onSaved={async () => { closeDeal(); await refresh() }} />}
       {losing && <LostDialog businessId={businessId} deal={losing.deal} stage={losing.stage} onClose={() => setLosing(null)} onDone={async () => { setLosing(null); await refresh() }} />}
     </>
   )

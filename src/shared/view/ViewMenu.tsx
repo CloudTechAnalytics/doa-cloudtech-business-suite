@@ -22,8 +22,9 @@ export function ViewMenu({ detail = true }: { detail?: boolean }) {
     <Menu
       label="View options"
       trigger={({ toggle }) => (
-        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="View options" title="View options" className="grid size-9 place-items-center rounded-md text-ink/70 hover:bg-surface hover:text-ink">
+        <button type="button" onClick={toggle} aria-haspopup="menu" aria-label="View options" title="View: show lists as a table or cards, and open records as a full page or a side panel" className="flex h-9 items-center gap-1.5 rounded-md px-2 text-sm text-ink/70 hover:bg-surface hover:text-ink">
           {det === 'panel' && detail ? <PanelRight className="size-[18px]" aria-hidden /> : <SlidersHorizontal className="size-[18px]" aria-hidden />}
+          <span className="hidden xl:inline">View</span>
         </button>
       )}
       items={items}

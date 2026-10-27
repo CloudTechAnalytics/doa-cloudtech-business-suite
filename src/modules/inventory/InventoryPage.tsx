@@ -88,7 +88,7 @@ export function InventoryPage() {
             <Notice>Your role can view inventory but not change it.</Notice>
           )}
           {tab === 'stock' && <StockTab data={data} onGo={setTab} />}
-          {tab === 'products' && <ProductsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
+          {tab === 'products' && <ProductsTab key={params.get('open') ?? ''} initialOpen={params.get('open')} data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
           {tab === 'counts' && <CountsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
           {tab === 'locations' && <LocationsTab businessId={businessId} industry={active.industry} canWrite={canWrite} onChanged={refresh} />}
           {tab === 'movements' && <MovementsTab data={data} businessId={businessId} canWrite={canWrite} onChanged={refresh} />}
@@ -205,8 +205,8 @@ const CategoryFields = ({ data, current }: { data: InventoryData; current?: stri
   </>
 )
 
-function ProductsTab({ data, businessId, canWrite, onChanged }: { data: InventoryData; businessId: string; canWrite: boolean; onChanged: () => Promise<void> }) {
-  const [open, setOpen] = useState<string | null>(null)
+function ProductsTab({ data, businessId, canWrite, onChanged, initialOpen = null }: { data: InventoryData; businessId: string; canWrite: boolean; onChanged: () => Promise<void>; initialOpen?: string | null }) {
+  const [open, setOpen] = useState<string | null>(initialOpen)
   const [editing, setEditing] = useState<Product | null>(null)
   const [importing, setImporting] = useState(false)
   const [search, setSearch] = useState('')

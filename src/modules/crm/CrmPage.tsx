@@ -51,22 +51,22 @@ export function CrmPage() {
         ))}
       </div>
       {tab === 'Pipeline' && <Pipeline businessId={businessId} can={can} onGo={setTab} />}
-      {tab === 'Deals' && <DealsList businessId={businessId} can={can} />}
+      {tab === 'Deals' && <DealsList key={params.get('open') ?? ''} businessId={businessId} can={can} />}
       {tab === 'Activities' && <Activities businessId={businessId} can={can} />}
       {tab === 'Quotes' && <Quotes businessId={businessId} businessName={active.name} can={can} />}
       {tab === 'Reports' && <CrmReports businessId={businessId} />}
-      {tab === 'Customers' && <Customers businessId={businessId} can={can} />}
-      {tab === 'Leads' && <Leads businessId={businessId} can={can} />}
+      {tab === 'Customers' && <Customers key={params.get('open') ?? ''} initialOpen={params.get('open')} businessId={businessId} can={can} />}
+      {tab === 'Leads' && <Leads key={params.get('open') ?? ''} initialOpen={params.get('open')} businessId={businessId} can={can} />}
     </>
   )
 }
 
 // ---------------------------------------------------------------------------- customers
-function Customers({ businessId, can }: { businessId: string; can: (p: string) => boolean }) {
+function Customers({ businessId, can, initialOpen = null }: { businessId: string; can: (p: string) => boolean; initialOpen?: string | null }) {
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [page, setPage] = useState(0)
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useState<string | null>(initialOpen)
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
   const query = useDebounced(q)
@@ -139,11 +139,11 @@ function AddCustomer({ businessId, onDone }: { businessId: string; onDone: () =>
 
 
 // -------------------------------------------------------------------------------- leads
-function Leads({ businessId, can }: { businessId: string; can: (p: string) => boolean }) {
+function Leads({ businessId, can, initialOpen = null }: { businessId: string; can: (p: string) => boolean; initialOpen?: string | null }) {
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(0)
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useState<string | null>(initialOpen)
   const [adding, setAdding] = useState(false)
   const [importing, setImporting] = useState(false)
   const query = useDebounced(q)
