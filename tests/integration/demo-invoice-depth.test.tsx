@@ -153,7 +153,7 @@ describe('what the invoice screens work out', () => {
 describe('the sidebar for the Invoices app', () => {
   it('lists its parts', () => {
     const e = sidebarEntries(buildApps('general', new Set(['dashboard', 'invoices']))).filter((x) => x.kind === 'section' && x.module.code === 'invoices')
-    expect(e.map((x) => (x.kind === 'section' ? x.section.key : ''))).toEqual(['invoices', 'statements', 'ageing'])
+    expect(e.map((x) => (x.kind === 'section' ? x.section.key : ''))).toEqual(['invoices', 'payments', 'statements', 'ageing'])
   })
 })
 
@@ -200,3 +200,44 @@ describe('recording payments from the invoice list, and receipts', () => {
     for (const s of ['Payment receipt', 'Corner Shop', 'Acme', 'INV-000009', 'Bank transfer', 'TRF-1', 'Amount received', 'Balance still due', 'Thank you']) expect(html).toContain(s)
   })
 })
+
+describe('the Payments page', () => {
+  const inv = (id: string, over: Partial<InvoiceRow> = {}): InvoiceRow => ({ id, number: `INV-${id}`, customerId: 'c1', customer: 'Acme', quoteId: null, status: 'sent', issuedOn: '2031-01-01', dueOn: null, lines: [], discount: 0, taxPercent: 0, subtotal: 1000, taxAmount: 0, total: 1000, amountPaid: 0, credited: 0, balance: 1000, notes: '', cancelReason: null, overdue: false, ...over })
+  const pay = (id: string, invoiceId: string, o: Partial<api.InvoicePayment> = {}): api.InvoicePayment => ({ id, invoiceId, amount: 100, method: 'cash', paidOn: '2031-02-01', reference: null, status: 'successful', reversalReason: null, ...o })
+  it('lists each payment with its invoice, newest first, and leaves out one whose invoice is unknown', async () => {
+    const { paymentLines } = await import('@/modules/invoices/invoiceLogic')
+    const lines = paymentLines([pay('p1', 'a', { paidOn: '2031-02-01' }), pay('p2', 'b', { paidOn: '2031-03-01' }), pay('p3', 'zzz')], [inv('a'), inv('b', { customer: 'Bola' })])
+    expect(lines.map((l) => [l.payment.id, l.invoice.customer])).toEqual([['p2', 'Bola'], ['p1', 'Acme']])
+  })
+  it('filters by words, how it was paid, dates and whether it was reversed, and totals only what was received', async () => {
+    const { filterPayments, paymentLines, receivedTotal } = await import('@/modules/invoices/invoiceLogic')
+    const all = paymentLines([pay('p1', 'a', { amount: 300, reference: 'TRF-9', method: 'bank_transfer' }), pay('p2', 'b', { amount: 200, paidOn: '2031-03-05' }), pay('p3', 'a', { amount: 50, status: 'reversed', reversalReason: 'Bounced' })], [inv('a'), inv('b', { customer: 'Bola' })])
+    expect(filterPayments(all, { q: 'bola' }).map((l) => l.payment.id)).toEqual(['p2']); expect(filterPayments(all, { q: 'trf-9' }).map((l) => l.payment.id)).toEqual(['p1'])
+    expect(filterPayments(all, { method: 'bank_transfer' }).map((l) => l.payment.id)).toEqual(['p1']); expect(filterPayments(all, { from: '2031-03-01' }).map((l) => l.payment.id)).toEqual(['p2'])
+    expect(filterPayments(all, { status: 'reversed' }).map((l) => l.payment.id)).toEqual(['p3']); expect(filterPayments(all, { status: 'all' })).toHaveLength(3)
+    expect(receivedTotal(all)).toBe(500) // the reversed 50 is not counted
+  })
+  it('offers only invoices that still owe something, the biggest debt first', async () => {
+    const { payableInvoices } = await import('@/modules/invoices/invoiceLogic')
+    const list = [inv('a', { balance: 200 }), inv('b', { balance: 900, status: 'partially_paid' }), inv('c', { status: 'draft' }), inv('d', { status: 'paid', balance: 0 }), inv('e', { status: 'cancelled' }), inv('f', { status: 'credited', balance: 0 })]
+    expect(payableInvoices(list).map((i) => i.id)).toEqual(['b', 'a'])
+  })
+  it('exports the payments, reversed ones included with why', async () => {
+    const { paymentLines, paymentsExport } = await import('@/modules/invoices/invoiceLogic')
+    const csv = paymentsExport(paymentLines([pay('ipay_ab12cd34', 'a', { amount: 300, method: 'bank_transfer', reference: 'TRF-9' }), pay('ipay_ef56gh78', 'a', { status: 'reversed', reversalReason: 'Bounced' })], [inv('a')]))
+    expect(csv[0]).toContain('Receipt'); expect(csv.some((r) => r[6] === 300 && r[4] === 'bank transfer' && r[5] === 'TRF-9')).toBe(true); expect(csv.some((r) => r[7] === 'reversed' && r[8] === 'Bounced')).toBe(true)
+  })
+  it('reads every payment through the API, reversed ones only when asked', async () => {
+    const id = sent(600); expect(await api.recordInvoicePayment(biz, id, { amount: 200, method: 'cash', paidOn: null, reference: '' }, key())).toBeNull()
+    const first = inv_(biz, id)
+    expect(await api.recordInvoicePayment(biz, id, { amount: 100, method: 'cash', paidOn: null, reference: '' }, key())).toBeNull()
+    const second = inv_(biz, id).find((p) => !first.some((q) => q.id === p.id))!
+    expect(inv_(biz, id)).toHaveLength(2)
+    expect(await api.reverseInvoicePayment(biz, second.id, 'Bounced')).toBeNull()
+    expect((await api.listAllInvoicePayments(biz)).filter((p) => p.invoiceId === id)).toHaveLength(1)
+    expect((await api.listAllInvoicePayments(biz, true)).filter((p) => p.invoiceId === id).map((p) => p.status).sort()).toEqual(['reversed', 'successful'])
+  })
+})
+const inv_ = (b: string, id: string) => inv_list(b).filter((p) => p.invoiceId === id)
+const demoPayments = (b: string) => inv.getInvoices().payments.filter((p) => p.businessId === b)
+const inv_list = demoPayments

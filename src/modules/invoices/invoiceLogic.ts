@@ -105,3 +105,28 @@ export const paymentReceiptLinks = (i: InvoiceRow, p: InvoicePayment, business: 
   const text = paymentReceiptText(i, p, business, fmt)
   return { text, whatsapp: phone ? whatsappUrl(phone, text) : null, mail: email ? mailUrl(email, `Payment received: invoice ${i.number}`, text) : null }
 }
+
+// ---------------------------------------------------------------------------------------------------- the Payments page
+export interface PaymentLine { payment: InvoicePayment; invoice: InvoiceRow }
+/** Each payment with the invoice it was made against (a payment whose invoice is not in the list is left out). Newest first. */
+export function paymentLines(payments: InvoicePayment[], invoices: InvoiceRow[]): PaymentLine[] {
+  const by = new Map(invoices.map((i) => [i.id, i]))
+  return payments.flatMap((p) => { const invoice = by.get(p.invoiceId); return invoice ? [{ payment: p, invoice }] : [] })
+    .sort((a, z) => z.payment.paidOn.localeCompare(a.payment.paidOn) || z.payment.id.localeCompare(a.payment.id))
+}
+export interface PaymentFilter { q?: string; method?: string; from?: string; to?: string; status?: 'all' | 'successful' | 'reversed' }
+export function filterPayments(lines: PaymentLine[], f: PaymentFilter): PaymentLine[] {
+  const q = (f.q ?? '').trim().toLowerCase()
+  return lines.filter(({ payment: p, invoice: i }) => (!f.method || p.method === f.method) && (!f.from || p.paidOn >= f.from) && (!f.to || p.paidOn <= f.to) && (!f.status || f.status === 'all' || p.status === f.status)
+    && (!q || [i.customer, i.number, p.reference ?? '', receiptNumber(p)].some((v) => v.toLowerCase().includes(q))))
+}
+/** What was actually received: reversed payments are not counted. */
+export const receivedTotal = (lines: PaymentLine[]) => money(lines.filter((l) => l.payment.status === 'successful').reduce((a, l) => a + l.payment.amount, 0))
+/** Invoices that can be paid now: sent or part-paid with something owed, the ones owing most first. */
+export const payableInvoices = (invoices: InvoiceRow[]) => invoices.filter(isOpen).sort((a, z) => z.balance - a.balance)
+export function paymentsExport(lines: PaymentLine[]): (string | number | null)[][] {
+  return [
+    ['Receipt', 'Date', 'Customer', 'Invoice', 'Paid by', 'Reference', 'Amount', 'Status', 'Reversal reason'],
+    ...lines.map(({ payment: p, invoice: i }) => [receiptNumber(p), p.paidOn, i.customer, i.number, p.method.replace(/_/g, ' '), p.reference, p.amount, p.status, p.reversalReason]),
+  ]
+}

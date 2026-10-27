@@ -124,10 +124,12 @@ export async function issueCreditNote(b: string, invoiceId: string, v: { amount:
   if (isDemoMode) return demo.demoIssueCreditNote(b, invoiceId, v, key)
   return err((await db().rpc('invoice_issue_credit_note', { p_invoice: invoiceId, p_amount: v.amount, p_reason: v.reason, p_key: key })).error)
 }
-/** Every successful payment on the business's invoices, for customer statements. */
-export async function listAllInvoicePayments(b: string): Promise<InvoicePayment[]> {
-  if (isDemoMode) return demo.getInvoices().payments.filter((p) => p.businessId === b && p.status === 'successful').map((p) => ({ id: p.id, invoiceId: p.invoiceId, amount: p.amount, method: p.method, paidOn: p.paidOn, reference: p.reference, status: p.status, reversalReason: p.reversalReason }))
-  const r = await db().from('invoice_payments').select('*').eq('business_id', b).eq('status', 'successful').order('paid_on').limit(5000)
+/** Every successful payment on the business's invoices, for customer statements (and the reversed ones too, for the Payments page, when asked). */
+export async function listAllInvoicePayments(b: string, includeReversed = false): Promise<InvoicePayment[]> {
+  if (isDemoMode) return demo.getInvoices().payments.filter((p) => p.businessId === b && (includeReversed || p.status === 'successful')).map((p) => ({ id: p.id, invoiceId: p.invoiceId, amount: p.amount, method: p.method, paidOn: p.paidOn, reference: p.reference, status: p.status, reversalReason: p.reversalReason }))
+  let q = db().from('invoice_payments').select('*').eq('business_id', b)
+  if (!includeReversed) q = q.eq('status', 'successful')
+  const r = await q.order('paid_on').limit(5000)
   if (r.error) throw new Error(r.error.message)
-  return (r.data ?? []).map((x) => ({ id: String(x.id), invoiceId: String(x.invoice_id), amount: n(x.amount), method: String(x.method), paidOn: String(x.paid_on).slice(0, 10), reference: (x.reference as string | null) ?? null, status: 'successful' as const, reversalReason: null }))
+  return (r.data ?? []).map((x) => ({ id: String(x.id), invoiceId: String(x.invoice_id), amount: n(x.amount), method: String(x.method), paidOn: String(x.paid_on).slice(0, 10), reference: (x.reference as string | null) ?? null, status: (x.status as 'successful' | 'reversed'), reversalReason: (x.reversal_reason as string | null) ?? null }))
 }

@@ -13,6 +13,7 @@ import { printSheets } from '@/shared/print/printSheets'
 import { downloadCsv } from '@/shared/utilities/csvExport'
 import { label, naira, qty } from '@/shared/utilities/format'
 import { PaymentPanel, PaymentReceiptSheet, RecordPaymentDialog } from './InvoicePayments'
+import { ChooseInvoiceDialog, PaymentsTab } from './InvoicePaymentsTab'
 import { AgeingTab, StatementsTab } from './InvoiceReports'
 import { TERMS, dueFromTerms, invoicesExport, reminderLinks } from './invoiceLogic'
 import * as api from './invoicesApi'
@@ -21,7 +22,7 @@ import type { InvoiceLine, InvoiceRow, InvoiceStatus } from './invoicesApi'
 const TONE: Record<InvoiceStatus | 'overdue', 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = { draft: 'neutral', sent: 'info', partially_paid: 'warning', paid: 'success', credited: 'info', cancelled: 'danger', overdue: 'danger' }
 const FILTERS = ['all', 'draft', 'sent', 'partially_paid', 'paid', 'credited', 'overdue', 'cancelled'] as const
 /** Which part is open is in the address (?tab=ageing), so the sidebar, the tabs and the back button agree. */
-const TABS = [['invoices', 'Invoices'], ['statements', 'Statements'], ['ageing', 'Ageing']] as const
+const TABS = [['invoices', 'Invoices'], ['payments', 'Payments'], ['statements', 'Statements'], ['ageing', 'Ageing']] as const
 const date = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
 const shown = (i: InvoiceRow): InvoiceStatus | 'overdue' => (i.overdue ? 'overdue' : i.status)
 const money = (n: number) => Math.round(n * 100) / 100
@@ -71,6 +72,7 @@ export function InvoicesPage() {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<InvoiceRow | 'new' | { copyOf: InvoiceRow } | null>(null)
   const [paying, setPaying] = useState<InvoiceRow | null>(null)
+  const [choosing, setChoosing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [params, setParams] = useSearchParams()
   // ?open=<id> (from the search box) opens that invoice once the list has loaded.
@@ -90,6 +92,7 @@ export function InvoicesPage() {
       <div role="tablist" aria-label="Invoice sections" className="mb-4 flex flex-wrap gap-1 border-b border-ink/10">
         {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => setParams({ tab: k })} className={clsx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', tab === k ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{l}</button>)}
       </div>
+      {tab === 'payments' && <PaymentsTab businessId={businessId} businessName={active.name} canRecord={manage} onOpenInvoice={(id) => { setDismissed(false); setParams({ tab: 'invoices', open: id }) }} />}
       {tab === 'statements' && <StatementsTab businessId={businessId} businessName={active.name} />}
       {tab === 'ageing' && <AgeingTab businessId={businessId} businessName={active.name} />}
       {tab === 'invoices' && <>
@@ -112,7 +115,7 @@ export function InvoicesPage() {
       <div className="mb-3 grid items-end gap-3 sm:grid-cols-[1fr_200px_auto]">
         <TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Invoice number or customer" />
         <SelectField label="Show" value={filter} onChange={(e) => setFilter(e.target.value as (typeof FILTERS)[number])}>{FILTERS.map((f) => <option key={f} value={f}>{f === 'all' ? 'All invoices' : label(f)}</option>)}</SelectField>
-        <div className="flex gap-2">{rows.length > 0 && <Button variant="secondary" onClick={() => downloadCsv('invoices.csv', invoicesExport(rows))}><Download className="size-4" aria-hidden /> Export</Button>}{manage && <Button onClick={() => setOpen('new')}>New invoice</Button>}</div>
+        <div className="flex gap-2">{rows.length > 0 && <Button variant="secondary" onClick={() => downloadCsv('invoices.csv', invoicesExport(rows))}><Download className="size-4" aria-hidden /> Export</Button>}{manage && <Button variant="secondary" onClick={() => setChoosing(true)}>Record payment</Button>}{manage && <Button onClick={() => setOpen('new')}>New invoice</Button>}</div>
       </div>
       {list.loading && !list.data ? <Spinner /> : rows.length === 0 ? <EmptyState title={list.data?.length ? 'No invoices match' : 'No invoices yet'} description="Create an invoice for a customer, or turn an accepted CRM quote into one." /> : (
         <ul className="divide-y divide-ink/10 rounded-lg border border-line bg-white text-sm">
@@ -126,6 +129,7 @@ export function InvoicesPage() {
         </ul>
       )}
       </>}
+      {choosing && list.data && <ChooseInvoiceDialog businessId={businessId} businessName={active.name} invoices={list.data} onClose={() => setChoosing(false)} onChanged={refresh} />}
       {paying && <RecordPaymentDialog businessId={businessId} businessName={active.name} invoice={paying} onClose={() => setPaying(null)} onChanged={refresh} />}
       {shownOpen && <InvoiceDialog businessId={businessId} businessName={active.name} invoice={shownOpen === 'new' || 'copyOf' in shownOpen ? null : shownOpen} seed={typeof shownOpen === 'object' && 'copyOf' in shownOpen ? shownOpen.copyOf : undefined} manage={manage} onClose={() => { setOpen(null); setDismissed(true) }} onChanged={refresh} onCopy={(i) => setOpen({ copyOf: i })} />}
     </>

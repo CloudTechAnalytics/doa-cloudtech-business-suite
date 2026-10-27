@@ -13,17 +13,22 @@ export const STORE_FILTERS: { key: StoreFilter; label: string }[] = [
 /** An app is installed when all of its modules are on for this business (whether or not this person may use it). */
 export const isInstalled = (s: AppState) => s === 'active' || s === 'needs_plan' || s === 'no_permission'
 
+/** Whether an app matches every word typed (name, one-line tagline, description and the names of what it does). No words match everything. */
+export function appMatches(app: StandaloneApp, query: string): boolean {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const hay = `${app.name} ${app.tagline} ${app.description} ${app.features.map((f) => f.label).join(' ')}`.toLowerCase()
+  return words.every((w) => hay.includes(w))
+}
+
 /** The apps to list for a search and a filter. Words match the name, the one-line tagline, the description and the names of what it does. "Whole businesses" lists no apps. */
 export function filterApps(statuses: ModuleStatus[], filter: StoreFilter, query: string, apps: StandaloneApp[] = STANDALONE_APPS): StandaloneApp[] {
   if (filter === 'businesses') return []
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
   return apps.filter((a) => {
     const st = appState(a, statuses)
     if (filter === 'installed' && !isInstalled(st)) return false
     if (filter === 'not_installed' && isInstalled(st)) return false
     if ((filter === 'sell' || filter === 'stock' || filter === 'money') && a.category !== filter) return false
-    const hay = `${a.name} ${a.tagline} ${a.description} ${a.features.map((f) => f.label).join(' ')}`.toLowerCase()
-    return words.every((w) => hay.includes(w))
+    return appMatches(a, query)
   })
 }
 

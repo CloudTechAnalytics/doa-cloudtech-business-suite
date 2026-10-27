@@ -86,3 +86,22 @@ describe('whole businesses', () => {
     expect(names).toEqual(expect.arrayContaining(['retail', 'farm', 'bakery', 'pharmacy', 'school'])); expect(names).not.toContain('general')
   })
 })
+
+describe('the public Apps page matches the store', () => {
+  it('filters and searches with the same rules, without an installed state', async () => {
+    const { publicApps } = await import('@/app/landing/AppsPage')
+    expect(ids(publicApps('all', ''))).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance'])
+    expect(ids(publicApps('money', ''))).toEqual(['invoices', 'expenses', 'finance']); expect(ids(publicApps('stock', ''))).toEqual(['inventory']); expect(ids(publicApps('sell', ''))).toEqual(['crm', 'pos'])
+    expect(publicApps('businesses', '')).toEqual([]); expect(publicApps('all', 'zzzz')).toEqual([]); expect(ids(publicApps('money', 'stock'))).toEqual([])
+    expect(ids(publicApps('all', 'receipt'))).toContain('pos')
+  })
+  it('uses the same search words as the store for any app', async () => {
+    const { appMatches } = await import('@/core/app-catalogue/storeLogic')
+    const { publicApps } = await import('@/app/landing/AppsPage')
+    for (const w of ['invoice', 'stock', 'quote', 'cash', 'lead']) expect(ids(publicApps('all', w))).toEqual(ids(STANDALONE_APPS.filter((a) => appMatches(a, w))))
+  })
+  it('sends every app to its own sign-in, so the workspace opens with only that app', async () => {
+    const { startPath } = await import('@/core/app-catalogue/apps')
+    expect(STANDALONE_APPS.map((a) => startPath(a))).toEqual(STANDALONE_APPS.map((a) => `/sign-in?app=${a.id}`))
+  })
+})
