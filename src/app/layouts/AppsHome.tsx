@@ -21,7 +21,7 @@ export function AppsHome() {
         <h1 className="text-3xl font-bold text-ink sm:text-4xl">{active.name}</h1>
         <div className="mx-auto mt-3 h-1 w-20 rounded-full bg-amber" aria-hidden />
         <p className="mt-3 text-sm text-ink/60">{INDUSTRY_TEMPLATES[active.industry].name}</p>
-        {active.industry === 'general' && <Link to="/app/apps" className="mt-3 inline-block rounded-full border border-line px-4 py-1.5 text-sm font-semibold text-accent hover:bg-surface">App Library: switch apps on or off</Link>}
+        <Link to="/app/apps" className="mt-3 inline-block rounded-full border border-line px-4 py-1.5 text-sm font-semibold text-accent hover:bg-surface">App Store: install or remove apps</Link>
       </div>
 
       {/* Same arched grey section as the landing page's app picker. */}

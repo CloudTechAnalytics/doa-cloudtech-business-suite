@@ -7,7 +7,7 @@ import { STANDALONE_APPS } from './apps'
 
 /**
  * A new Business apps workspace starts with every shared app on. When the person came from one app's link (POS, Invoices, ...), switch the others off so they
- * sign in to that app alone. Nothing is deleted and nothing is lost: the rest are one click away in the App Library. Returns an error message, or null.
+ * sign in to that app alone. Nothing is deleted and nothing is lost: the rest are one click away in the App Store. Returns an error message, or null.
  */
 export async function startWithApp(businessId: string, appId: string): Promise<string | null> {
   const app = STANDALONE_APPS.find((a) => a.id === appId)

@@ -2,7 +2,7 @@ import { Suspense, useEffect, useLayoutEffect } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from '@/app/layouts/AppShell'
 import { AppsHome } from '@/app/layouts/AppsHome'
-import { AppLibraryPage } from '@/core/app-catalogue/AppLibraryPage'
+import { AppStorePage } from '@/core/app-catalogue/AppStorePage'
 import { AppStartPage } from '@/core/app-catalogue/AppStartPage'
 import { AppsPage } from '@/app/landing/AppsPage'
 import { HelpPage } from '@/app/landing/HelpPage'
@@ -80,7 +80,7 @@ export function AppRoutes() {
       </Route>
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<AppsHome />} />
-        <Route path="apps" element={<AppLibraryPage />} />
+        <Route path="apps" element={<AppStorePage />} />
         <Route path="platform-admin" element={<Navigate to="/platform" replace />} />
         {MODULE_ROUTES.map(({ path, code, component: Page }) => (
           <Route key={code} path={path} element={<ModuleRoute code={code}><Suspense fallback={<Spinner />}><Page /></Suspense></ModuleRoute>} />

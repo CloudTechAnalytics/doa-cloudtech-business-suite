@@ -15,7 +15,7 @@ import { startWithApp } from './startWithApp'
 
 /**
  * Where someone lands after signing in or creating an account from one app's link: a workspace for that one app, named by them. It is created with only that
- * app switched on, so they work in it alone. There is no business type to pick; the other apps are one click away in the App Library when they want them.
+ * app switched on, so they work in it alone. There is no business type to pick; the other apps are one click away in the App Store when they want them.
  */
 export function AppStartPage() {
   const { appId } = useParams()
@@ -61,7 +61,7 @@ export function AppStartPage() {
             <ul className="space-y-1 text-sm text-ink/80">{app.benefits.map((b) => <li key={b} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />{b}</li>)}</ul>
             {error && <ErrorState title="Could not start" message={error} />}
             <Button type="submit" className="w-full" loading={busy}>Start with {app.name.replace('DOA ', '')}</Button>
-            <p className="text-center text-xs text-ink/60">You will have {app.name} only. Add other apps any time from the App Library. {app.free}</p>
+            <p className="text-center text-xs text-ink/60">You will have {app.name} only. Add other apps any time from the App Store. {app.free}</p>
           </form>
         </Card>
       </div>

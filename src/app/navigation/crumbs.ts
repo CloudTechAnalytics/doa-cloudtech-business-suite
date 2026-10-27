@@ -14,6 +14,7 @@ const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLow
 export function breadcrumb(apps: AppDef[], pathname: string, search: string): Crumb[] {
   const clean = pathname.replace(/\/$/, '')
   if (clean === '/app') return [{ label: 'Apps', to: null }]
+  if (clean === '/app/apps') return [{ label: 'Apps', to: '/app' }, { label: 'App Store', to: null }]
   const app = apps.find((a) => a.modules.some((m) => clean === appPath(m) || clean.startsWith(`${appPath(m)}/`)))
   if (!app) return [{ label: 'DOA', to: null }]
   const mod = app.modules.find((m) => clean === appPath(m) || clean.startsWith(`${appPath(m)}/`)) as ModuleDefinition
@@ -30,7 +31,7 @@ export interface PageHit { label: string; group: string; to: string; keywords: s
 
 /** Everything in the sidebar and the Record menu, flattened so it can be searched by name. Account pages (staff, settings) are included. */
 export function pageIndex(apps: AppDef[], quick: { label: string; to: string }[]): PageHit[] {
-  const hits: PageHit[] = []
+  const hits: PageHit[] = [{ label: 'App Store', group: 'Apps', to: '/app/apps', keywords: 'install remove apps store switch on off add app' }]
   const seen = new Set<string>()
   for (const app of apps) {
     for (const m of app.modules) {

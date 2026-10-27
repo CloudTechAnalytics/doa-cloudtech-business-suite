@@ -34,6 +34,7 @@ describe('the breadcrumb in the top bar', () => {
   })
   it('has a name for the apps home, for a page with no part, and for an address it does not know', () => {
     expect(labels('/app')).toEqual(['Apps'])
+    expect(labels('/app/apps')).toEqual(['Apps', 'App Store'])
     expect(labels('/app/expenses').at(-1)).toBe('Expenses')
     expect(labels('/somewhere/else')).toEqual(['DOA'])
   })
@@ -51,6 +52,9 @@ describe('searching for pages and actions', () => {
     expect(searchPages(index, 'zzzz')).toEqual([])
     expect(searchPages(index, '   ')).toEqual([])
     expect(searchPages(index, 'inv')[0].label.toLowerCase().startsWith('inv')).toBe(true)
+  })
+  it('finds the App Store by what people would type', () => {
+    for (const w of ['store', 'install', 'add app']) expect(searchPages(index, w)[0]).toMatchObject({ label: 'App Store', to: '/app/apps' })
   })
   it('includes the Record menu and the account pages', () => {
     expect(index.some((h) => h.group === 'Record')).toBe(true)

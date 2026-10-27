@@ -17,7 +17,7 @@ Each app has its own entry on the public site (the Apps menu and the Apps page).
 
 An app that cannot work without other data carries what it needs, inside the app:
 
-- **POS** carries the Inventory module as its product list (you cannot sell without products). In the App Library, Inventory shows as needed by POS and cannot be switched off while POS is on; switching POS off leaves Inventory on if the Inventory app is on.
+- **POS** carries the Inventory module as its product list (you cannot sell without products). In the App Store, Inventory shows as needed by POS and cannot be switched off while POS is on; switching POS off leaves Inventory on if the Inventory app is on.
 - **Invoices** reads and adds its own customers (`customers_select` also allows `invoices.read`, and `invoice_add_customer` reuses a matching customer). It does not need the CRM app. Quotes live in the CRM, so "accepted quotes ready to invoice" appears only when the CRM is on.
 - **Finance** reads the money other apps record; on its own it has nothing to show until POS, Invoices or Expenses is on.
 
@@ -33,6 +33,10 @@ An app is one or more shared modules. Switching it on enables its modules in `bu
 | DOA Invoices | `invoices` | invoices and their payments |
 | DOA Expenses | `expenses` | |
 | DOA Finance | `reports` | cash-basis summary, cashbook, receivables and payables |
+
+## The App Store
+
+Every workspace has an **App Store** (`/app/apps`, reached from the Apps home and the search box), replacing the older App Library. It is one page: a search box, filter chips (All, Installed, Not installed, Sell and customers, Stock, Money, Whole businesses), and one row per app with its colour tile, name, category, one-line description, a status (Installed, Not installed, Needs a higher plan, No access, Not for this business type) and an action. Pressing a row opens a side panel with what the app does, why people use it, **what it works with**, its price and the actions. **Install** and **Remove** switch only that app's modules on or off, after the same confirmation as before (`ConfirmSwitch`); only the owner or an admin sees them, and the database checks that again. An app another app needs (Inventory under POS), or one the business type requires, cannot be removed, and the panel says why. Industry businesses see it too: they can install the shared apps their type allows (a shop can add Invoices), and an app their type does not offer says so. **Whole businesses** (shop, farm, bakery, pharmacy, school) are listed as separate businesses to start, not installed, because each business has one type and its own data. The page's rules (filtering, search, which action applies) are in `storeLogic.ts` so they are tested on their own.
 
 Switching an app on or off always asks first (`ConfirmSwitch`). Off lists what stops, what is kept and what keeps working (for example, unpaid invoices stay in Finance as money owed, and the dialog shows how much is still owed), says when part of the app stays on because another app needs it, and that everyone in the business is affected. On says what it adds and that nothing is deleted if it is switched off later. Only the owner or an admin can do either, and the change is written to the audit log.
 
@@ -63,7 +67,7 @@ Limits are plan data (`subscription_plans.limits`), not code. The keys are `cust
 
 - **Enforced in the database**: a `before insert` trigger on `customers`, `invoices`, `expenses` and `sales` stops a new record when the plan's limit is used up (`enforce_usage_limit`), so no screen, import or API call can get around it. Months are counted in UTC; cancelled invoices, voided sales and voided expenses do not count.
 - **Only new records are blocked.** Nothing existing is locked, hidden or removed, and lowering a plan's limit later removes nothing. Moving to a bigger plan lifts the limit at once.
-- **Told in advance**: `my_usage()` returns used and allowed for each limit. The App Library shows a Plan usage panel, and the Invoices, CRM, Sales and Expenses pages show a notice from 80% of a limit, and again when it is full, with a link to the plans.
+- **Told in advance**: `my_usage()` returns used and allowed for each limit. The App Store shows a Plan usage panel, and the Invoices, CRM, Sales and Expenses pages show a notice from 80% of a limit, and again when it is full, with a link to the plans.
 - Products are not limited, because industries create products themselves (a bakery's finished goods, for example).
 
 ## How deep each app is, and what comes next

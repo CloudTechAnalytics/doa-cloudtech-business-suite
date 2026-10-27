@@ -33,7 +33,7 @@ export function AppsOverview() {
   if (on('invoices')) cards.push(<InvoicesCard key="inv" b={b} />)
   if (on('inventory')) cards.push(<StockCard key="stock" b={b} industry={active.industry} />)
   if (on('expenses') || on('reports')) cards.push(<MoneyCard key="money" b={b} />)
-  if (!cards.length) return <p className="p-4 text-sm text-ink/70">No app is switched on yet. Open the App Library to switch one on.</p>
+  if (!cards.length) return <p className="p-4 text-sm text-ink/70">No app is switched on yet. Open the App Store to install one.</p>
   return <div className="grid gap-4 md:grid-cols-2">{cards}</div>
 }
 

@@ -24,7 +24,18 @@ export interface StandaloneApp {
   home: ModuleCode
   /** What it does, in the order a person uses it: shown in the public Apps menu. */
   features: { label: string; icon: LucideIcon }[]
+  /** The group it sits in on the App Store. */
+  category: AppCategory
+  /** How it connects to the other apps, in plain words: shown on its details page. */
+  worksWith: string[]
 }
+
+export type AppCategory = 'sell' | 'stock' | 'money'
+export const APP_CATEGORIES: { key: AppCategory; label: string; blurb: string }[] = [
+  { key: 'sell', label: 'Sell and customers', blurb: 'Know your customers and ring up sales' },
+  { key: 'stock', label: 'Stock', blurb: 'Know what you have' },
+  { key: 'money', label: 'Money', blurb: 'Bill, spend and see where the money is' },
+]
 
 /** Where an app's link on the public site goes: the sign-in page for that app. After signing in (or creating an account) the person lands on the app's start page. */
 export const startPath = (app: Pick<StandaloneApp, 'id'>) => `/sign-in?app=${app.id}`
@@ -36,6 +47,7 @@ export const STANDALONE_APPS: StandaloneApp[] = [
     description: 'Contacts and customers, leads, a deal pipeline, quotes, follow-ups and a pipeline report.',
     benefits: ['Keep every customer, note and follow-up in one place', 'Move deals from new to won and see what is likely to close', 'Send numbered, printable quotes'],
     free: 'Included in every plan.',
+    category: 'sell', worksWith: ['Invoices: an accepted quote becomes an invoice', 'POS: sell on credit to a customer you already have'],
   },
   {
     id: 'pos', name: 'DOA POS', tagline: 'Record sales and print receipts', icon: ShoppingBasket, color: '#2f9e44', modules: ['sales', 'inventory'], home: 'sales',
@@ -43,6 +55,7 @@ export const STANDALONE_APPS: StandaloneApp[] = [
     description: 'Point of sale with payments, split payments, receipts, returns and sales history. It carries its own product list (the same products as Inventory), and needs no retail setup.',
     benefits: ['Sell products and services in a few taps', 'Cash, transfer, card and split payments', 'Printable receipts and a record of every sale'],
     free: 'Included in every plan.',
+    category: 'sell', worksWith: ['Inventory: sells your products and takes the stock off', 'Finance: every sale counts as money in', 'CRM: credit sales to a customer'],
   },
   {
     id: 'inventory', name: 'DOA Inventory', tagline: 'Know what you have in stock', icon: Package, color: '#e8590c', modules: ['inventory'], home: 'inventory',
@@ -50,6 +63,7 @@ export const STANDALONE_APPS: StandaloneApp[] = [
     description: 'Products, stock in a movement ledger, adjustments, counts and low-stock alerts.',
     benefits: ['Stock is a history of movements, not a number someone can overwrite', 'Counts and adjustments with reasons', 'See what is running low'],
     free: 'Included in every plan.',
+    category: 'stock', worksWith: ['POS: the product list it sells from', 'Finance: stock value in the summary'],
   },
   {
     id: 'invoices', name: 'DOA Invoices', tagline: 'Bill customers and see what is owed', icon: FileText, color: '#0b7285', modules: ['invoices'], home: 'invoices',
@@ -57,6 +71,7 @@ export const STANDALONE_APPS: StandaloneApp[] = [
     description: 'Invoices for your customers, payments against them, what is outstanding and overdue, and printable invoices. An accepted CRM quote becomes an invoice.',
     benefits: ['Numbered invoices with discount and tax', 'Record part and full payments; reverse mistakes with a reason', 'Payments appear in Finance without entering them twice'],
     free: 'Included in every plan.',
+    category: 'money', worksWith: ['CRM: accepted quotes become invoices, and it keeps its own customers if you do not use CRM', 'Finance: payments and what is owed show there without entering them again'],
   },
   {
     id: 'expenses', name: 'DOA Expenses', tagline: 'Record what the business spends', icon: Receipt, color: '#e03131', modules: ['expenses'], home: 'expenses',
@@ -64,6 +79,7 @@ export const STANDALONE_APPS: StandaloneApp[] = [
     description: 'Expenses by category, payment method and date, with summaries. Expenses appear in Finance without a second entry.',
     benefits: ['Record an expense in seconds', 'See spending by category and period', 'Voided, never deleted, so the books stay honest'],
     free: 'Included in every plan.',
+    category: 'money', worksWith: ['Finance: every expense counts as money out', 'Suppliers: link an expense to who you paid'],
   },
   {
     id: 'finance', name: 'DOA Finance', tagline: 'A simple view of money in and out', icon: BarChart3, color: '#017e84', modules: ['reports'], home: 'reports',
@@ -71,6 +87,7 @@ export const STANDALONE_APPS: StandaloneApp[] = [
     description: 'Income and expense summaries, cash in and out, what customers owe and what you owe. Cash basis: it is not an accounting package and does not calculate audited profit.',
     benefits: ['Cash in and out for any period', 'Receivables from sales and invoices, payables from purchases', 'Plain labels: cash, owed and estimated, never "audited"'],
     free: 'Included in every plan.',
+    category: 'money', worksWith: ['It reads what POS, Invoices and Expenses record, so on its own it has nothing to show until one of them is on'],
   },
 ]
 
