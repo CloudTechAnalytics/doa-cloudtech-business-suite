@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from '@/app/layouts/AppShell'
 import { AppsHome } from '@/app/layouts/AppsHome'
 import { AppLibraryPage } from '@/core/app-catalogue/AppLibraryPage'
+import { AppStartPage } from '@/core/app-catalogue/AppStartPage'
 import { AppsPage } from '@/app/landing/AppsPage'
 import { HelpPage } from '@/app/landing/HelpPage'
 import { LandingPage } from '@/app/landing/LandingPage'
@@ -64,6 +65,7 @@ export function AppRoutes() {
       <Route path="/account" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/start" element={<StartPage />} />
       <Route path="/onboarding" element={<StartPage />} />
+      <Route path="/start/:appId" element={<RequireAuth><AppStartPage /></RequireAuth>} />
       <Route path="/businesses" element={<RequireAuth><BusinessesPage /></RequireAuth>} />
       <Route path="/platform" element={<RequireAuth><PlatformLayout /></RequireAuth>}>
         <Route index element={<PlatformDashboard />} />

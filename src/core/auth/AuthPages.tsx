@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { STANDALONE_APPS } from '@/core/app-catalogue/apps'
+import { afterAuthPath, rememberApp } from '@/core/app-catalogue/pendingApp'
 import { DEMO_LOGINS, demoSignIn, demoSignUp } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
@@ -65,6 +67,15 @@ export function Field({ label, name, type = 'text', autoComplete, error, placeho
 
 type Mode = 'signin' | 'signup'
 
+/** The app a visitor clicked on the public site (?app=pos), remembered so that after signing in or up they land on that app's start page. */
+function useAppFromLink() {
+  const [params] = useSearchParams()
+  const id = params.get('app')
+  const app = STANDALONE_APPS.find((a) => a.id === id) ?? null
+  if (app) rememberApp(app.id)
+  return app
+}
+
 /** The same rules the database enforces on new passwords (Supabase Authentication settings). */
 export const passwordProblem = (p: string) => (p.length < 10 || !/[a-z]/.test(p) || !/[A-Z]/.test(p) || !/\d/.test(p) ? 'Use at least 10 characters, with a lowercase letter, an uppercase letter and a number.' : null)
 
@@ -95,7 +106,7 @@ function AuthForm({ mode }: { mode: Mode }) {
     if (isDemoMode) {
       const err = mode === 'signin' ? demoSignIn(email, password) : demoSignUp(name, email, password)
       if (err) setFormError(err)
-      else navigate('/businesses', { replace: true })
+      else navigate(afterAuthPath(), { replace: true })
       return
     }
     if (!supabase) return
@@ -105,11 +116,11 @@ function AuthForm({ mode }: { mode: Mode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error && /not confirmed/i.test(error.message)) setPending({ email, reason: 'unconfirmed' })
       else if (error) setFormError(error.message)
-      else navigate('/businesses', { replace: true })
+      else navigate(afterAuthPath(), { replace: true })
     } else {
       const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: `${window.location.origin}/email-confirmed` } })
       if (error) setFormError(error.message)
-      else if (data.session) navigate('/businesses', { replace: true })
+      else if (data.session) navigate(afterAuthPath(), { replace: true })
       else setPending({ email, reason: 'signup' })
     }
     setBusy(false)
@@ -137,19 +148,20 @@ function AuthForm({ mode }: { mode: Mode }) {
 /** The sign-in page is always the sign-in page. Someone who is already signed in is told so, and can continue or sign in as somebody else. */
 export function SignInPage() {
   const { userId, email } = useAuth()
+  const app = useAppFromLink()
   return (
-    <AuthLayout title="Sign in">
+    <AuthLayout title={app ? `Sign in to ${app.name}` : 'Sign in'}>
       {userId && (
         <div className="mb-4 rounded-lg border border-line bg-surface p-3 text-sm">
           <p>You are already signed in{email ? <> as <b>{email}</b></> : null}.</p>
-          <Link to="/businesses" className="mt-2 inline-flex h-9 items-center rounded-md bg-amber px-3.5 text-sm font-bold text-ink hover:bg-amber-dark">Continue to my businesses</Link>
+          <Link to={app ? `/start/${app.id}` : '/businesses'} className="mt-2 inline-flex h-9 items-center rounded-md bg-amber px-3.5 text-sm font-bold text-ink hover:bg-amber-dark">{app ? `Continue to ${app.name}` : 'Continue to my businesses'}</Link>
           <p className="mt-2 text-xs text-ink/60">Or sign in below to switch to a different account.</p>
         </div>
       )}
       <AuthForm mode="signin" />
       {!isDemoMode && <p className="mt-3 text-center text-sm"><Link to="/forgot-password" className="text-ink/70 underline decoration-amber decoration-2 underline-offset-4 hover:text-ink">Forgot your password?</Link></p>}
       <p className="mt-5 text-center text-sm text-ink/70">
-        New here? <Link to="/sign-up" className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Create an account</Link>
+        New here? <Link to={app ? `/sign-up?app=${app.id}` : '/sign-up'} className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Create an account</Link>
       </p>
     </AuthLayout>
   )
@@ -158,8 +170,9 @@ export function SignInPage() {
 /** Create account always shows the sign-up form. Someone already signed in is told so, and can continue or create a new account. */
 export function SignUpPage() {
   const { userId, email } = useAuth()
+  const app = useAppFromLink()
   return (
-    <AuthLayout title="Create your account">
+    <AuthLayout title={app ? `Create your account for ${app.name}` : 'Create your account'}>
       {userId && (
         <div className="mb-4 rounded-lg border border-line bg-surface p-3 text-sm">
           <p>You are signed in{email ? <> as <b>{email}</b></> : null}. Creating an account below signs you in as the new person.</p>
@@ -168,7 +181,7 @@ export function SignUpPage() {
       )}
       <AuthForm mode="signup" />
       <p className="mt-5 text-center text-sm text-ink/70">
-        Already registered? <Link to="/sign-in" className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Sign in</Link>
+        Already registered? <Link to={app ? `/sign-in?app=${app.id}` : '/sign-in'} className="font-semibold text-ink underline decoration-amber decoration-2 underline-offset-4">Sign in</Link>
       </p>
     </AuthLayout>
   )

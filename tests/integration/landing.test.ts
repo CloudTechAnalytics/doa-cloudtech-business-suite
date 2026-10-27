@@ -29,11 +29,11 @@ describe('the Apps and Industries menus come from the registries', () => {
     expect(apps.some((c) => ['retail', 'farm', 'bakery', 'pharmacy', 'school'].includes(c.id))).toBe(false)
   })
 
-  it('starts only the app that was clicked: every link and button carries that app', () => {
+  it('sends each app link to the sign-in page for that app: every link and button carries that app', () => {
     for (const c of apps) {
-      expect(c.cta?.to).toBe(`/start?type=general&app=${c.id}`)
+      expect(c.cta?.to).toBe(`/sign-in?app=${c.id}`)
       expect(c.items.length).toBeGreaterThan(0)
-      expect(c.items.every((i) => i.to === `/start?type=general&app=${c.id}`)).toBe(true)
+      expect(c.items.every((i) => i.to === `/sign-in?app=${c.id}`)).toBe(true)
     }
   })
 
@@ -64,7 +64,7 @@ describe('the onboarding draft survives sign-up', () => {
 
   const draft: OnboardingDraft = {
     selected: ['farm', 'bakery'], names: { farm: 'Green Valley', bakery: 'Sunrise' },
-    answers: { farm: { has_poultry: true, tax_rate_percent: 7.5 } }, addons: { farm: ['suppliers'] }, app: null, currency: 'NGN', tz: 'Africa/Lagos',
+    answers: { farm: { has_poultry: true, tax_rate_percent: 7.5 } }, addons: { farm: ['suppliers'] }, currency: 'NGN', tz: 'Africa/Lagos',
   }
 
   it('round-trips choices and clears', () => {
@@ -92,11 +92,6 @@ describe('the onboarding draft survives sign-up', () => {
 
   it('fills in safe defaults for missing fields', () => {
     store.set('doa.onboarding.draft', JSON.stringify({ selected: ['retail'] }))
-    expect(loadDraft()).toEqual({ selected: ['retail'], names: {}, answers: {}, addons: {}, app: null, currency: 'NGN', tz: 'Africa/Lagos' })
-  })
-
-  it('remembers which app the person started from, so signing up does not lose it', () => {
-    saveDraft({ selected: ['general'], names: {}, answers: {}, addons: {}, app: 'pos', currency: 'NGN', tz: 'Africa/Lagos' })
-    expect(loadDraft()?.app).toBe('pos')
+    expect(loadDraft()).toEqual({ selected: ['retail'], names: {}, answers: {}, addons: {}, currency: 'NGN', tz: 'Africa/Lagos' })
   })
 })

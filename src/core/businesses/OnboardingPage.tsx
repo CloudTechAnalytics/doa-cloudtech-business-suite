@@ -10,8 +10,6 @@ import { getIndustry, listIndustries } from '@/core/industry-registry'
 import { answersToSettings } from '@/core/industry-registry/settings'
 import type { IndustryDefinition, SetupAnswerValue } from '@/core/industry-registry/types'
 import { validateSetupAnswers } from '@/core/industry-registry/validate'
-import { STANDALONE_APPS } from '@/core/app-catalogue/apps'
-import { startWithApp } from '@/core/app-catalogue/startWithApp'
 import { enableModule } from '@/core/module-registry/moduleActions'
 import { MODULES } from '@/core/module-registry/registry'
 import { demoCreateBusiness, demoSignUp } from '@/demo/demoStore'
@@ -29,7 +27,7 @@ interface Result { id?: string; error?: string; notes: string[] }
 type Answers = Record<string, SetupAnswerValue>
 type Step = 1 | 2 | 3
 
-const isActive = (id: string | null): id is IndustryCode => !!id && listIndustries().some((d) => d.id === id && d.status === 'active')
+const isActive = (id: string | null): id is IndustryCode => !!id && id !== 'general' && listIndustries().some((d) => d.id === id && d.status === 'active')
 
 /**
  * The site's starting point after the landing page, in the style of Odoo's "Choose your Apps":
@@ -47,9 +45,6 @@ export function OnboardingPage() {
   // A saved draft is only resumed for a signed-in user (i.e. after sign-up or email confirmation).
   const [draft] = useState(() => (userId ? loadDraft() : null))
   const preselect = params.get('type')
-  // Coming from one app's link (for example POS): the new Business apps workspace starts with only that app.
-  const [app] = useState<string | null>(() => draft?.app ?? STANDALONE_APPS.find((a) => a.id === params.get('app'))?.id ?? null)
-  const appName = STANDALONE_APPS.find((a) => a.id === app)?.name ?? null
   const [step, setStep] = useState<Step>(draft ? 2 : 1)
   const [selected, setSelected] = useState<IndustryCode[]>(draft?.selected ?? (isActive(preselect) ? [preselect] : []))
   const [addons, setAddons] = useState<Record<string, Set<ModuleCode>>>(() => Object.fromEntries(Object.entries(draft?.addons ?? {}).map(([k, v]) => [k, new Set(v)])))
@@ -75,7 +70,7 @@ export function OnboardingPage() {
     return { ...a, [industry]: set }
   })
 
-  const persist = () => saveDraft({ selected, names, answers, addons: Object.fromEntries(Object.entries(addons).map(([k, v]) => [k, [...v]])), app, currency: common.currency, tz: common.tz })
+  const persist = () => saveDraft({ selected, names, answers, addons: Object.fromEntries(Object.entries(addons).map(([k, v]) => [k, [...v]])), currency: common.currency, tz: common.tz })
 
   async function createOne(d: IndustryDefinition): Promise<Result> {
     const notes: string[] = []
@@ -97,10 +92,6 @@ export function OnboardingPage() {
     }
     if (d.afterCreate) {
       const err = await d.afterCreate(id, answers[d.id] ?? {})
-      if (err) notes.push(err)
-    }
-    if (d.id === 'general' && app) {
-      const err = await startWithApp(id, app)
       if (err) notes.push(err)
     }
     for (const code of addons[d.id] ?? []) {
@@ -183,7 +174,7 @@ export function OnboardingPage() {
 
       <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_300px]">
         <div>
-          {step === 1 && <BusinessTypePicker industries={listIndustries()} selected={selected} onToggle={(id) => setSelected((s) => toggleSelection(s, id))} />}
+          {step === 1 && <BusinessTypePicker industries={listIndustries().filter((d) => d.id !== 'general')} selected={selected} onToggle={(id) => setSelected((s) => toggleSelection(s, id))} />}
 
           {step === 2 && (
             <form onSubmit={onDetails} noValidate className="space-y-4">
@@ -216,7 +207,6 @@ export function OnboardingPage() {
                   <Button type="submit" loading={busy}>{userId ? (defs.length > 1 ? `Create ${defs.filter((d) => !results[d.id]?.id).length} businesses` : 'Create business') : 'Continue'}</Button>
                 </div>
               )}
-              {appName && selected.includes('general') && <Notice>You are starting with {appName} only. Add the other apps any time from the App Library.</Notice>}
               {defs.length > 1 && !allCreated && userId && <Notice>Each business has its own data, staff and subscription. If one fails, the others are kept and you can retry just that one.</Notice>}
             </form>
           )}

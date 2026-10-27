@@ -11,7 +11,9 @@ A **workspace is a business** (`businesses`). A freelancer makes one with the ty
 
 ## Starting with one app
 
-Each app has its own entry on the public site (the Apps menu and the Apps page). Its links go to `/start?type=general&app=<id>`. The new Business apps workspace is then created with **only that app switched on** (`startWithApp` disables the other defaults), so a person who clicks POS or Invoices works in that app alone, not a bundle. The rest are one click away in the App Library. Choosing the *Business apps* type in the picker, with no app, still switches everything on.
+Each app has its own entry on the public site (the Apps menu and the Apps page). Its links go to the **sign-in page for that app** (`/sign-in?app=<id>`, with a matching sign-up page). The app is remembered in the browser through sign-in or account creation (`pendingApp`), and afterwards the person lands on `/start/<id>`, where they name a workspace. It is created as a Business apps workspace with **only that app switched on** (`startWithApp` disables the other defaults), so a person who clicks POS or Invoices works in that app alone, not a bundle. The rest are one click away in the App Library, which shows only in these workspaces, not in a school, farm or other industry business.
+
+"Business apps" is not a choice on the *Choose your business* page: that page lists industries only. It remains the internal type (`general`) that app workspaces use.
 
 An app that cannot work without other data carries what it needs, inside the app:
 

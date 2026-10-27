@@ -12,8 +12,6 @@ export interface OnboardingDraft {
   names: Record<string, string>
   answers: Record<string, Record<string, SetupAnswerValue>>
   addons: Record<string, ModuleCode[]>
-  /** The standalone app the person started from (POS, Invoices, ...), or null for the whole set. */
-  app?: string | null
   currency: string
   tz: string
 }
@@ -42,7 +40,6 @@ export function loadDraft(): OnboardingDraft | null {
       names: d.names && typeof d.names === 'object' ? d.names : {},
       answers: d.answers && typeof d.answers === 'object' ? d.answers : {},
       addons: d.addons && typeof d.addons === 'object' ? d.addons : {},
-      app: typeof d.app === 'string' ? d.app : null,
       currency: typeof d.currency === 'string' ? d.currency : 'NGN',
       tz: typeof d.tz === 'string' ? d.tz : 'Africa/Lagos',
     }

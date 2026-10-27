@@ -26,8 +26,8 @@ export interface StandaloneApp {
   features: { label: string; icon: LucideIcon }[]
 }
 
-/** The page that starts a new workspace with only this app switched on. */
-export const startPath = (app: Pick<StandaloneApp, 'id'>) => `/start?type=general&app=${app.id}`
+/** Where an app's link on the public site goes: the sign-in page for that app. After signing in (or creating an account) the person lands on the app's start page. */
+export const startPath = (app: Pick<StandaloneApp, 'id'>) => `/sign-in?app=${app.id}`
 
 export const STANDALONE_APPS: StandaloneApp[] = [
   {
