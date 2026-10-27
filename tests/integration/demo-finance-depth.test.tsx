@@ -96,8 +96,8 @@ describe('Expenses and Finance in a Business apps workspace', () => {
     const keys = (code: string) => sidebarEntries(apps).filter((x) => x.kind === 'section' && x.module.code === code).map((x) => (x.kind === 'section' ? x.section.key : ''))
     expect(keys('expenses')).toEqual(['expenses', 'budgets', 'report']); expect(keys('reports')).toEqual(['overview', 'cashflow', 'cashbook', 'owed', 'bills'])
   })
-  it('stay together under Finance in an industry business', () => {
-    const apps = buildApps('retail', new Set(['dashboard', 'expenses', 'reports']))
-    expect(apps.find((a) => a.label === 'Finance')!.modules.map((m) => m.code)).toEqual(['expenses', 'reports']); expect(apps.some((a) => a.label === 'Expenses')).toBe(false)
+  it('are not split in an industry business, which keeps one Finance app', () => {
+    const apps = buildApps('farm', new Set(['dashboard', 'expenses', 'reports', 'farm-cashbook']))
+    expect(apps.some((a) => a.label === 'Finance')).toBe(true); expect(apps.some((a) => a.label === 'Expenses')).toBe(false)
   })
 })
