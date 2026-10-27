@@ -1,7 +1,6 @@
 import { Plus, Printer, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
-import { searchCustomers } from '@/modules/crm/crmApi'
 import { usePermissions } from '@/core/permissions/usePermissions'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
@@ -119,7 +118,10 @@ function InvoiceDialog({ businessId, businessName, invoice, manage, onClose, onC
 }
 
 function EditDraft({ businessId, businessName, invoice, manage = true, onClose, onSaved, onSent }: { businessId: string; businessName?: string; invoice: InvoiceRow | null; manage?: boolean; onClose: () => void; onSaved: () => Promise<void>; onSent?: () => Promise<void> }) {
-  const customers = useAsync(() => searchCustomers(businessId, { q: '', category: '', page: 0, pageSize: 500 }), [businessId])
+  const customers = useAsync(() => api.listInvoiceCustomers(businessId), [businessId])
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState(''); const [newPhone, setNewPhone] = useState(''); const [newEmail, setNewEmail] = useState('')
+  const [addError, setAddError] = useState<string | null>(null)
   const [customerId, setCustomerId] = useState(invoice?.customerId ?? '')
   const [due, setDue] = useState(invoice?.dueOn ?? '')
   const [lines, setLines] = useState(invoice ? invoice.lines.map((l) => ({ description: l.description, quantity: String(l.quantity), unitPrice: String(l.unitPrice) })) : [blank()])
@@ -139,10 +141,19 @@ function EditDraft({ businessId, businessName, invoice, manage = true, onClose, 
       <div className="space-y-3 text-sm">
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectField label="Customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} disabled={!manage}>
-            <option value="">Choose a customer</option>{(customers.data?.rows ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="">Choose a customer</option>{(customers.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </SelectField>
           <TextField label="Due date" type="date" value={due} onChange={(e) => setDue(e.target.value)} disabled={!manage} />
         </div>
+        {manage && !adding && <button type="button" className="text-xs font-semibold text-accent underline" onClick={() => setAdding(true)}>Customer not in the list? Add a new customer</button>}
+        {manage && adding && (
+          <div className="rounded-lg border border-line p-3">
+            <div className="grid gap-3 sm:grid-cols-3"><TextField label="Customer name" value={newName} onChange={(e) => setNewName(e.target.value)} /><TextField label="Phone" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} /><TextField label="Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
+            {addError && <div className="mt-2"><ErrorState title="Not added" message={addError} /></div>}
+            <div className="mt-2 flex gap-2"><Button variant="secondary" onClick={() => { setAdding(false); setAddError(null) }}>Cancel</Button>
+              <Button onClick={async () => { const r = await api.addInvoiceCustomer(businessId, { name: newName, phone: newPhone, email: newEmail }); setAddError(r.error); if (!r.error && r.id) { await customers.refresh(); setCustomerId(r.id); setAdding(false); setNewName(''); setNewPhone(''); setNewEmail('') } }}>Add customer</Button></div>
+          </div>
+        )}
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink/60">Lines</p>
           <ul className="space-y-2">{lines.map((l, i) => (

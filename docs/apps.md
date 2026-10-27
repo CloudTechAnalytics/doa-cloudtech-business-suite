@@ -9,6 +9,16 @@ DOA has two kinds of apps, side by side, on one account and one database.
 
 A **workspace is a business** (`businesses`). A freelancer makes one with the type *Business apps* (`general`, no industry modules). A bakery owner makes one of type *Bakery*. One account can own several, each with its own members, roles, data and plan. Nothing is shared between businesses.
 
+## Starting with one app
+
+Each app has its own entry on the public site (the Apps menu and the Apps page). Its links go to `/start?type=general&app=<id>`. The new Business apps workspace is then created with **only that app switched on** (`startWithApp` disables the other defaults), so a person who clicks POS or Invoices works in that app alone, not a bundle. The rest are one click away in the App Library. Choosing the *Business apps* type in the picker, with no app, still switches everything on.
+
+An app that cannot work without other data carries what it needs, inside the app:
+
+- **POS** carries the Inventory module as its product list (you cannot sell without products). In the App Library, Inventory shows as needed by POS and cannot be switched off while POS is on; switching POS off leaves Inventory on if the Inventory app is on.
+- **Invoices** reads and adds its own customers (`customers_select` also allows `invoices.read`, and `invoice_add_customer` reuses a matching customer). It does not need the CRM app. Quotes live in the CRM, so "accepted quotes ready to invoice" appears only when the CRM is on.
+- **Finance** reads the money other apps record; on its own it has nothing to show until POS, Invoices or Expenses is on.
+
 ## How "switching on an app" works
 
 An app is one or more shared modules. Switching it on enables its modules in `business_modules` (`enable_module`); switching it off disables them (`disable_module`). Nothing is deleted: records stay readable (`module_usable(..., 'read')`) and everything returns when the app is switched on again. The checks are in the database, not the interface: the person must hold `settings.manage`, the business type must allow the module, the plan must include it, and every table's policy calls `has_module_permission`. Hiding an app in the menu is never the security control.
@@ -16,13 +26,13 @@ An app is one or more shared modules. Switching it on enables its modules in `bu
 | App | Modules | Notes |
 |---|---|---|
 | DOA CRM | `customers` | contacts, leads, deal pipeline, quotes, follow-ups, report |
-| DOA POS | `sales` | the same sales module the industries use; no retail setup |
+| DOA POS | `sales`, `inventory` | the same sales module the industries use, plus the product list; no retail setup |
 | DOA Inventory | `inventory` | movement ledger |
 | DOA Invoices | `invoices` | invoices and their payments |
 | DOA Expenses | `expenses` | |
 | DOA Finance | `reports` | cash-basis summary, cashbook, receivables and payables |
 
-Which business types can use which app is the industry template (`industry_template_modules`). *Business apps* has all six on by default. Retail, bakery and pharmacy have all of them except Invoices, which they can switch on. Farm can switch on Purchases, Suppliers, Expenses and Invoices. A school has none of the standalone apps (it has its own fees and expenses).
+Which business types can use which app is the industry template (`industry_template_modules`). *Business apps* has all six on when chosen in the picker, or one when started from an app's link. Retail, bakery and pharmacy have all of them except Invoices, which they can switch on. Farm can switch on Purchases, Suppliers, Expenses and Invoices. A school has none of the standalone apps (it has its own fees and expenses).
 
 ## Integration contracts and data ownership
 

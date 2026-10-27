@@ -22,19 +22,19 @@ describe('the Apps and Industries menus come from the registries', () => {
   const { apps, industries } = landingMenus()
   const labels = (id: string) => apps.find((c) => c.id === id)!.items.map((i) => i.label)
 
-  it('lists apps (CRM first, then sales, stock, finance), not industries; industries have their own menu', () => {
-    expect(apps.map((c) => c.title)).toEqual(['CRM', 'Sales', 'Stock and purchasing', 'Finance', 'Administration'])
+  it('lists each standalone app on its own, not industries or a bundle; industries have their own menu', () => {
+    expect(apps.map((c) => c.id)).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance'])
+    expect(apps.map((c) => c.title)).toEqual(['CRM', 'POS', 'Inventory', 'Invoices', 'Expenses', 'Finance'])
     expect(labels('crm')).toEqual(['Contacts & customers', 'Leads', 'Deals pipeline', 'Quotes', 'Follow-ups', 'CRM reports'])
-    expect(apps.find((c) => c.id === 'crm')!.cta?.to).toBe('/start?type=general')
-    expect(labels('Sales and customers')).toEqual(['Sales / POS', 'Invoices'])
     expect(apps.some((c) => ['retail', 'farm', 'bakery', 'pharmacy', 'school'].includes(c.id))).toBe(false)
-    expect(labels('Stock and purchasing')).toEqual(['Inventory', 'Purchases', 'Suppliers'])
   })
 
-  it('labels unfinished modules honestly and finished ones not at all', () => {
-    const tag = (col: string, label: string) => apps.find((c) => c.id === col)!.items.find((i) => i.label === label)!.tag
-    expect(tag('Finance', 'Expenses')).toBeUndefined() // built
-    expect(tag('Sales and customers', 'Sales / POS')).toBeUndefined()
+  it('starts only the app that was clicked: every link and button carries that app', () => {
+    for (const c of apps) {
+      expect(c.cta?.to).toBe(`/start?type=general&app=${c.id}`)
+      expect(c.items.length).toBeGreaterThan(0)
+      expect(c.items.every((i) => i.to === `/start?type=general&app=${c.id}`)).toBe(true)
+    }
   })
 
   it('lists every industry, each linking to a pre-selected picker', () => {
@@ -64,7 +64,7 @@ describe('the onboarding draft survives sign-up', () => {
 
   const draft: OnboardingDraft = {
     selected: ['farm', 'bakery'], names: { farm: 'Green Valley', bakery: 'Sunrise' },
-    answers: { farm: { has_poultry: true, tax_rate_percent: 7.5 } }, addons: { farm: ['suppliers'] }, currency: 'NGN', tz: 'Africa/Lagos',
+    answers: { farm: { has_poultry: true, tax_rate_percent: 7.5 } }, addons: { farm: ['suppliers'] }, app: null, currency: 'NGN', tz: 'Africa/Lagos',
   }
 
   it('round-trips choices and clears', () => {
@@ -92,6 +92,11 @@ describe('the onboarding draft survives sign-up', () => {
 
   it('fills in safe defaults for missing fields', () => {
     store.set('doa.onboarding.draft', JSON.stringify({ selected: ['retail'] }))
-    expect(loadDraft()).toEqual({ selected: ['retail'], names: {}, answers: {}, addons: {}, currency: 'NGN', tz: 'Africa/Lagos' })
+    expect(loadDraft()).toEqual({ selected: ['retail'], names: {}, answers: {}, addons: {}, app: null, currency: 'NGN', tz: 'Africa/Lagos' })
+  })
+
+  it('remembers which app the person started from, so signing up does not lose it', () => {
+    saveDraft({ selected: ['general'], names: {}, answers: {}, addons: {}, app: 'pos', currency: 'NGN', tz: 'Africa/Lagos' })
+    expect(loadDraft()?.app).toBe('pos')
   })
 })

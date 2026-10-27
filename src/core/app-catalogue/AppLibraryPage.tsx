@@ -11,7 +11,7 @@ import { usePermissions } from '@/core/permissions/usePermissions'
 import { canManageStaff } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { Badge, Button, ErrorState, PageHeader } from '@/shared/components'
-import { STANDALONE_APPS, appState, canSwitchOff } from './apps'
+import { STANDALONE_APPS, appState, canSwitchOff, modulesToSwitchOff, neededBy } from './apps'
 import type { AppState, StandaloneApp } from './apps'
 
 const STATE: Record<AppState, { tone: 'success' | 'info' | 'warning' | 'neutral'; text: string }> = {
@@ -36,7 +36,7 @@ export function AppLibraryPage() {
 
   async function toggle(app: StandaloneApp, on: boolean) {
     setBusy(app.id); setError(null)
-    for (const m of app.modules) {
+    for (const m of on ? app.modules : modulesToSwitchOff(app, statuses)) {
       const s = statuses.find((x) => x.code === m)
       if (on && s?.enabled) continue
       const err = on ? await enableModule(active!.id, m) : await disableModule(active!.id, m)
@@ -67,6 +67,7 @@ export function AppLibraryPage() {
                 {st === 'active' && <Link to={appPath(MODULES[app.home])} className="inline-flex h-9 items-center rounded-md bg-amber px-3 text-sm font-semibold text-ink hover:bg-amber-dark">Open</Link>}
                 {st === 'available' && canManage && <Button loading={busy === app.id} onClick={() => void toggle(app, true)}>Switch on</Button>}
                 {st === 'available' && !canManage && <span className="text-xs text-ink/60">Ask the business owner to switch it on.</span>}
+                {st === 'active' && canManage && neededBy(app, statuses).length > 0 && <span className="text-xs text-ink/60">Needed by {neededBy(app, statuses).map((o) => o.name).join(', ')}.</span>}
                 {st === 'active' && canManage && canSwitchOff(app, statuses) && <Button variant="secondary" loading={busy === app.id} onClick={() => void toggle(app, false)}>Switch off</Button>}
                 {st === 'needs_plan' && <Link to="/app/settings" className="text-sm font-semibold underline">See plans</Link>}
                 {st === 'unavailable' && <span className="text-xs text-ink/60">{industry.name} has its own tools for this. Create a Business apps workspace to use it on its own.</span>}

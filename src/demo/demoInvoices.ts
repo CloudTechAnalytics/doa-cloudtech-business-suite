@@ -1,6 +1,6 @@
 import { getCrm } from '@/demo/demoCrm'
 import { newId } from '@/demo/demoInventory'
-import { demoAllowed, getTrade } from '@/demo/demoTrade'
+import { demoAllowed, demoInsertCustomer, getTrade } from '@/demo/demoTrade'
 
 /**
  * Browser-only invoices for demo mode. Mirrors supabase/migrations/20261021000047_invoices.sql: totals are worked out here, a payment needs an idempotency
@@ -40,6 +40,23 @@ export const demoInvoiceList = (biz: string) => state.invoices.filter((i) => i.b
 export const demoInvoicePayments = (biz: string, invoiceId: string) => state.payments.filter((p) => p.businessId === biz && p.invoiceId === invoiceId)
 const customerName = (biz: string, id: string) => getTrade().customers.find((c) => c.businessId === biz && c.id === id)?.name ?? ''
 export const demoInvoiceCustomer = customerName
+/** Customers for the invoice screen: readable without the CRM app, like the customers policy that also allows invoices.read. */
+export const demoInvoiceCustomers = (biz: string) => getTrade().customers.filter((c) => c.businessId === biz).map((c) => ({ id: c.id, name: c.name })).sort((a, z) => a.name.localeCompare(z.name))
+
+/** Mirrors invoice_add_customer(): reuses an active customer with the same email or phone instead of making a duplicate. */
+export function demoInvoiceAddCustomer(biz: string, v: { name: string; phone: string; email: string }): { error: string | null; id?: string } {
+  try {
+    if (!demoAllowed(biz, 'invoices', 'invoices.manage')) throw new Error('permission denied')
+    if (!v.name.trim()) throw new Error('enter the customer name')
+    if (v.name.trim().length > 200) throw new Error('the customer name is too long')
+    const phone = v.phone.trim() || null; const email = v.email.trim() || null
+    const same = getTrade().customers.find((c) => c.businessId === biz && ((email && c.email && c.email.toLowerCase() === email.toLowerCase()) || (phone && c.phone === phone)))
+    if (same) return { error: null, id: same.id }
+    const id = newId('c')
+    demoInsertCustomer({ id, businessId: biz, name: v.name.trim(), phone, email, source: 'invoice', category: null, creditLimit: 0, createdAt: new Date().toISOString() })
+    return { error: null, id }
+  } catch (e) { return { error: (e as Error).message } }
+}
 
 function tidy(lines: DInvoiceLine[], noun = 'invoice') {
   if (!lines.length) throw new Error(`add at least one line to the ${noun}`)

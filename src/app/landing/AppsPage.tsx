@@ -1,6 +1,6 @@
 import { ArrowRight, Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { STANDALONE_APPS } from '@/core/app-catalogue/apps'
+import { STANDALONE_APPS, startPath } from '@/core/app-catalogue/apps'
 import { Mark } from './Mark'
 import { Reveal } from './Reveal'
 import { SiteFooter } from './SiteFooter'
@@ -26,7 +26,7 @@ export function AppsPage() {
                 <p className="mt-3 text-sm text-ink/80">{a.description}</p>
                 <ul className="mt-3 space-y-1.5 text-sm text-ink/80">{a.benefits.map((b) => <li key={b} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />{b}</li>)}</ul>
                 <p className="mt-3 text-xs font-semibold text-ink/60">{a.free}</p>
-                <Link to="/start?type=general" className="mt-auto inline-flex pt-4 text-sm font-semibold text-accent hover:underline">Start with {a.name.replace('DOA ', '')}<ArrowRight className="ml-1 size-4" aria-hidden /></Link>
+                <Link to={startPath(a)} className="mt-auto inline-flex pt-4 text-sm font-semibold text-accent hover:underline">Start with {a.name.replace('DOA ', '')}<ArrowRight className="ml-1 size-4" aria-hidden /></Link>
               </Reveal>
             </li>
           ))}

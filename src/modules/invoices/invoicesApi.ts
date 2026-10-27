@@ -54,6 +54,21 @@ export async function saveInvoice(b: string, v: InvoiceInput) {
   return err((await db().rpc('invoice_save', { p_business: b, p_id: v.id, p_customer: v.customerId, p_due: v.dueOn, p_lines: v.lines.map((l) => ({ description: l.description, quantity: l.quantity, unit_price: l.unitPrice })), p_discount: v.discount, p_tax: v.taxPercent, p_notes: v.notes })).error)
 }
 
+/** Customers to bill. Readable with the Invoices app alone (the CRM app need not be on). */
+export async function listInvoiceCustomers(b: string): Promise<{ id: string; name: string }[]> {
+  if (isDemoMode) return demo.demoInvoiceCustomers(b)
+  const r = await db().from('customers').select('id, name').eq('business_id', b).eq('status', 'active').order('name').limit(1000)
+  if (r.error) throw new Error(r.error.message)
+  return (r.data ?? []).map((x) => ({ id: String(x.id), name: String(x.name) }))
+}
+
+/** Adds a customer from the invoice screen (reuses one with the same email or phone). */
+export async function addInvoiceCustomer(b: string, v: { name: string; phone: string; email: string }): Promise<{ error: string | null; id?: string }> {
+  if (isDemoMode) return demo.demoInvoiceAddCustomer(b, v)
+  const { data, error } = await db().rpc('invoice_add_customer', { p_business: b, p_name: v.name, p_phone: v.phone, p_email: v.email })
+  return error ? { error: error.message } : { error: null, id: String(data) }
+}
+
 export async function invoiceFromQuote(b: string, quoteId: string) {
   if (isDemoMode) return demo.demoInvoiceFromQuote(b, quoteId)
   return err((await db().rpc('invoice_from_quote', { p_quote: quoteId })).error)

@@ -7,6 +7,7 @@ import type { InvoiceRow } from '@/modules/invoices/invoicesApi'
 import * as crm from '@/demo/demoCrm'
 import * as fin from '@/demo/demoFinance'
 import * as inv from '@/demo/demoInvoices'
+import { startWithApp } from '@/core/app-catalogue/startWithApp'
 import { demoCreateBusiness, demoModuleStatuses, demoSignIn, demoSignOut } from '@/demo/demoStore'
 import { demoCreateCustomer, getTrade } from '@/demo/demoTrade'
 
@@ -138,12 +139,13 @@ describe('the printable invoice', () => {
 describe('the App Library', () => {
   it('lists six standalone apps that map to real modules', () => {
     expect(STANDALONE_APPS.map((a) => a.id)).toEqual(['crm', 'pos', 'inventory', 'invoices', 'expenses', 'finance'])
-    expect(STANDALONE_APPS.flatMap((a) => a.modules).sort()).toEqual(['customers', 'expenses', 'inventory', 'invoices', 'reports', 'sales'])
+    expect([...new Set(STANDALONE_APPS.flatMap((a) => a.modules))].sort()).toEqual(['customers', 'expenses', 'inventory', 'invoices', 'reports', 'sales'])
+    expect(STANDALONE_APPS.find((a) => a.id === 'pos')!.modules).toEqual(['sales', 'inventory']) // POS carries its product list
   })
 
   it('shows every app as on in a Business apps workspace, and lets each be switched off', () => {
     const st = demoModuleStatuses(biz)
-    for (const a of STANDALONE_APPS) { expect(appState(a, st), a.id).toBe('active'); expect(canSwitchOff(a, st), a.id).toBe(true) }
+    for (const a of STANDALONE_APPS) { expect(appState(a, st), a.id).toBe('active'); expect(canSwitchOff(a, st), a.id).toBe(a.id !== 'inventory') } // POS needs the Inventory module for its products
   })
 
   it('offers Invoices as an app that can be switched on in a shop, and shows a school has no standalone apps it did not already have', () => {
@@ -156,5 +158,51 @@ describe('the App Library', () => {
     const ss = demoModuleStatuses(school)
     expect(appState(STANDALONE_APPS.find((a) => a.id === 'invoices')!, ss)).toBe('unavailable')
     expect(appState(STANDALONE_APPS.find((a) => a.id === 'pos')!, ss)).toBe('unavailable')
+  })
+})
+
+describe('starting with one app', () => {
+  const on = (b: string) => demoModuleStatuses(b).filter((s) => s.enabled && !s.isCore).map((s) => s.code).sort()
+  const stateOf = (b: string) => Object.fromEntries(STANDALONE_APPS.map((a) => [a.id, appState(a, demoModuleStatuses(b))]))
+
+  it('Invoices alone: only Invoices is on, and the others are one click away', async () => {
+    const b = demoCreateBusiness('Freelance Co', 'general')
+    expect(await startWithApp(b, 'invoices')).toBeNull()
+    expect(on(b)).toEqual(['invoices'])
+    expect(stateOf(b)).toEqual({ crm: 'available', pos: 'available', inventory: 'available', invoices: 'active', expenses: 'available', finance: 'available' })
+  })
+
+  it('POS alone: Sales and its product list, nothing else', async () => {
+    const b = demoCreateBusiness('Little Shop', 'general')
+    expect(await startWithApp(b, 'pos')).toBeNull()
+    expect(on(b)).toEqual(['inventory', 'sales'])
+    expect(stateOf(b)).toMatchObject({ pos: 'active', crm: 'available', invoices: 'available', expenses: 'available' })
+  })
+
+  it('CRM alone, and an unknown app leaves everything on', async () => {
+    const b = demoCreateBusiness('Agency', 'general')
+    expect(await startWithApp(b, 'crm')).toBeNull(); expect(on(b)).toEqual(['customers'])
+    const all = demoCreateBusiness('Everything', 'general')
+    expect(await startWithApp(all, 'nope')).toBeNull(); expect(on(all)).toEqual(['customers', 'expenses', 'inventory', 'invoices', 'purchases', 'reports', 'sales', 'suppliers'])
+  })
+
+  it('an app that another app needs cannot be switched off while that app is on', async () => {
+    const b = demoCreateBusiness('Shop', 'general')
+    await startWithApp(b, 'pos')
+    const st = demoModuleStatuses(b)
+    expect(canSwitchOff(STANDALONE_APPS.find((a) => a.id === 'inventory')!, st)).toBe(false) // POS needs its products
+    expect(canSwitchOff(STANDALONE_APPS.find((a) => a.id === 'pos')!, st)).toBe(true)
+  })
+
+  it('Invoices can list and add customers without the CRM app, and does not duplicate them', async () => {
+    const b = demoCreateBusiness('Freelance 2', 'general')
+    await startWithApp(b, 'invoices')
+    const a = inv.demoInvoiceAddCustomer(b, { name: 'Zed Ltd', phone: '0803', email: 'zed@example.com' })
+    expect(a.error).toBeNull()
+    expect(inv.demoInvoiceCustomers(b).map((c) => c.name)).toEqual(['Zed Ltd'])
+    expect(inv.demoInvoiceAddCustomer(b, { name: 'Zed again', phone: '', email: 'ZED@example.com' }).id).toBe(a.id)
+    expect(inv.demoInvoiceAddCustomer(b, { name: ' ', phone: '', email: '' }).error).toMatch(/enter the customer name/)
+    expect(inv.demoSaveInvoice(b, { id: null, customerId: a.id!, dueOn: null, lines: [{ description: 'Job', quantity: 1, unitPrice: 100 }], discount: 0, taxPercent: 0, notes: '' })).toBeNull()
+    as('viewer@demo.test'); expect(inv.demoInvoiceAddCustomer(b, { name: 'X', phone: '', email: '' }).error).toMatch(/permission denied/); as('owner@demo.test')
   })
 })

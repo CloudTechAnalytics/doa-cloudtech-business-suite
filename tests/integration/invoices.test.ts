@@ -161,6 +161,26 @@ describe('invoice payments', () => {
   })
 })
 
+describe('Invoices on its own (no CRM app)', () => {
+  it('lists and adds customers without the CRM, reuses a match, and keeps other businesses out', async () => {
+    const b = (await as(owner, () => q<{ id: string }>(`select public.create_business('Solo Co','general') as id`)))[0].id
+    await db.exec(`update public.subscriptions set plan_id=(select id from public.subscription_plans where code='growth')`)
+    await as(owner, () => q('select public.disable_module($1,$2)', [b, 'customers']))
+    expect((await as(owner, () => q<{ module_code: string; enabled: boolean }>('select module_code, enabled from public.my_modules($1)', [b]))).find((m) => m.module_code === 'customers')).toMatchObject({ enabled: false })
+    const add = (u: string, name: string, phone: string | null, email: string | null) => as(u, () => q<{ id: string }>('select public.invoice_add_customer($1,$2,$3,$4) as id', [b, name, phone, email])).then((r) => r[0].id)
+    const zed = await add(owner, 'Zed Ltd', '0803', 'zed@example.com')
+    expect(await add(owner, 'Zed again', null, 'ZED@example.com')).toBe(zed)
+    expect(await add(owner, 'Zed by phone', '0803', null)).toBe(zed)
+    expect((await as(owner, () => q<{ name: string }>('select name from public.customers where business_id=$1', [b]))).map((c) => c.name)).toEqual(['Zed Ltd'])
+    await expect(add(owner, ' ', null, null)).rejects.toThrow(/enter the customer name/)
+    await expect(add(other, 'Intruder', null, null)).rejects.toThrow(/permission denied/)
+    const id = (await as(owner, () => q<{ id: string }>('select public.invoice_save($1,null,$2,null,$3::jsonb,0,0,$4) as id', [b, zed, lines(['Job', 1, 100]), ''])))[0].id
+    expect(await inv(id)).toMatchObject({ status: 'draft', total: '100.00' })
+    expect((await as(other, () => q('select id from public.customers where business_id=$1', [b]))).length).toBe(0)
+    await expect(add(cashier, 'Nobody', null, null)).rejects.toThrow(/permission denied/)
+  })
+})
+
 describe('quotes become invoices', () => {
   const accepted = async (o: { customer?: string | null; lead?: string | null } = {}) => {
     const id = (await as(owner, () => q<{ id: string }>('select public.crm_save_quote($1,null,null,$2,$3,null,$4::jsonb,50,$5) as id', [biz, o.customer === undefined ? customer : o.customer, o.lead ?? null, lines(['Service', 2, 500]), 'Thanks'])))[0].id
