@@ -6,7 +6,7 @@ export type IndustryCode = 'retail' | 'farm' | 'bakery' | 'pharmacy' | 'school' 
 
 /** Modules owned by the platform. Industry modules add their own codes (prefixed with the industry id). */
 export const SHARED_MODULE_CODES = [
-  'dashboard', 'inventory', 'sales', 'purchases', 'suppliers', 'customers', 'expenses', 'reports', 'staff', 'settings',
+  'dashboard', 'inventory', 'sales', 'purchases', 'suppliers', 'customers', 'expenses', 'reports', 'staff', 'settings', 'invoices',
 ] as const
 export type SharedModuleCode = (typeof SHARED_MODULE_CODES)[number]
 /** Shared codes autocomplete; industry-owned codes are validated at registry build time and by tests. */

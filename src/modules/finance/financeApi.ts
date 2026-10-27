@@ -48,7 +48,7 @@ export async function listReceivables(b: string): Promise<ReceivableRow[]> {
   if (isDemoMode) { ensureDemoTrade(b); return demo.demoReceivables(b) }
   const r = await db().from('receivables').select('*').eq('business_id', b).order('sold_at')
   if (r.error) throw new Error(r.error.message)
-  return (r.data ?? []).map((x) => ({ saleId: x.sale_id!, number: x.sale_number!, customerId: x.customer_id, customerName: x.customer_name ?? 'Walk-in', soldAt: x.sold_at!, grandTotal: n(x.grand_total), amountPaid: n(x.amount_paid), balanceDue: n(x.balance_due), ageDays: n(x.age_days) }))
+  return (r.data ?? []).map((x) => ({ saleId: x.sale_id!, number: x.sale_number!, customerId: x.customer_id, customerName: x.customer_name ?? 'Walk-in', soldAt: x.sold_at!, grandTotal: n(x.grand_total), amountPaid: n(x.amount_paid), balanceDue: n(x.balance_due), ageDays: n(x.age_days), source: x.source === 'invoice' ? 'invoice' as const : 'sale' as const }))
 }
 
 export async function listPayables(b: string): Promise<PayableRow[]> {
@@ -73,7 +73,7 @@ export async function reportSummary(b: string, from: string, to: string): Promis
   return {
     salesCount: n(x.sales_count), salesTotal: n(x.sales_total), purchasesTotal: n(x.purchases_total), expensesTotal: n(x.expenses_total),
     expensesByCategory: Object.fromEntries(Object.entries((x.expenses_by_category ?? {}) as Record<string, unknown>).map(([k, v]) => [k, n(v)])),
-    cashIn: n(x.cash_in), cashOut: n(x.cash_out), operatingSurplus: n(x.operating_surplus), receivablesOpen: n(x.receivables_open), payablesOpen: n(x.payables_open), stockValue: n(x.stock_value),
+    cashIn: n(x.cash_in), cashOut: n(x.cash_out), operatingSurplus: n(x.operating_surplus), receivablesOpen: n(x.receivables_open), payablesOpen: n(x.payables_open), stockValue: n(x.stock_value), invoicedTotal: n(x.invoiced_total),
   }
 }
 

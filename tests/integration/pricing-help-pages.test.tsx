@@ -11,8 +11,8 @@ describe('which plan fits', () => {
     expect(planFor(1, 1, false, false)).toBe('starter'); expect(planFor(3, 1, false, false)).toBe('starter'); expect(planFor(4, 1, false, false)).toBe('basic')
     expect(planFor(6, 1, false, false)).toBe('growth'); expect(planFor(5, 2, false, false)).toBe('growth'); expect(planFor(16, 1, false, false)).toBe('business'); expect(planFor(50, 10, false, false)).toBe('business')
   })
-  it('moves up when suppliers, expenses or finance reports are needed', () => {
-    expect(planFor(2, 1, true, false)).toBe('basic'); expect(planFor(2, 1, false, true)).toBe('growth'); expect(planFor(2, 1, true, true)).toBe('growth')
+  it('moves up when purchases and suppliers are needed (expenses and finance reports are in every plan)', () => {
+    expect(planFor(2, 1, true)).toBe('basic'); expect(planFor(2, 1, false)).toBe('starter')
   })
   it('says so when nothing is big enough', () => { expect(planFor(51, 1, false, false)).toBeNull(); expect(planFor(5, 11, false, false)).toBeNull() })
 })

@@ -6,7 +6,7 @@ const ACTION_PERMS = [
   'inventory.adjust', 'sales.create', 'sales.discount', 'sales.refund', 'sales.void', 'customers.manage', 'customers.credit',
   'suppliers.manage', 'purchases.manage', 'purchases.receive', 'purchases.pay', 'audit.read', 'farm.manage',
   'expenses.record', 'procurement.request', 'procurement.approve', 'reports.read', 'bakery.manage', 'retail.manage',
-  'pharmacy.manage', 'pharmacy.rx', 'pharmacy.dispense',
+  'pharmacy.manage', 'pharmacy.rx', 'pharmacy.dispense', 'invoices.manage',
   'school.read', 'school.manage', 'school.students', 'school.teach', 'school.attendance', 'school.results.enter', 'school.results.approve', 'school.fees.read', 'school.fees.manage', 'school.fees.record', 'school.portal', 'school.guardians', 'school.delete',
 ]
 const ALL_PERMS = [...new Set([...ALL_MODULES.map((m) => m.permission), ...ACTION_PERMS])]
@@ -22,7 +22,7 @@ export function rolePermissions(role: RoleName): Set<string> {
     owner: ALL_PERMS.filter((p) => p !== 'school.portal' && p !== 'school.teach'),
     business_admin: ALL_PERMS.filter((p) => p !== 'school.portal' && p !== 'school.teach'),
     manager: ALL_PERMS.filter((p) => !['staff.manage', 'settings.manage', 'audit.read', 'pharmacy.dispense', 'school.portal', 'school.delete', 'school.teach'].includes(p)),
-    accountant: ['dashboard.read', 'expenses.read', 'reports.read', 'purchases.read', 'suppliers.read', 'sales.read', 'inventory.read', 'purchases.pay', 'customers.credit', 'reports.finance.read', 'expenses.record', 'procurement.approve'],
+    accountant: ['dashboard.read', 'expenses.read', 'reports.read', 'purchases.read', 'suppliers.read', 'sales.read', 'inventory.read', 'purchases.pay', 'customers.credit', 'reports.finance.read', 'expenses.record', 'procurement.approve', 'invoices.read', 'invoices.manage'],
     cashier: ['dashboard.read', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'inventory.read'],
     inventory_officer: ['dashboard.read', 'inventory.read', 'inventory.adjust', 'purchases.read', 'suppliers.read', 'purchases.manage', 'purchases.receive', 'suppliers.manage', 'procurement.request'],
     pharmacist: ['dashboard.read', 'inventory.read', 'inventory.adjust', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'purchases.read', 'suppliers.read', 'pharmacy.rx', 'pharmacy.dispense'],

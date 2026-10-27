@@ -7,7 +7,7 @@ import type { OnboardingDraft } from '@/core/businesses/draft'
 describe('landing page content comes from the registries', () => {
   it('lists the shared apps (no settings) and one app per active industry that owns modules', () => {
     const { shared, industries } = landingApps()
-    expect(shared.map((a) => a.id)).toEqual(['sales', 'crm', 'inventory', 'purchase', 'finance', 'staff'])
+    expect(shared.map((a) => a.id)).toEqual(['sales', 'crm', 'invoices', 'inventory', 'purchase', 'finance', 'staff'])
     expect(shared.every((a) => a.blurb.length > 0)).toBe(true)
     expect(industries.map((a) => a.id)).toEqual(['retail', 'farm', 'bakery', 'pharmacy', 'school'])
     expect(industries.map((a) => a.label)).toEqual(['Mart', 'Farm operations', 'Bakery production', 'Pharmacy', 'School'])
@@ -26,7 +26,7 @@ describe('the Apps and Industries menus come from the registries', () => {
     expect(apps.map((c) => c.title)).toEqual(['CRM', 'Sales', 'Stock and purchasing', 'Finance', 'Administration'])
     expect(labels('crm')).toEqual(['Contacts & customers', 'Leads', 'Deals pipeline', 'Quotes', 'Follow-ups', 'CRM reports'])
     expect(apps.find((c) => c.id === 'crm')!.cta?.to).toBe('/start?type=general')
-    expect(labels('Sales and customers')).toEqual(['Sales / POS'])
+    expect(labels('Sales and customers')).toEqual(['Sales / POS', 'Invoices'])
     expect(apps.some((c) => ['retail', 'farm', 'bakery', 'pharmacy', 'school'].includes(c.id))).toBe(false)
     expect(labels('Stock and purchasing')).toEqual(['Inventory', 'Purchases', 'Suppliers'])
   })

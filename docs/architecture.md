@@ -27,7 +27,7 @@ Dependency direction: `app → core → shared`, `modules → core, shared`, `in
 
 ## Industries and apps
 
-Two layers sit side by side. An **industry** (retail, farm, bakery, pharmacy, school) is a whole business with its own modules. An **app** (CRM, Sales, Inventory, Purchases, Finance) is a shared module any business can use. The business type `general` ("Business apps") has no industry modules at all, only the shared apps, so a consultancy or service business can use the CRM on its own. The public Apps menu lists the apps; the Industries menu lists the industries. The CRM is the shared module `customers`: contacts, leads, a deal pipeline, printable quotes, follow-ups and a report (`src/modules/crm`).
+See [apps.md](apps.md) for the app catalogue, App Library, integration contracts and what is not built. In short, two layers sit side by side. An **industry** (retail, farm, bakery, pharmacy, school) is a whole business with its own modules. An **app** (CRM, Sales, Inventory, Purchases, Finance) is a shared module any business can use. The business type `general` ("Business apps") has no industry modules at all, only the shared apps, so a consultancy or service business can use the CRM on its own. The public Apps menu lists the apps; the Industries menu lists the industries. The CRM is the shared module `customers`: contacts, leads, a deal pipeline, printable quotes, follow-ups and a report (`src/modules/crm`).
 
 ## Four separate ideas
 

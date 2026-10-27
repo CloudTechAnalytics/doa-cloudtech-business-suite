@@ -19,7 +19,7 @@ export const general = defineIndustry({
   modules: [],
   requiredSharedModules: [] as SharedModuleCode[],
   optionalSharedModules: [] as SharedModuleCode[],
-  defaultModules: ['inventory', 'sales', 'purchases', 'suppliers', 'customers', 'expenses', 'reports'] as ModuleCode[],
+  defaultModules: ['inventory', 'sales', 'purchases', 'suppliers', 'customers', 'invoices', 'expenses', 'reports'] as ModuleCode[],
   optionalModules: [],
   requiredModules: [],
   permissions: [],

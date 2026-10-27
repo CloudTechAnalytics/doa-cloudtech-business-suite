@@ -7,7 +7,7 @@ import { label, naira } from '@/shared/utilities/format'
 import { listCashbook, withRunningBalance } from './financeApi'
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
-const KIND: Record<string, string> = { sale_receipt: 'Sale payment received', refund: 'Refund paid', purchase_payment: 'Supplier payment', expense: 'Expense' }
+const KIND: Record<string, string> = { sale_receipt: 'Sale payment received', refund: 'Refund paid', purchase_payment: 'Supplier payment', expense: 'Expense', invoice_receipt: 'Invoice payment received' }
 
 function csv(rows: (string | number)[][]) {
   const esc = (v: string | number) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v))

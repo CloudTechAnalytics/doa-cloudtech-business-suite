@@ -23,9 +23,9 @@ describe('navigation differs per industry', () => {
   })
 
   it('plan, permission and enabled state each block usage', () => {
-    const base = { industry: 'retail' as const, enabled: ['sales', 'reports'] as never, plan: 'starter' as const }
+    const base = { industry: 'retail' as const, enabled: ['sales', 'purchases', 'reports'] as never, plan: 'starter' as const }
     const find = (s: ReturnType<typeof computeModuleStatuses>, c: string) => s.find((m) => m.code === c)!
-    expect(find(computeModuleStatuses({ ...base, permissions: rolePermissions('owner') }), 'reports').availability).toBe('needs_plan')
+    expect(find(computeModuleStatuses({ ...base, permissions: rolePermissions('owner') }), 'purchases').availability).toBe('needs_plan')
     expect(find(computeModuleStatuses({ ...base, plan: 'growth', permissions: rolePermissions('cashier') }), 'reports').availability).toBe('no_permission')
     expect(find(computeModuleStatuses({ ...base, plan: 'growth', permissions: rolePermissions('owner') }), 'customers').availability).toBe('disabled')
     expect(find(computeModuleStatuses({ ...base, plan: null, permissions: rolePermissions('owner') }), 'dashboard').usable).toBe(true)

@@ -71,7 +71,7 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     const apps = buildApps('farm', usableFor('farm'))
     expect(apps[0].id).toBe('dashboard')
     expect(apps[1].label).toBe('Overview')
-    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Sales and customers', 'Stock and procurement', 'Finance', 'People and administration'])
+    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Sales and customers', 'Stock and procurement', 'Finance', 'People and administration', 'Invoices'])
   })
 
   it('gives each app a menu of its own modules and finds the open app from the URL', () => {
@@ -106,7 +106,8 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     // workers, staff and settings are in the account menu (top right), not the sidebar
     for (const code of ['farm-workers', 'staff', 'settings']) expect(link(code), code).toBe(-1)
     expect(entries.some((e) => e.kind === 'heading' && e.label === 'People and administration')).toBe(false)
-    expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'reports' } })
+    expect(entries.at(-1)).toMatchObject({ kind: 'link', module: { code: 'invoices' } }) // an optional shared app sits after the industry's own sections
+    expect(entries.at(-2)).toMatchObject({ kind: 'link', module: { code: 'reports' } })
   })
 
   it('offers industry workflows in the Record menu only when their module is usable', () => {

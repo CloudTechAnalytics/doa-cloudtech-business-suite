@@ -51,7 +51,7 @@ export function Quotes({ businessId, businessName, can }: { businessId: string; 
   const act = async (id: string, status: 'sent' | 'accepted' | 'declined') => { setError(await setQuoteStatus(businessId, id, status)); await quotes.refresh() }
   return (
     <>
-      <div className="mb-3 flex items-center gap-3"><p className="text-sm text-ink/70">Numbered quotes you can print or save as a PDF and send. An accepted quote does not create a sale by itself.</p>{manage && <Button className="ml-auto" onClick={() => setEditing('new')}>New quote</Button>}</div>
+      <div className="mb-3 flex items-center gap-3"><p className="text-sm text-ink/70">Numbered quotes you can print or save as a PDF and send. An accepted quote can be turned into an invoice under Invoices; it does not create a sale.</p>{manage && <Button className="ml-auto" onClick={() => setEditing('new')}>New quote</Button>}</div>
       {(error || quotes.error) && <ErrorState message={error ?? quotes.error!} />}
       {rows.length === 0 ? <EmptyState title="No quotes yet" description="Make a quote for a customer, lead or deal, print it, and mark it sent, accepted or declined." /> : (
         <ul className="divide-y divide-ink/10 rounded-lg border border-line bg-white text-sm">

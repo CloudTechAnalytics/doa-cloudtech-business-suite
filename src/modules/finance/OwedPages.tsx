@@ -79,7 +79,7 @@ export function ReceivablesPage() {
                     <td className="tabular p-3 text-right">{r.ageDays} d</td>
                     <td className="tabular p-3 text-right">{naira(r.grandTotal)}</td>
                     <td className="tabular p-3 text-right font-medium">{naira(r.balanceDue)}</td>
-                    {canCollect && <td className="p-3 text-right"><Button variant="secondary" onClick={() => setPaying(r)}>Record payment</Button></td>}
+                    {canCollect && <td className="p-3 text-right">{r.source === 'invoice' ? <span className="text-xs text-ink/60">Record it under Invoices</span> : <Button variant="secondary" onClick={() => setPaying(r)}>Record payment</Button>}</td>}
                   </tr>
                 ))}
               </tbody>

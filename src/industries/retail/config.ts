@@ -17,6 +17,6 @@ export const retailConfig = {
     'retail-products', 'retail-categories', 'retail-counts', 'retail-losses', 'retail-returns', 'retail-shifts', 'retail-reports',
     'inventory', 'sales', 'purchases', 'suppliers', 'customers', 'expenses', 'reports',
   ] as ModuleCode[],
-  optionalModules: [] as ModuleCode[],
+  optionalModules: ['invoices'] as ModuleCode[],
   requiredModules: ['sales'] as ModuleCode[],
 }

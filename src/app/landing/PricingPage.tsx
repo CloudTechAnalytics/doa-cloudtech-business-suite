@@ -14,7 +14,7 @@ import { StoreBadges } from './StoreBadges'
 const ORDER: PlanCode[] = ['starter', 'basic', 'growth', 'business']
 const TAGLINE: Record<PlanCode, string> = {
   starter: 'To try it out or run a very small business.',
-  basic: 'For a business that buys from suppliers and tracks expenses.',
+  basic: 'For a small team that buys from suppliers.',
   growth: 'For a busy business with several branches and staff.',
   business: 'For a larger business with many branches and people.',
 }
@@ -34,7 +34,7 @@ const FAQ: [string, string][] = [
   ['Are prices per user?', 'No. A plan covers the whole business, up to the number of people and branches shown on the plan.'],
   ['I run more than one business. Do I pay once?', 'Each business has its own plan, records, staff and subscription, so a farm and a shop are priced separately.'],
   ['Can I change plan later?', 'Yes. A business can move to a bigger or smaller plan as it changes; the DOA team does this for you until self-service billing is ready.'],
-  ['What do the plans leave out?', 'Starter does not include Purchases, Suppliers, Expenses or Finance reports. Basic adds all of those except reports. Growth and Business include everything.'],
+  ['What do the plans leave out?', 'Every plan includes the shared apps: CRM, Sales, Inventory, Invoices, Expenses and Finance reports. Starter leaves out Purchases and Suppliers; Basic and above include them. The plans differ in how many people and branches they cover.'],
 ]
 
 const INCLUDED = [
@@ -45,11 +45,11 @@ const INCLUDED = [
 ] as const
 
 /** Which plan fits: the smallest plan that has room for the people and branches and includes the tools asked for. */
-export function planFor(people: number, branches: number, needPurchases: boolean, needReports: boolean): PlanCode | null {
-  return ORDER.find((c) => people <= PLANS[c].limits.maxMembers && branches <= PLANS[c].limits.maxBranches && (!needPurchases || !PLANS[c].excluded.includes('purchases')) && (!needReports || !PLANS[c].excluded.includes('reports'))) ?? null
+export function planFor(people: number, branches: number, needPurchases: boolean): PlanCode | null {
+  return ORDER.find((c) => people <= PLANS[c].limits.maxMembers && branches <= PLANS[c].limits.maxBranches && (!needPurchases || !PLANS[c].excluded.includes('purchases'))) ?? null
 }
 
-function Picker({ people, setPeople, branches, setBranches, purchases, setPurchases, reports, setReports, fit }: { people: number; setPeople: (n: number) => void; branches: number; setBranches: (n: number) => void; purchases: boolean; setPurchases: (b: boolean) => void; reports: boolean; setReports: (b: boolean) => void; fit: PlanCode | null }) {
+function Picker({ people, setPeople, branches, setBranches, purchases, setPurchases, fit }: { people: number; setPeople: (n: number) => void; branches: number; setBranches: (n: number) => void; purchases: boolean; setPurchases: (b: boolean) => void; fit: PlanCode | null }) {
   return (
     <section className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
       <Reveal className="rounded-2xl bg-white p-6 shadow-raised ring-1 ring-ink/10 sm:p-8">
@@ -61,8 +61,7 @@ function Picker({ people, setPeople, branches, setBranches, purchases, setPurcha
             <input type="range" min={1} max={12} value={branches} onChange={(e) => setBranches(Number(e.target.value))} className="mt-3 w-full accent-[var(--color-amber-dark)]" aria-label="Branches or locations" /></label>
         </div>
         <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium">
-          <label className="flex items-center gap-2"><input type="checkbox" checked={purchases} onChange={(e) => setPurchases(e.target.checked)} /> I buy from suppliers and track expenses</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={reports} onChange={(e) => setReports(e.target.checked)} /> I want finance reports</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={purchases} onChange={(e) => setPurchases(e.target.checked)} /> I buy from suppliers and place purchase orders</label>
         </div>
         <p role="status" className="mt-6 rounded-xl bg-canvas px-4 py-3 text-base">
           {fit ? <>You fit <b>{PLANS[fit].name}</b>, {PLAN_PRICES[fit] === 0 ? <b>free</b> : <b>{naira(PLAN_PRICES[fit]).replace(/\.00$/, '')} a month</b>}. <a href="#plans" className="font-bold underline decoration-amber decoration-2 underline-offset-4">See it below</a>.</> : <>That is bigger than our biggest plan. <Link to="/start" className="font-bold underline decoration-amber decoration-2 underline-offset-4">Start a trial</Link> and the DOA team will arrange something that fits.</>}
@@ -73,8 +72,8 @@ function Picker({ people, setPeople, branches, setBranches, purchases, setPurcha
 }
 
 export function PricingPage() {
-  const [people, setPeople] = useState(3); const [branches, setBranches] = useState(1); const [purchases, setPurchases] = useState(false); const [reports, setReports] = useState(false)
-  const fit = planFor(people, branches, purchases, reports)
+  const [people, setPeople] = useState(3); const [branches, setBranches] = useState(1); const [purchases, setPurchases] = useState(false)
+  const fit = planFor(people, branches, purchases)
   return (
     <div className="bg-white text-ink">
       <SiteHeader />
@@ -83,7 +82,7 @@ export function PricingPage() {
         <p className="anim-fade-up mx-auto mt-5 max-w-xl text-lg font-medium text-ink/70" style={{ '--d': '120ms' } as React.CSSProperties}>Start free for 14 days. Pick a plan when you are ready. One price covers the whole business.</p>
       </section>
 
-      <Picker people={people} setPeople={setPeople} branches={branches} setBranches={setBranches} purchases={purchases} setPurchases={setPurchases} reports={reports} setReports={setReports} fit={fit} />
+      <Picker people={people} setPeople={setPeople} branches={branches} setBranches={setBranches} purchases={purchases} setPurchases={setPurchases} fit={fit} />
 
       <section id="plans" className="mx-auto max-w-6xl scroll-mt-24 px-4 pb-16 sm:px-6">
         <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -25,6 +25,7 @@ const BEFORE: SharedAppSpec[] = [{ id: 'dashboard', label: 'Dashboard', color: '
 const AFTER: SharedAppSpec[] = [
   { id: 'sales', label: 'Sales', color: '#2f9e44', modules: ['sales'] },
   { id: 'crm', label: 'CRM', color: '#d6336c', modules: ['customers'] },
+  { id: 'invoices', label: 'Invoices', color: '#0b7285', modules: ['invoices'] },
   { id: 'inventory', label: 'Inventory', color: '#e8590c', modules: ['inventory'] },
   { id: 'purchase', label: 'Purchase', color: '#1c7ed6', modules: ['purchases', 'suppliers'] },
   { id: 'finance', label: 'Finance', color: '#017e84', modules: ['expenses', 'reports'] },
@@ -36,7 +37,7 @@ const INDUSTRY_COLORS: Record<string, string> = { farm: '#5c940d', bakery: '#d94
 /** Colour used for an industry's tile on the home screen and in the business-type picker. */
 export const industryColor = (id: string) => INDUSTRY_COLORS[id] ?? '#1971c2'
 
-const COLOR_PRIORITY = ['sales', 'inventory', 'finance', 'staff', 'crm', 'purchase', 'settings']
+const COLOR_PRIORITY = ['sales', 'inventory', 'finance', 'staff', 'crm', 'invoices', 'purchase', 'settings']
 /** An industry section that holds shared modules (stock, sales, finance, staff) keeps those apps' familiar colours; the rest use the industry colour. */
 const OWN_PALETTE = ['#e03131', '#5c940d', '#f08c00', '#1098ad', '#4263eb']
 function sectionColor(codes: ModuleCode[], fallbackIndex: number): string {
@@ -97,6 +98,7 @@ export interface LandingApp { id: string; label: string; blurb: string; icon: Lu
 const LANDING_BLURBS: Record<string, string> = {
   sales: 'Point of sale, payments, receipts and returns',
   crm: 'Leads, customers, follow-ups and credit limits',
+  invoices: 'Invoices from accepted quotes, payments and what is owed',
   inventory: 'A stock ledger with transfers and counts',
   purchase: 'Orders, goods received and supplier payments',
   finance: 'Expenses and reports',

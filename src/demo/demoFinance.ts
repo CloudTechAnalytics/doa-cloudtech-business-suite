@@ -1,4 +1,5 @@
 import { getInv, newId } from '@/demo/demoInventory'
+import { demoInvoiceCustomer, getInvoices } from '@/demo/demoInvoices'
 import { demoAllowed, getTrade } from '@/demo/demoTrade'
 
 /**
@@ -95,16 +96,22 @@ const c = (n: number) => Math.round(n * 100)
 const m = (n: number) => n / 100
 const ageDays = (iso: string) => Math.floor((Date.parse(today()) - Date.parse(iso.slice(0, 10))) / 86400000)
 
-export interface ReceivableRow { saleId: string; number: string; customerId: string | null; customerName: string; soldAt: string; grandTotal: number; amountPaid: number; balanceDue: number; ageDays: number }
+export interface ReceivableRow { saleId: string; number: string; customerId: string | null; customerName: string; soldAt: string; grandTotal: number; amountPaid: number; balanceDue: number; ageDays: number; source: 'sale' | 'invoice' }
 export interface PayableRow { purchaseId: string; number: string; supplierId: string; supplierName: string; at: string; total: number; amountPaid: number; balanceDue: number; ageDays: number }
 export interface CashEntry { at: string; kind: string; direction: 'in' | 'out'; method: string; amount: number; reference: string; sourceId: string }
 
 export function demoReceivables(biz: string): ReceivableRow[] {
   const t = getTrade()
-  return t.sales.filter((s) => s.businessId === biz && s.status !== 'voided' && s.balanceDue > 0).map((s) => ({
+  const sales = t.sales.filter((s) => s.businessId === biz && s.status !== 'voided' && s.balanceDue > 0).map((s): ReceivableRow => ({
     saleId: s.id, number: s.number, customerId: s.customerId, customerName: t.customers.find((x) => x.id === s.customerId)?.name ?? 'Walk-in',
-    soldAt: s.soldAt, grandTotal: s.grandTotal, amountPaid: s.amountPaid, balanceDue: s.balanceDue, ageDays: ageDays(s.soldAt),
+    soldAt: s.soldAt, grandTotal: s.grandTotal, amountPaid: s.amountPaid, balanceDue: s.balanceDue, ageDays: ageDays(s.soldAt), source: 'sale',
   }))
+  // An unpaid or part-paid invoice is a receivable too (the database view unions the two).
+  const invoices = getInvoices().invoices.filter((i) => i.businessId === biz && (i.status === 'sent' || i.status === 'partially_paid') && i.total - i.amountPaid > 0).map((i): ReceivableRow => ({
+    saleId: i.id, number: i.number, customerId: i.customerId, customerName: demoInvoiceCustomer(biz, i.customerId), soldAt: `${i.issuedOn}T00:00:00.000Z`,
+    grandTotal: i.total, amountPaid: i.amountPaid, balanceDue: m(c(i.total) - c(i.amountPaid)), ageDays: ageDays(i.issuedOn), source: 'invoice',
+  }))
+  return [...sales, ...invoices]
 }
 
 export function demoPayables(biz: string): PayableRow[] {
@@ -124,12 +131,16 @@ export function demoCashbook(biz: string): CashEntry[] {
   const exps: CashEntry[] = state.expenses.filter((e) => e.businessId === biz && e.status === 'posted').map((e) => ({
     at: `${e.date}T00:00:00.000Z`, kind: 'expense', direction: 'out', method: e.method, amount: e.amount, reference: e.number, sourceId: e.id,
   }))
-  return [...pays, ...exps].sort((a, b) => a.at.localeCompare(b.at))
+  const inv: CashEntry[] = getInvoices().payments.filter((p) => p.businessId === biz && p.status === 'successful').map((p) => ({
+    at: `${p.paidOn}T00:00:00.000Z`, kind: 'invoice_receipt', direction: 'in', method: p.method, amount: p.amount,
+    reference: getInvoices().invoices.find((i) => i.id === p.invoiceId)?.number ?? '', sourceId: p.id,
+  }))
+  return [...pays, ...exps, ...inv].sort((a, b) => a.at.localeCompare(b.at))
 }
 
 export interface ReportSummary {
   salesCount: number; salesTotal: number; purchasesTotal: number; expensesTotal: number; expensesByCategory: Record<string, number>
-  cashIn: number; cashOut: number; operatingSurplus: number; receivablesOpen: number; payablesOpen: number; stockValue: number
+  cashIn: number; cashOut: number; operatingSurplus: number; receivablesOpen: number; payablesOpen: number; stockValue: number; invoicedTotal: number
 }
 
 /** Same figures as report_summary(): sales net of returns, cash basis surplus, open receivables/payables, stock at average cost. */
@@ -154,6 +165,7 @@ export function demoReportSummary(biz: string, from: string, to: string): Report
     cashIn: m(cashIn), cashOut: m(cashOut), operatingSurplus: m(cashIn - cashOut),
     receivablesOpen: m(demoReceivables(biz).reduce((a, r) => a + c(r.balanceDue), 0)), payablesOpen: m(demoPayables(biz).reduce((a, r) => a + c(r.balanceDue), 0)),
     stockValue: Math.round(stock * 100) / 100,
+    invoicedTotal: m(getInvoices().invoices.filter((i) => i.businessId === biz && ['sent', 'partially_paid', 'paid'].includes(i.status) && i.issuedOn >= from && i.issuedOn <= to).reduce((a, i) => a + c(i.total), 0)),
   }
 }
 
