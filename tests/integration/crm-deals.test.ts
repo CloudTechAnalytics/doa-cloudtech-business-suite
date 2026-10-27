@@ -4,16 +4,19 @@ import type { Db } from '../helpers/harness'
 
 let db: Db
 let owner: string, cashier: string, viewer: string, other: string
-let biz: string, bizB: string, shop: string
+let biz: string, bizB: string
 let customer: string, lead: string, otherCustomer: string
 let n = 0
 const q = <T = Record<string, unknown>>(sql: string, params: unknown[] = []) => rows<T>(db, sql, params)
 const as = <T>(u: string | null, fn: () => Promise<T>) => asUser(db, u, fn)
 const J = (v: unknown) => JSON.stringify(v)
-const deal = (u: string, b: string, o: { id?: string | null; title?: string; customer?: string | null; lead?: string | null; value?: number; expected?: string | null } = {}) =>
-  as(u, () => q<{ id: string }>('select public.crm_save_deal($1,$2,$3,$4,$5,$6,$7,null,$8) as id', [b, o.id ?? null, o.title ?? `Deal ${n++}`, o.customer === undefined ? customer : o.customer, o.lead ?? null, o.value ?? 1000, o.expected ?? null, ''])).then((r) => r[0].id)
-const move = (u: string, id: string, stage: string, reason: string | null = null) => as(u, () => q('select public.crm_move_deal($1,$2,$3)', [id, stage, reason]))
-const stage = async (id: string) => (await q<{ stage: string }>('select stage from public.crm_deals where id=$1', [id]))[0].stage
+const stages = async (b: string) => (await as(owner, () => q<{ r: { id: string; name: string; kind: string; probability: number; position: number; deals: number }[] }>('select public.crm_list_stages($1) as r', [b])))[0].r
+const sid = async (b: string, name: string) => (await stages(b)).find((s) => s.name === name)!.id
+const deal = (u: string, b: string, o: { id?: string | null; title?: string; customer?: string | null; lead?: string | null; value?: number; expected?: string | null; owner?: string | null } = {}) =>
+  as(u, () => q<{ id: string }>('select public.crm_save_deal($1,$2,$3,$4,$5,$6,$7,$8,$9) as id', [b, o.id ?? null, o.title ?? `Deal ${n++}`, o.customer === undefined ? customer : o.customer, o.lead ?? null, o.value ?? 1000, o.expected ?? null, o.owner ?? null, ''])).then((r) => r[0].id)
+/** Moves a deal to the stage with this name. */
+const go = async (u: string, id: string, stageName: string, reason: string | null = null, b = biz) => { const stage = await sid(b, stageName); return as(u, () => q('select public.crm_move_deal($1,$2,$3)', [id, stage, reason])) }
+const stageOf = async (id: string) => (await q<{ name: string; kind: string }>('select s.name, d.stage_kind as kind from public.crm_deals d join public.crm_stages s on s.id = d.stage_id where d.id=$1', [id]))[0]
 const lines = (...l: [string, number, number][]) => J(l.map(([description, quantity, unit_price]) => ({ description, quantity, unit_price })))
 const quote = (u: string, b: string, o: { id?: string | null; deal?: string | null; customer?: string | null; lines?: string; discount?: number } = {}) =>
   as(u, () => q<{ id: string }>('select public.crm_save_quote($1,$2,$3,$4,null,null,$5::jsonb,$6,$7) as id', [b, o.id ?? null, o.deal ?? null, o.customer === undefined ? customer : o.customer, o.lines ?? lines(['Service', 2, 500]), o.discount ?? 0, ''])).then((r) => r[0].id)
@@ -21,10 +24,8 @@ const quote = (u: string, b: string, o: { id?: string | null; deal?: string | nu
 beforeAll(async () => {
   db = await createDb()
   ;[owner, cashier, viewer, other] = await Promise.all(['o', 'c', 'v', 'x'].map((p) => createUser(db, `${p}@example.com`)))
-  // A business with no industry: just the apps.
   biz = (await as(owner, () => q<{ id: string }>(`select public.create_business('Consulting Co','general') as id`)))[0].id
   bizB = (await as(other, () => q<{ id: string }>(`select public.create_business('Other Co','general') as id`)))[0].id
-  shop = (await as(owner, () => q<{ id: string }>(`select public.create_business('Shop','retail') as id`)))[0].id
   await db.exec(`update public.subscriptions set plan_id=(select id from public.subscription_plans where code='growth')`)
   for (const [u, role] of [[cashier, 'cashier'], [viewer, 'viewer']] as const) {
     const email = (await q<{ email: string }>('select email from auth.users where id=$1', [u]))[0].email
@@ -46,52 +47,53 @@ describe('a business with no industry', () => {
 })
 
 describe('deals', () => {
-  it('are created as new with a history entry, on a customer or a lead', async () => {
+  it('start in the first open stage with a history entry, on a customer or a lead, with the creator as owner', async () => {
     const a = await deal(owner, biz, { title: 'Website for Acme', value: 250000, expected: '2030-01-31' })
     const b = await deal(owner, biz, { title: 'Prospect order', customer: null, lead })
-    expect(await stage(a)).toBe('new'); expect(await stage(b)).toBe('new')
-    expect((await q<{ to_stage: string; from_stage: string | null }>('select from_stage, to_stage from public.crm_deal_events where deal_id=$1', [a]))).toEqual([{ from_stage: null, to_stage: 'new' }])
-    expect((await q<{ value: string }>('select value from public.crm_deals where id=$1', [a]))[0].value).toBe('250000.00')
+    expect(await stageOf(a)).toEqual({ name: 'New', kind: 'open' }); expect(await stageOf(b)).toEqual({ name: 'New', kind: 'open' })
+    expect((await q<{ to_stage: string; from_stage: string | null }>('select from_stage, to_stage from public.crm_deal_events where deal_id=$1', [a]))).toEqual([{ from_stage: null, to_stage: 'New' }])
+    expect((await q<{ value: string; owner_id: string }>('select value, owner_id from public.crm_deals where id=$1', [a]))[0]).toEqual({ value: '250000.00', owner_id: owner })
   })
 
-  it('need something to be about, a contact in this business, and a value that is not negative', async () => {
+  it('need something to be about, a contact in this business, an owner who is on the business, and a value that is not negative', async () => {
     await expect(deal(owner, biz, { title: '  ' })).rejects.toThrow(/enter what the deal is for/)
     await expect(deal(owner, biz, { customer: null })).rejects.toThrow(/choose the customer or lead/)
     await expect(deal(owner, biz, { value: -5 })).rejects.toThrow(/cannot be negative/)
     await expect(deal(owner, biz, { customer: otherCustomer })).rejects.toThrow(/customer not found/)
+    await expect(deal(owner, biz, { owner: other })).rejects.toThrow(/not on this business/)
   })
 
-  it('can be changed, and move through stages with every change recorded', async () => {
+  it('can be changed, reassigned, and move through stages with every change recorded', async () => {
     const id = await deal(owner, biz, { title: 'Move me' })
-    await deal(owner, biz, { id, title: 'Moved', value: 5000 })
-    expect((await q<{ title: string; value: string }>('select title, value from public.crm_deals where id=$1', [id]))[0]).toEqual({ title: 'Moved', value: '5000.00' })
-    await move(owner, id, 'qualified'); await move(owner, id, 'proposal'); await move(owner, id, 'won')
-    expect(await stage(id)).toBe('won')
+    await deal(owner, biz, { id, title: 'Moved', value: 5000, owner: cashier })
+    expect((await q<{ title: string; value: string; owner_id: string }>('select title, value, owner_id from public.crm_deals where id=$1', [id]))[0]).toEqual({ title: 'Moved', value: '5000.00', owner_id: cashier })
+    await go(owner, id, 'Qualified'); await go(owner, id, 'Proposal'); await go(owner, id, 'Won')
+    expect(await stageOf(id)).toEqual({ name: 'Won', kind: 'won' })
     expect((await q<{ closed_at: string | null }>('select closed_at from public.crm_deals where id=$1', [id]))[0].closed_at).not.toBeNull()
-    expect((await q<{ f: string | null; t: string }>('select from_stage f, to_stage t from public.crm_deal_events where deal_id=$1 order by at, to_stage', [id])).map((e) => `${e.f}>${e.t}`).sort()).toEqual(['new>qualified', 'null>new', 'proposal>won', 'qualified>proposal'])
-    await move(owner, id, 'negotiation') // reopening clears the close date
+    expect((await q<{ f: string | null; t: string }>('select from_stage f, to_stage t from public.crm_deal_events where deal_id=$1', [id])).map((e) => `${e.f}>${e.t}`).sort()).toEqual(['New>Qualified', 'Proposal>Won', 'Qualified>Proposal', 'null>New'])
+    await go(owner, id, 'Negotiation') // reopening clears the close date
     expect((await q<{ closed_at: string | null }>('select closed_at from public.crm_deals where id=$1', [id]))[0].closed_at).toBeNull()
   })
 
   it('cannot be lost without saying why, and keep the reason', async () => {
     const id = await deal(owner, biz, { title: 'Will be lost' })
-    await expect(move(owner, id, 'lost')).rejects.toThrow(/say why the deal was lost/)
-    await expect(move(owner, id, 'lost', '  ')).rejects.toThrow(/say why/)
-    await move(owner, id, 'lost', 'Chose a competitor')
-    expect((await q<{ stage: string; lost_reason: string }>('select stage, lost_reason from public.crm_deals where id=$1', [id]))[0]).toEqual({ stage: 'lost', lost_reason: 'Chose a competitor' })
-    await move(owner, id, 'new')
+    await expect(go(owner, id, 'Lost')).rejects.toThrow(/say why the deal was lost/)
+    await expect(go(owner, id, 'Lost', '  ')).rejects.toThrow(/say why/)
+    await go(owner, id, 'Lost', 'Chose a competitor')
+    expect((await q<{ stage_kind: string; lost_reason: string }>('select stage_kind, lost_reason from public.crm_deals where id=$1', [id]))[0]).toEqual({ stage_kind: 'lost', lost_reason: 'Chose a competitor' })
+    await go(owner, id, 'New')
     expect((await q<{ lost_reason: string | null }>('select lost_reason from public.crm_deals where id=$1', [id]))[0].lost_reason).toBeNull()
-    await expect(move(owner, id, 'archived')).rejects.toThrow(/choose a stage/)
+    await expect(as(owner, () => q('select public.crm_move_deal($1,$2,null)', [id, '00000000-0000-0000-0000-000000000000']))).rejects.toThrow(/choose one of this pipeline/)
   })
 
   it('are for people who manage customers; others only read, and other businesses see nothing', async () => {
     const id = await deal(owner, biz, { title: 'Guarded' })
     await expect(deal(viewer, biz)).rejects.toThrow(/permission denied/)
-    await expect(move(viewer, id, 'won')).rejects.toThrow(/permission denied/)
-    await expect(move(other, id, 'won')).rejects.toThrow(/permission denied/)
+    await expect(go(viewer, id, 'Won')).rejects.toThrow(/permission denied/)
+    await expect(go(other, id, 'Won')).rejects.toThrow(/permission denied/)
     expect((await as(viewer, () => q('select id from public.crm_deals where id=$1', [id]))).length).toBe(1)
     expect((await as(other, () => q('select id from public.crm_deals where id=$1', [id]))).length).toBe(0)
-    await expect(as(owner, () => q('update public.crm_deals set stage = $2 where id = $1', [id, 'won']))).rejects.toThrow()
+    await expect(as(owner, () => q('update public.crm_deals set stage_kind = $2 where id = $1', [id, 'won']))).rejects.toThrow()
     await expect(as(owner, () => q('insert into public.crm_deals (business_id, title, customer_id) values ($1,$2,$3)', [biz, 'direct', customer]))).rejects.toThrow()
   })
 
@@ -138,17 +140,17 @@ describe('quotes', () => {
 })
 
 describe('the CRM report', () => {
-  it('adds up the pipeline, wins, losses and follow-ups for one business only', async () => {
+  it('adds up the pipeline, the weighted forecast, wins, losses and follow-ups for one business only', async () => {
     const fresh = (await as(owner, () => q<{ id: string }>(`select public.create_business('Report Co','general') as id`)))[0].id
     const c = (await as(owner, () => q<{ id: string }>(`insert into public.customers (business_id,name) values ($1,'R') returning id`, [fresh])))[0].id
     const d = (value: number) => as(owner, () => q<{ id: string }>('select public.crm_save_deal($1,null,$2,$3,null,$4,null,null,$5) as id', [fresh, `D${value}`, c, value, ''])).then((r) => r[0].id)
-    const [a, b, w, l] = [await d(1000), await d(2000), await d(5000), await d(300)]
-    await move(owner, b, 'proposal'); await move(owner, w, 'won'); await move(owner, l, 'lost', 'Price')
+    const [, b, w, l] = [await d(1000), await d(2000), await d(5000), await d(300)]
+    await go(owner, b, 'Proposal', null, fresh); await go(owner, w, 'Won', null, fresh); await go(owner, l, 'Lost', 'Price', fresh)
     await as(owner, () => q(`insert into public.crm_tasks (business_id, customer_id, title, due_at) values ($1,$2,'Call back', now() - interval '2 days')`, [fresh, c]))
-    void a
-    const r = (await as(owner, () => q<{ r: { open_value: number; open_deals: number; won_this_month: number; win_rate: number; overdue_tasks: number; stages: { stage: string; deals: number }[]; lost_reasons: { reason: string }[] } }>('select public.crm_report($1) as r', [fresh])))[0].r
+    const r = (await as(owner, () => q<{ r: { open_value: number; open_deals: number; weighted_value: number; won_this_month: number; win_rate: number; overdue_tasks: number; stages: { stage: string; deals: number }[]; lost_reasons: { reason: string }[] } }>('select public.crm_report($1) as r', [fresh])))[0].r
     expect(Number(r.open_value)).toBe(3000); expect(Number(r.open_deals)).toBe(2); expect(Number(r.won_this_month)).toBe(5000); expect(Number(r.win_rate)).toBe(50); expect(Number(r.overdue_tasks)).toBe(1)
-    expect(r.stages.map((s) => `${s.stage}:${s.deals}`)).toEqual(['new:1', 'qualified:0', 'proposal:1', 'negotiation:0', 'won:1', 'lost:1'])
+    expect(Number(r.weighted_value)).toBe(1000 * 0.1 + 2000 * 0.5) // New 10%, Proposal 50%
+    expect(r.stages.map((s) => `${s.stage}:${s.deals}`)).toEqual(['New:1', 'Qualified:0', 'Proposal:1', 'Negotiation:0', 'Won:1', 'Lost:1'])
     expect(r.lost_reasons.map((x) => x.reason)).toEqual(['Price'])
     await expect(as(other, () => q('select public.crm_report($1)', [fresh]))).rejects.toThrow(/permission denied/)
   })

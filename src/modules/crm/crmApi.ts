@@ -14,7 +14,7 @@ export interface CustomerInput { name: string; phone: string; email: string; sou
 const NO_SUMMARY: CustomerSummary = { orders: 0, lifetimeSpend: 0, paid: 0, firstPurchaseAt: null, lastPurchaseAt: null }
 export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'lost', 'converted'] as const
 export type LeadStatus = (typeof LEAD_STATUSES)[number]
-export interface LeadRow { id: string; name: string; phone: string | null; email: string | null; source: string | null; notes: string; status: LeadStatus; customerId: string | null; createdAt: string }
+export interface LeadRow { id: string; name: string; phone: string | null; email: string | null; source: string | null; notes: string; status: LeadStatus; customerId: string | null; createdAt: string; rating: 'hot' | 'warm' | 'cold' | null; ownerId: string | null }
 export interface Paged<T> { rows: T[]; total: number }
 export interface HistoryEntry { kind: 'interaction' | 'task' | 'sale'; at: string; label: string; detail: string; amount?: number; balance?: number }
 export interface TaskRow { id: string; title: string; dueAt: string | null; status: string; customerId: string | null; leadId: string | null }
@@ -31,7 +31,7 @@ const safe = (q: string) => q.replace(/[,()%*_\\"']/g, ' ').trim()
 
 const custFromRow = (r: Record<string, unknown>, outstanding = 0): CustomerRow => ({ id: String(r.id), name: String(r.name), phone: (r.phone as string | null) ?? null, email: (r.email as string | null) ?? null, source: (r.source as string | null) ?? null, category: (r.category as string | null) ?? null, creditLimit: n(r.credit_limit), outstanding, createdAt: String(r.created_at),
   company: (r.company as string | null) ?? null, contactPerson: (r.contact_person as string | null) ?? null, city: (r.city as string | null) ?? null, address: (r.address as string | null) ?? null, notes: (r.notes as string | null) ?? null, summary: NO_SUMMARY })
-const leadFromRow = (r: Record<string, unknown>): LeadRow => ({ id: String(r.id), name: String(r.name), phone: (r.phone as string | null) ?? null, email: (r.email as string | null) ?? null, source: (r.source as string | null) ?? null, notes: String(r.notes ?? ''), status: r.status as LeadStatus, customerId: (r.customer_id as string | null) ?? null, createdAt: String(r.created_at) })
+const leadFromRow = (r: Record<string, unknown>): LeadRow => ({ id: String(r.id), name: String(r.name), phone: (r.phone as string | null) ?? null, email: (r.email as string | null) ?? null, source: (r.source as string | null) ?? null, notes: String(r.notes ?? ''), status: r.status as LeadStatus, customerId: (r.customer_id as string | null) ?? null, createdAt: String(r.created_at), rating: (r.rating as 'hot' | 'warm' | 'cold' | null) ?? null, ownerId: (r.owner_id as string | null) ?? null })
 const taskFromRow = (r: Record<string, unknown>): TaskRow => ({ id: String(r.id), title: String(r.title), dueAt: (r.due_at as string | null) ?? null, status: String(r.status), customerId: (r.customer_id as string | null) ?? null, leadId: (r.lead_id as string | null) ?? null })
 
 export async function searchCustomers(b: string, o: { q: string; category: string; page: number; pageSize: number }): Promise<Paged<CustomerRow>> {
@@ -88,7 +88,7 @@ export async function searchLeads(b: string, o: { q: string; status: string; pag
     demo.ensureDemoCrm(b)
     const q = o.q.trim().toLowerCase()
     const all = demo.getCrm().leads.filter((l) => l.businessId === b && (!o.status || l.status === o.status) && (!q || [l.name, l.phone, l.email].some((v) => v?.toLowerCase().includes(q))))
-    return { rows: all.slice(o.page * o.pageSize, (o.page + 1) * o.pageSize), total: all.length }
+    return { rows: all.slice(o.page * o.pageSize, (o.page + 1) * o.pageSize).map((l) => ({ ...l, rating: l.rating ?? null, ownerId: l.ownerId ?? null })), total: all.length }
   }
   let query = db().from('crm_leads').select('*', { count: 'exact' }).eq('business_id', b)
   const q = safe(o.q)
@@ -102,6 +102,12 @@ export async function searchLeads(b: string, o: { q: string; status: string; pag
 export async function createLead(b: string, l: { name: string; phone: string; email: string; source: string; notes: string }) {
   if (isDemoMode) return demo.demoCreateLead(b, l)
   return err((await db().from('crm_leads').insert({ business_id: b, name: l.name.trim(), phone: l.phone.trim() || null, email: l.email.trim() || null, source: l.source.trim() || null, notes: l.notes })).error)
+}
+
+/** Rating (hot, warm or cold) and owner of a lead. */
+export async function setLeadMeta(b: string, id: string, v: { rating: 'hot' | 'warm' | 'cold' | null; ownerId: string | null }) {
+  if (isDemoMode) return demo.demoSetLeadMeta(b, id, v)
+  return err((await db().from('crm_leads').update({ rating: v.rating, owner_id: v.ownerId }).eq('id', id).eq('business_id', b)).error)
 }
 
 export async function setLeadStatus(b: string, id: string, status: LeadStatus) {

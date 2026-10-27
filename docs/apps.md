@@ -55,7 +55,9 @@ CRM contacts are the shared `customers`. School students, parents and pharmacy p
 
 ## Free tier
 
-The Starter plan (price 0) includes every standalone app: CRM, POS, Inventory, Invoices, Expenses and Finance reports. Purchases and Suppliers need Basic or above. ## Usage limits
+The Starter plan (price 0) includes every standalone app: CRM, POS, Inventory, Invoices, Expenses and Finance reports. Purchases and Suppliers need Basic or above.
+
+## Usage limits
 
 Limits are plan data (`subscription_plans.limits`), not code. The keys are `customers`, `invoices_per_month`, `sales_per_month` and `expenses_per_month`; a plan with no such key has no limit, and **no plan has any yet**: the numbers are a commercial decision, set by updating the plan data (for example `update subscription_plans set limits = limits || '{"invoices_per_month": 30}' where code = 'starter'`). Members and branches keep their own limits.
 
@@ -63,6 +65,24 @@ Limits are plan data (`subscription_plans.limits`), not code. The keys are `cust
 - **Only new records are blocked.** Nothing existing is locked, hidden or removed, and lowering a plan's limit later removes nothing. Moving to a bigger plan lifts the limit at once.
 - **Told in advance**: `my_usage()` returns used and allowed for each limit. The App Library shows a Plan usage panel, and the Invoices, CRM, Sales and Expenses pages show a notice from 80% of a limit, and again when it is full, with a link to the plans.
 - Products are not limited, because industries create products themselves (a bakery's finished goods, for example).
+
+## How deep each app is, and what comes next
+
+Each app is measured against what Zoho, Odoo, Microsoft Dynamics 365 and HubSpot offer for the same job (compared from their public feature pages), and deepened one at a time.
+
+### CRM (deepened first)
+
+Built: customers and leads with one-tap call, WhatsApp and email; a deal pipeline with **your own stages and a chance of winning at each**, so the board shows what is *likely to close* (weighted value); deal **owners**, "My deals", a **next step**, and a flag on deals nobody has touched for 14 days; an **Activities** hub (calls, meetings, emails, to-dos on a deal, customer or lead; overdue, today and coming up; finishing one records what happened on the timeline); lead **rating** (hot, warm, cold) and owner; **CSV import** with a template, duplicate skipping by email or phone, a preview and a clear result (all or nothing, 500 rows at a time); **CSV export**; printable quotes that become invoices; a **first-run guide**; and a report with the funnel, forecast by month, results by owner, which lead sources become sales, why deals are lost, win rate and average time to win.
+
+Not yet (in the order I would do them): companies (organisations with their contacts), more than one pipeline, automation rules (for example a task when a deal reaches a stage), email templates and logging email in the timeline, sales targets and quota, products in quotes (picked from Inventory), a web form that creates leads, duplicate merging, custom fields and saved views.
+
+### The other apps (not yet deepened)
+
+- **POS:** hold and resume a sale, barcode scanning, quick product grid, tips, loyalty points, receipts by WhatsApp, end-of-day report, offline mode.
+- **Inventory:** low-stock alerts and reorder suggestions, stock counts, locations and transfers, variants, units, lots, barcodes, valuation.
+- **Invoices:** recurring invoices, payment reminders, credit notes, tax profiles, customer statements, a link a customer can open and accept.
+- **Expenses:** receipt attachments, recurring expenses, budgets, approvals, vendors.
+- **Finance:** profit and loss by category, bank accounts and reconciliation, budget against actual, cash-flow forecast.
 
 ## One workspace, visible to the platform
 

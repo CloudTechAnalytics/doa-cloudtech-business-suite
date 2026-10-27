@@ -18,40 +18,44 @@ beforeAll(async () => {
   lead = demo.getCrm().leads.find((l) => l.businessId === biz)!.id
 })
 
-const stageOf = (id: string) => demo.demoDeals(biz).find((d) => d.id === id)!.stage
+const stageId = (name: string) => demo.demoStageList(biz).find((s) => s.name === name)!.id
+const stageOf = (id: string) => demo.demoStageList(biz).find((s) => s.id === demo.demoDeals(biz).find((d) => d.id === id)!.stageId)!.name
+const base = { ownerId: null, notes: '' }
 
 describe('deals in the demo mirror', () => {
   it('start with the sample pipeline and accept new deals on a lead', () => {
     expect(demo.demoDeals(biz).length).toBe(2)
-    expect(demo.demoSaveDeal(biz, { id: null, title: 'Fresh deal', customerId: null, leadId: lead, value: 1000, expectedClose: null, notes: '' })).toBeNull()
+    expect(demo.demoSaveDeal(biz, { id: null, title: 'Fresh deal', customerId: null, leadId: lead, value: 1000, expectedClose: null, ...base })).toBeNull()
     const d = demo.demoDeals(biz).find((x) => x.title === 'Fresh deal')!
-    expect(d.stage).toBe('new')
+    expect(stageOf(d.id)).toBe('New')
     expect(demo.demoDealEvents(biz, d.id)).toHaveLength(1)
   })
 
   it('check what they are given', () => {
-    const save = (o: Partial<Parameters<typeof demo.demoSaveDeal>[1]>) => demo.demoSaveDeal(biz, { id: null, title: 'x', customerId: null, leadId: lead, value: 1, expectedClose: null, notes: '', ...o })
+    const save = (o: Partial<Parameters<typeof demo.demoSaveDeal>[1]>) => demo.demoSaveDeal(biz, { id: null, title: 'x', customerId: null, leadId: lead, value: 1, expectedClose: null, ...base, ...o })
     expect(save({ title: ' ' })).toMatch(/enter what the deal is for/)
     expect(save({ leadId: null })).toMatch(/choose the customer or lead/)
     expect(save({ value: -1 })).toMatch(/cannot be negative/)
     expect(save({ leadId: 'nope' })).toMatch(/lead not found/)
+    expect(save({ ownerId: 'u-nobody' })).toMatch(/not on this business/)
   })
 
   it('move through stages, record each move, and need a reason to be lost', () => {
     const id = demo.demoDeals(biz)[0].id
-    expect(demo.demoMoveDeal(biz, id, 'won', '')).toBeNull()
-    expect(stageOf(id)).toBe('won'); expect(demo.demoDeals(biz).find((d) => d.id === id)!.closedAt).not.toBeNull()
-    expect(demo.demoMoveDeal(biz, id, 'lost', ' ')).toMatch(/say why/)
-    expect(demo.demoMoveDeal(biz, id, 'lost', 'Chose a competitor')).toBeNull()
+    expect(demo.demoMoveDeal(biz, id, stageId('Won'), '')).toBeNull()
+    expect(stageOf(id)).toBe('Won'); expect(demo.demoDeals(biz).find((d) => d.id === id)!.closedAt).not.toBeNull()
+    expect(demo.demoMoveDeal(biz, id, stageId('Lost'), ' ')).toMatch(/say why/)
+    expect(demo.demoMoveDeal(biz, id, stageId('Lost'), 'Chose a competitor')).toBeNull()
     expect(demo.demoDeals(biz).find((d) => d.id === id)!.lostReason).toBe('Chose a competitor')
-    expect(demo.demoMoveDeal(biz, id, 'new', '')).toBeNull()
+    expect(demo.demoMoveDeal(biz, id, stageId('New'), '')).toBeNull()
     expect(demo.demoDeals(biz).find((d) => d.id === id)).toMatchObject({ lostReason: null, closedAt: null })
-    expect(demo.demoDealEvents(biz, id).map((e) => e.to)).toEqual(['new', 'won', 'lost', 'new'])
+    expect(demo.demoDealEvents(biz, id).map((e) => e.to)).toEqual(['New', 'Won', 'Lost', 'New'])
+    expect(demo.demoMoveDeal(biz, id, 'not-a-stage', '')).toMatch(/choose one of this pipeline/)
   })
 
   it('are for people who manage customers', () => {
     as('viewer@demo.test')
-    expect(demo.demoMoveDeal(biz, demo.demoDeals(biz)[0].id, 'won', '')).toMatch(/permission denied/)
+    expect(demo.demoMoveDeal(biz, demo.demoDeals(biz)[0].id, stageId('Won'), '')).toMatch(/permission denied/)
     as('owner@demo.test')
   })
 })
@@ -93,7 +97,7 @@ describe('quotes in the demo mirror', () => {
 describe('the report and deleting', () => {
   it('adds up the pipeline for one business', () => {
     const r = demo.demoCrmReport(biz)
-    expect(r.stages.map((s) => s.stage)).toEqual(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost'])
+    expect(r.stages.map((s) => s.stage)).toEqual(['New', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'])
     expect(r.openDeals).toBeGreaterThan(0)
     expect(r.winRate).toBeNull()
   })

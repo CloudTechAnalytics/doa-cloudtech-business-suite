@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { UsageNotice } from '@/core/subscriptions/UsageViews'
-import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
+import { Badge, Button, Card, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useDebounced } from '@/shared/hooks/useDebounced'
@@ -11,8 +11,12 @@ import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey'
 import { DataTable } from '@/shared/tables/DataTable'
 import { dateTime, label, naira } from '@/shared/utilities/format'
 import { myTradePermissions } from '@/modules/sales/tradeApi'
+import { Activities } from './CrmActivities'
 import { ActivityForms, Tags } from './CrmParts'
 import { Pipeline } from './CrmDeals'
+import { ExportButton, ImportDialog } from './CrmImport'
+import { ContactActions } from './ContactActions'
+import { listTeam } from './dealsApi'
 import { Quotes } from './CrmQuotes'
 import { CrmReports } from './CrmReports'
 import { CustomerProfile } from './CustomerProfile'
@@ -20,7 +24,7 @@ import * as api from './crmApi'
 import type { CustomerRow, LeadRow, LeadStatus, Parent } from './crmApi'
 import { DeleteButton } from '@/shared/components/delete-button'
 
-const TABS = ['Pipeline', 'Customers', 'Leads', 'Quotes', 'Follow-ups', 'Reports'] as const
+const TABS = ['Pipeline', 'Activities', 'Customers', 'Leads', 'Quotes', 'Reports'] as const
 const PAGE = 10
 const LEAD_TONE: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = { new: 'info', contacted: 'neutral', qualified: 'warning', converted: 'success', lost: 'danger' }
 
@@ -33,7 +37,7 @@ export function CrmPage() {
   const can = (p: string) => perms.data?.includes(p) ?? false
   return (
     <>
-      <PageHeader title="CRM" description="Leads, customers and a deal pipeline: keep notes, send quotes, schedule follow-ups and see what is likely to close." />
+      <PageHeader title="CRM" description="Customers, leads and a deal pipeline: plan calls and meetings, send quotes, import your contacts, and see what is likely to close." />
       <UsageNotice keys={['customers']} />
       <div role="tablist" aria-label="CRM sections" className="mb-4 flex flex-wrap gap-x-1 border-b border-ink/10">
         {TABS.map((t) => (
@@ -41,12 +45,12 @@ export function CrmPage() {
             className={clsx('-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-amber text-ink' : 'border-transparent text-ink/60 hover:text-ink')}>{t}</button>
         ))}
       </div>
-      {tab === 'Pipeline' && <Pipeline businessId={businessId} can={can} />}
+      {tab === 'Pipeline' && <Pipeline businessId={businessId} can={can} onGo={setTab} />}
+      {tab === 'Activities' && <Activities businessId={businessId} can={can} />}
       {tab === 'Quotes' && <Quotes businessId={businessId} businessName={active.name} can={can} />}
       {tab === 'Reports' && <CrmReports businessId={businessId} />}
       {tab === 'Customers' && <Customers businessId={businessId} can={can} />}
       {tab === 'Leads' && <Leads businessId={businessId} can={can} />}
-      {tab === 'Follow-ups' && <FollowUps businessId={businessId} can={can} />}
     </>
   )
 }
@@ -58,6 +62,7 @@ function Customers({ businessId, can }: { businessId: string; can: (p: string) =
   const [page, setPage] = useState(0)
   const [open, setOpen] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
   const query = useDebounced(q)
   const list = useAsync(() => api.searchCustomers(businessId, { q: query, category, page, pageSize: PAGE }), [businessId, query, category, page])
   const categories = useAsync(() => api.listCategories(businessId), [businessId])
@@ -69,15 +74,20 @@ function Customers({ businessId, can }: { businessId: string; can: (p: string) =
         <SelectField label="Category" value={category} onChange={(e) => { setCategory(e.target.value); setPage(0) }}>
           <option value="">All categories</option>{categories.data?.map((c) => <option key={c} value={c}>{c}</option>)}
         </SelectField>
-        {can('customers.manage') && <Button onClick={() => setAdding((a) => !a)}>{adding ? 'Close' : 'Add customer'}</Button>}
+        <div className="flex flex-wrap gap-2">
+          {can('customers.manage') && <Button variant="secondary" onClick={() => setImporting(true)}>Import</Button>}
+          <ExportButton label="Export" filename="customers.csv" load={async () => { const all = await api.searchCustomers(businessId, { q: '', category: '', page: 0, pageSize: 1000 }); return [['Name', 'Phone', 'Email', 'Company', 'City', 'Category', 'Source', 'Owes', 'Total spent'], ...all.rows.map((c) => [c.name, c.phone, c.email, c.company, c.city, c.category, c.source, c.outstanding, c.summary.lifetimeSpend])] }} />
+          {can('customers.manage') && <Button onClick={() => setAdding((a) => !a)}>{adding ? 'Close' : 'Add customer'}</Button>}
+        </div>
       </div>
+      {importing && <ImportDialog businessId={businessId} kind="customers" onClose={() => setImporting(false)} onDone={async () => { await Promise.all([list.refresh(), categories.refresh()]) }} />}
       {adding && <AddCustomer businessId={businessId} onDone={async () => { setAdding(false); await Promise.all([list.refresh(), categories.refresh()]) }} />}
       {list.error && <ErrorState message={list.error} />}
       <DataTable<CustomerRow>
         rows={list.data?.rows ?? []} total={list.data?.total ?? 0} page={page} pageSize={PAGE} onPage={setPage} loading={list.loading}
         rowKey={(r) => r.id} onRowClick={(r) => setOpen(r.id)} emptyTitle={q || category ? 'No customers match' : 'No customers yet'} emptyHint="Walk-in sales do not need a customer record."
         columns={[
-          { key: 'name', header: 'Customer', render: (r) => <><b>{r.name}</b>{r.company && <span className="text-ink/70"> · {r.company}</span>}<div className="text-xs text-ink/60">{[r.phone ?? r.email, r.city].filter(Boolean).join(' · ') || 'No contact'}</div></> },
+          { key: 'name', header: 'Customer', render: (r) => <><b>{r.name}</b>{r.company && <span className="text-ink/70"> · {r.company}</span>}<div className="text-xs text-ink/60">{[r.phone ?? r.email, r.city].filter(Boolean).join(' · ') || 'No contact'}</div><div className="mt-1"><ContactActions name={r.name} phone={r.phone} email={r.email} /></div></> },
           { key: 'category', header: 'Category', render: (r) => r.category ?? '–' },
           { key: 'orders', header: 'Orders', align: 'right', render: (r) => r.summary.orders },
           { key: 'spent', header: 'Total spent', align: 'right', render: (r) => naira(r.summary.lifetimeSpend) },
@@ -129,6 +139,7 @@ function Leads({ businessId, can }: { businessId: string; can: (p: string) => bo
   const [page, setPage] = useState(0)
   const [open, setOpen] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
   const query = useDebounced(q)
   const list = useAsync(() => api.searchLeads(businessId, { q: query, status, page, pageSize: PAGE }), [businessId, query, status, page])
   return (
@@ -138,15 +149,20 @@ function Leads({ businessId, can }: { businessId: string; can: (p: string) => bo
         <SelectField label="Status" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0) }}>
           <option value="">All</option>{api.LEAD_STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
         </SelectField>
-        {can('customers.manage') && <Button onClick={() => setAdding((a) => !a)}>{adding ? 'Close' : 'Add lead'}</Button>}
+        <div className="flex flex-wrap gap-2">
+          {can('customers.manage') && <Button variant="secondary" onClick={() => setImporting(true)}>Import</Button>}
+          <ExportButton label="Export" filename="leads.csv" load={async () => { const all = await api.searchLeads(businessId, { q: '', status: '', page: 0, pageSize: 1000 }); return [['Name', 'Phone', 'Email', 'Source', 'Status', 'Rating', 'Notes'], ...all.rows.map((l) => [l.name, l.phone, l.email, l.source, l.status, l.rating, l.notes])] }} />
+          {can('customers.manage') && <Button onClick={() => setAdding((a) => !a)}>{adding ? 'Close' : 'Add lead'}</Button>}
+        </div>
       </div>
+      {importing && <ImportDialog businessId={businessId} kind="leads" onClose={() => setImporting(false)} onDone={async () => { await list.refresh() }} />}
       {adding && <AddLead businessId={businessId} onDone={async () => { setAdding(false); await list.refresh() }} />}
       {list.error && <ErrorState message={list.error} />}
       <DataTable<LeadRow>
         rows={list.data?.rows ?? []} total={list.data?.total ?? 0} page={page} pageSize={PAGE} onPage={setPage} loading={list.loading}
         rowKey={(r) => r.id} onRowClick={(r) => setOpen(r.id)} emptyTitle={q || status ? 'No leads match' : 'No leads yet'} emptyHint="Add prospects here and convert them to customers when they buy."
         columns={[
-          { key: 'name', header: 'Lead', render: (r) => <><b>{r.name}</b><div className="text-xs text-ink/60">{r.phone ?? r.email ?? 'No contact'}</div></> },
+          { key: 'name', header: 'Lead', render: (r) => <><b>{r.name}</b>{r.rating && <span className="ml-1.5 align-middle"><Badge tone={r.rating === 'hot' ? 'danger' : r.rating === 'warm' ? 'warning' : 'info'}>{label(r.rating)}</Badge></span>}<div className="text-xs text-ink/60">{r.phone ?? r.email ?? 'No contact'}</div><div className="mt-1"><ContactActions name={r.name} phone={r.phone} email={r.email} /></div></> },
           { key: 'source', header: 'Source', render: (r) => r.source ?? '–' },
           { key: 'status', header: 'Status', render: (r) => <Badge tone={LEAD_TONE[r.status]}>{label(r.status)}</Badge> },
           { key: 'added', header: 'Added', render: (r) => dateTime(r.createdAt) },
@@ -183,6 +199,7 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
   const key = useIdempotencyKey()
+  const team = useAsync(() => listTeam(businessId), [businessId])
   if (!d.data) return <DetailPage title="Lead" onClose={onClose}>{d.error ? <ErrorState message={d.error} /> : <Spinner />}</DetailPage>
   const { lead, interactions, tasks, tags } = d.data
   const parent: Parent = { leadId: id }
@@ -194,6 +211,12 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
       {result && <Notice>{result}</Notice>}
       <p className="mb-3 text-sm text-ink/70">{[lead.phone, lead.email, lead.source && `via ${lead.source}`].filter(Boolean).join(' · ') || 'No contact details'}</p>
       {lead.notes && <p className="mb-3 text-sm">{lead.notes}</p>}
+      {can('customers.manage') && !converted && (
+        <div className="mb-3 grid gap-3 sm:grid-cols-2">
+          <SelectField label="Rating" value={lead.rating ?? ''} onChange={async (e) => { setError(await api.setLeadMeta(businessId, id, { rating: (e.target.value || null) as LeadRow['rating'], ownerId: lead.ownerId })); await reload() }}><option value="">Not rated</option><option value="hot">Hot: ready to buy</option><option value="warm">Warm: interested</option><option value="cold">Cold: just a name</option></SelectField>
+          <SelectField label="Owner" value={lead.ownerId ?? ''} onChange={async (e) => { setError(await api.setLeadMeta(businessId, id, { rating: lead.rating, ownerId: e.target.value || null })); await reload() }}><option value="">Nobody yet</option>{(team.data ?? []).map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}</SelectField>
+        </div>
+      )}
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <Badge tone={LEAD_TONE[lead.status]}>{label(lead.status)}</Badge>
         {can('customers.manage') && !converted && (
@@ -217,34 +240,5 @@ function LeadDialog({ businessId, id, can, onClose, onChanged }: { businessId: s
         <ul className="divide-y divide-ink/10 text-sm">{interactions.map((h, i) => <li key={i} className="flex gap-2 py-1.5"><Badge>{label(h.label)}</Badge>{h.detail}<span className="ml-auto text-xs text-ink/50">{dateTime(h.at)}</span></li>)}</ul>
       )}
     </DetailPage>
-  )
-}
-
-// ----------------------------------------------------------------------------- follow-ups
-function FollowUps({ businessId, can }: { businessId: string; can: (p: string) => boolean }) {
-  const tasks = useAsync(() => api.listOpenTasks(businessId), [businessId])
-  const [error, setError] = useState<string | null>(null)
-  if (tasks.loading) return <Spinner />
-  if (tasks.error) return <ErrorState message={tasks.error} />
-  if (!tasks.data?.length) return <EmptyState title="No open follow-ups" description="Schedule follow-ups from a customer or lead." />
-  const now = Date.now()
-  return (
-    <>
-      {error && <ErrorState message={error} />}
-      <Card className="p-0">
-        <ul className="divide-y divide-ink/10 text-sm">
-          {tasks.data.map((t) => {
-            const overdue = t.dueAt !== null && new Date(t.dueAt).getTime() < now
-            return (
-              <li key={t.id} className="flex flex-wrap items-center gap-2 p-3">
-                <span><b>{t.title}</b> <span className="text-ink/60">· {t.subject}</span></span>
-                {t.dueAt && <Badge tone={overdue ? 'danger' : 'neutral'}>{overdue ? 'Overdue · ' : 'Due '}{dateTime(t.dueAt)}</Badge>}
-                {can('customers.manage') && <Button variant="secondary" className="ml-auto" onClick={async () => { setError(await api.setTaskStatus(businessId, t.id, 'done')); await tasks.refresh() }}>Done</Button>}
-              </li>
-            )
-          })}
-        </ul>
-      </Card>
-    </>
   )
 }
