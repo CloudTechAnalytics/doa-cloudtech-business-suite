@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import { STANDALONE_APPS, startPath } from '@/core/app-catalogue/apps'
 import { INDUSTRIES, getIndustry } from '@/core/industry-registry'
 import { ALL_MODULES, MODULES } from '@/core/module-registry/registry'
-import type { IndustryCode, ModuleCode, ModuleDefinition } from '@/shared/types/domain'
+import type { IndustryCode, ModuleCode, ModuleDefinition, ModuleSection } from '@/shared/types/domain'
 
 /**
  * Odoo-style model: the platform is a set of "apps". Each app has a few menu entries (modules) that appear
@@ -80,6 +80,10 @@ export const ACCOUNT_MODULES: readonly ModuleCode[] = ['farm-workers', 'staff', 
 export type SidebarEntry =
   | { kind: 'heading'; key: string; label: string }
   | { kind: 'link'; key: string; module: ModuleDefinition; app: AppDef }
+  | { kind: 'section'; key: string; module: ModuleDefinition; section: ModuleSection; app: AppDef }
+
+/** Where a section of a module lives: the module's page with ?tab=<key>. */
+export const sectionPath = (m: ModuleDefinition, s: ModuleSection) => `${appPath(m)}?tab=${s.key}`
 
 /**
  * What the sidebar shows. An app with several modules gets a heading and its links; an app with a single
@@ -88,6 +92,9 @@ export type SidebarEntry =
 export function sidebarEntries(allApps: AppDef[]): SidebarEntry[] {
   const apps = allApps.map((a) => ({ ...a, modules: a.modules.filter((m) => !ACCOUNT_MODULES.includes(m.code)) })).filter((a) => a.modules.length > 0)
   return apps.flatMap((app): SidebarEntry[] => {
+    // An app that is one module with parts of its own (the CRM) shows those parts: a heading, then a link to each.
+    const only = app.modules.length === 1 ? app.modules[0] : null
+    if (only?.sections?.length) return [{ kind: 'heading', key: `h-${only.code}`, label: only.name }, ...only.sections.map((section): SidebarEntry => ({ kind: 'section', key: `${only.code}:${section.key}`, module: only, section, app }))]
     const links = app.modules.map((module) => ({ kind: 'link' as const, key: module.code, module, app }))
     return app.modules.length > 1 ? [{ kind: 'heading', key: `h-${app.id}`, label: app.label }, ...links] : links
   })

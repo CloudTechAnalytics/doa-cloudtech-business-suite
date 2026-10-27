@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { appPath, sidebarEntries } from '@/app/navigation/navigation'
+import { appPath, sectionPath, sidebarEntries } from '@/app/navigation/navigation'
 import type { AppDef } from '@/app/navigation/navigation'
 
 const SHUT_KEY = 'doa.sidebar.shut'
@@ -14,11 +14,14 @@ const readShut = (): string[] => { try { return JSON.parse(localStorage.getItem(
  */
 export function Sidebar({ apps, collapsed = false, onNavigate }: { apps: AppDef[]; collapsed?: boolean; onNavigate?: () => void }) {
   const entries = sidebarEntries(apps)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  const tab = new URLSearchParams(search).get('tab')
   // Section headings fold their links away (remembered per browser); the section holding the open page opens by itself.
   const [shut, setShut] = useState<string[]>(readShut)
   const toggle = (key: string) => setShut((cur) => { const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]; try { localStorage.setItem(SHUT_KEY, JSON.stringify(next)) } catch { /* storage unavailable */ } return next })
   useEffect(() => {
+    const open = entries.find((e) => e.kind === 'section' && (pathname === appPath(e.module) || pathname.startsWith(`${appPath(e.module)}/`)))
+    if (open && open.kind === 'section') setShut((cur) => (cur.includes(`h-${open.module.code}`) ? cur.filter((k) => k !== `h-${open.module.code}`) : cur))
     const here = entries.find((e) => e.kind === 'link' && (pathname === appPath(e.module) || pathname.startsWith(`${appPath(e.module)}/`)))
     if (here && here.kind === 'link' && apps.find((a) => a.id === here.app.id)!.modules.length > 1) setShut((cur) => (cur.includes(`h-${here.app.id}`) ? cur.filter((k) => k !== `h-${here.app.id}`) : cur))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -40,7 +43,15 @@ export function Sidebar({ apps, collapsed = false, onNavigate }: { apps: AppDef[
                 {e.label}{shut.includes(e.key) ? <ChevronRight className="size-3.5" aria-hidden /> : <ChevronDown className="size-3.5" aria-hidden />}
               </button>
             )
-          ) : !collapsed && shut.includes(`h-${e.app.id}`) && e.app.modules.length > 1 ? null : (
+          ) : e.kind === 'section' ? (!collapsed && shut.includes(`h-${e.module.code}`) ? null : (
+            // The open part is the one named in the address; with none named, the first.
+            <NavLink key={e.key} to={sectionPath(e.module, e.section)} onClick={onNavigate} title={collapsed ? e.section.label : undefined} aria-label={collapsed ? e.section.label : undefined}
+              aria-current={pathname === appPath(e.module) && (tab ?? e.module.sections![0].key) === e.section.key ? 'page' : undefined}
+              className={() => item({ isActive: pathname === appPath(e.module) && (tab ?? e.module.sections![0].key) === e.section.key })}>
+              <e.section.icon className="size-[18px] shrink-0" aria-hidden />
+              {!collapsed && <span className="truncate">{e.section.label}</span>}
+            </NavLink>
+          )) : !collapsed && shut.includes(`h-${e.app.id}`) && e.app.modules.length > 1 ? null : (
             <NavLink key={e.key} to={appPath(e.module)} onClick={onNavigate} title={collapsed ? e.module.name : undefined} aria-label={collapsed ? e.module.name : undefined} className={item}>
               <e.module.icon className="size-[18px] shrink-0" aria-hidden />
               {!collapsed && <span className="truncate">{e.module.name}</span>}

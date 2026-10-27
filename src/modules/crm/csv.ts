@@ -1,3 +1,4 @@
+import { downloadCsv, toCsv } from '@/shared/utilities/csvExport'
 import type { ImportRow } from './dealsApi'
 
 /** Reads CSV text (quoted fields, doubled quotes, commas or semicolons, any line ending) into rows of cells. Blank lines are dropped. */
@@ -19,14 +20,7 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ''))
 }
 
-/** Writes rows as CSV, quoting anything with a comma, quote or line break. */
-export const toCsv = (rows: (string | number | null | undefined)[][]) => rows.map((r) => r.map((c) => { const s = String(c ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }).join(',')).join('\r\n')
-
-/** Starts the browser download of a CSV file. */
-export function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]) {
-  const url = URL.createObjectURL(new Blob([`﻿${toCsv(rows)}`], { type: 'text/csv;charset=utf-8' }))
-  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
-}
+export { downloadCsv, toCsv }
 
 const ALIASES: Record<keyof ImportRow, string[]> = {
   name: ['name', 'full name', 'fullname', 'contact', 'contact name', 'customer', 'customer name', 'lead', 'lead name', 'first name'],

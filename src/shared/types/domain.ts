@@ -57,6 +57,9 @@ export interface BusinessMembership {
   status: MembershipStatus
 }
 
+/** A part of a module with its own place in the sidebar (the CRM's Pipeline, Activities, Customers...). The page reads which one is open from ?tab=<key>. */
+export interface ModuleSection { key: string; label: string; icon: LucideIcon }
+
 export interface ModuleDefinition {
   code: ModuleCode
   name: string
@@ -74,6 +77,8 @@ export interface ModuleDefinition {
   maturity?: 'preview' | 'soon'
   /** Optional entry in the Record menu (opens the module, optionally with a query string such as "tab=Receive"). */
   quickAction?: { label: string; query?: string }
+  /** The module's own parts, listed under it in the sidebar when it is an app on its own. */
+  sections?: ModuleSection[]
 }
 
 export interface IndustryTemplate {

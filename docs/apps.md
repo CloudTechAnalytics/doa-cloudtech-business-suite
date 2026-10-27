@@ -76,9 +76,21 @@ Built: customers and leads with one-tap call, WhatsApp and email; a deal pipelin
 
 Not yet (in the order I would do them): companies (organisations with their contacts), more than one pipeline, automation rules (for example a task when a deal reaches a stage), email templates and logging email in the timeline, sales targets and quota, products in quotes (picked from Inventory), a web form that creates leads, duplicate merging, custom fields and saved views.
 
+### POS (deepened second)
+
+Built, on top of what it already had (a product grid with search and barcode scan, line discounts, tax, credit sales to a customer, returns, voids, printed receipts):
+
+- **Split payments**: pay one sale in cash and transfer and card; the till shows what is left, and works out the **change** from the cash given (a helper, not recorded).
+- **Hold and resume** a sale while the customer fetches something. Held sales are kept in the browser on that device only (not in the database), and the till says so.
+- **Today** tab: the end-of-day summary for any day in the business's own time zone (`sales_day_summary`): sales, discounts, returns, net sales, money received by method (refunds taken off), what is still owed, voided sales, results by cashier, best sellers; **print** it as an end-of-day sheet or **export** the day's sales as CSV.
+- **History** with search, filters (owing, refunded, voided), a date range and CSV export.
+- **Receipt by WhatsApp** (opens WhatsApp with the receipt text; DOA sends nothing itself) as well as print or save as PDF.
+- Every part of the till is in the sidebar (New sale, History, Today).
+
+Not yet: selling **services** (items with no stock: needs a stock-tracking flag on products), product categories and variants in the generic till (retail has them), tips, loyalty points, customer-facing display, offline sales, a cash drawer with opening and closing counts for the general till (the retail and pharmacy tills have shifts).
+
 ### The other apps (not yet deepened)
 
-- **POS:** hold and resume a sale, barcode scanning, quick product grid, tips, loyalty points, receipts by WhatsApp, end-of-day report, offline mode.
 - **Inventory:** low-stock alerts and reorder suggestions, stock counts, locations and transfers, variants, units, lots, barcodes, valuation.
 - **Invoices:** recurring invoices, payment reminders, credit notes, tax profiles, customer statements, a link a customer can open and accept.
 - **Expenses:** receipt attachments, recurring expenses, budgets, approvals, vendors.

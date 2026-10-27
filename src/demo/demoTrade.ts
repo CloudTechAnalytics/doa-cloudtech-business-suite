@@ -17,7 +17,7 @@ export interface DPayment { by?: string | null; id: string; businessId: string; 
 export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null }
 export interface DSaleItem { id: string; saleId: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; unitCost: number | null; movementId: string | null }
 export interface DReturnItem { id: string; returnId: string; saleItemId: string; quantity: number; refund: number; disposition?: 'restock' | 'discard' }
-export interface DReturn { id: string; saleId: string; number: string; reason: string; total: number }
+export interface DReturn { id: string; saleId: string; number: string; reason: string; total: number; at?: string }
 export interface DPurchase { id: string; businessId: string; number: string; supplierId: string; reference: string | null; status: 'ordered' | 'partially_received' | 'received' | 'cancelled'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; total: number; amountPaid: number; at: string }
 export interface DPurchaseItem { id: string; purchaseId: string; productId: string; ordered: number; received: number; unitCost: number; lineTotal: number }
 
@@ -319,6 +319,7 @@ export function demoReturnSale(biz: string, saleId: string, lines: ReturnLineInp
       }
     }
     ret.total = money(total)
+    ret.at = new Date().toISOString()
     t.returns.push(ret)
     recomputeSale(t, saleId)
     if (refund) addPayment(t, biz, { saleId, returnId: ret.id, type: 'refund', method: refund.method, amount: refund.amount, status: 'successful' })
@@ -427,3 +428,30 @@ export function demoCancelPurchase(biz: string, purchaseId: string, reason: stri
 
 /** For the delete mirror: change this store in one step. */
 export function mutateTrade(fn: (s: typeof state) => typeof state) { commit(fn(state)) }
+
+export interface DDaySummary {
+  day: string; salesCount: number; gross: number; discounts: number; tax: number; returns: number; outstanding: number; voidedCount: number; voidedTotal: number
+  byMethod: { method: string; amount: number }[]; byCashier: { cashier: string; sales: number; total: number }[]; topProducts: { name: string; quantity: number; total: number }[]
+}
+/** Mirrors sales_day_summary(): one day (UTC here), sales not voided, returns recorded that day, money received that day by method with refunds taken off, who sold what, best sellers. */
+export function demoSalesDaySummary(biz: string, day: string): DDaySummary {
+  if (!allowed(biz, 'sales', 'sales.read')) throw new Error('permission denied')
+  const t = state; const cents = (n: number) => Math.round(n * 100); const back = (n: number) => n / 100
+  const on = (iso: string | undefined) => (iso ?? '').slice(0, 10) === day
+  const sold = t.sales.filter((s) => s.businessId === biz && s.status !== 'voided' && on(s.soldAt)); const voided = t.sales.filter((s) => s.businessId === biz && s.status === 'voided' && on(s.soldAt))
+  const sum = (xs: number[]) => back(xs.reduce((a, x) => a + cents(x), 0))
+  const methods = new Map<string, number>()
+  for (const p of t.payments.filter((x) => x.businessId === biz && x.status === 'successful' && x.saleId && (x.type === 'sale_receipt' || x.type === 'refund') && on(x.at))) methods.set(p.method, (methods.get(p.method) ?? 0) + cents(p.amount) * (p.type === 'sale_receipt' ? 1 : -1))
+  const users = getDemoState().users; const cashiers = new Map<string, { sales: number; total: number }>()
+  for (const s of sold) { const name = users.find((u) => u.id === s.by)?.name ?? 'Unknown'; const c = cashiers.get(name) ?? { sales: 0, total: 0 }; cashiers.set(name, { sales: c.sales + 1, total: c.total + cents(s.grandTotal) }) }
+  const items = new Map<string, { quantity: number; total: number }>()
+  for (const i of t.saleItems.filter((x) => sold.some((s) => s.id === x.saleId))) { const c = items.get(i.description) ?? { quantity: 0, total: 0 }; items.set(i.description, { quantity: c.quantity + i.quantity, total: c.total + cents(i.total) }) }
+  return {
+    day, salesCount: sold.length, gross: sum(sold.map((s) => s.grandTotal)), discounts: sum(sold.map((s) => s.discountTotal)), tax: sum(sold.map((s) => s.taxTotal)),
+    returns: sum(t.returns.filter((r) => on(r.at) && t.sales.some((s) => s.id === r.saleId && s.businessId === biz)).map((r) => r.total)), outstanding: sum(sold.map((s) => s.balanceDue)),
+    voidedCount: voided.length, voidedTotal: sum(voided.map((s) => s.grandTotal)),
+    byMethod: [...methods].filter(([, a]) => a !== 0).map(([method, a]) => ({ method, amount: back(a) })).sort((x, y) => y.amount - x.amount),
+    byCashier: [...cashiers].map(([cashier, v]) => ({ cashier, sales: v.sales, total: back(v.total) })).sort((x, y) => y.total - x.total),
+    topProducts: [...items].map(([name, v]) => ({ name, quantity: v.quantity, total: back(v.total) })).sort((x, y) => y.total - x.total).slice(0, 5),
+  }
+}

@@ -1,8 +1,10 @@
 import clsx from 'clsx'
 import { UsageNotice } from '@/core/subscriptions/UsageViews'
-import { Minus, Plus, Receipt as ReceiptIcon, Search, X } from 'lucide-react'
+import { Download, Minus, Pause, Play, Plus, Receipt as ReceiptIcon, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { downloadCsv } from '@/shared/utilities/csvExport'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey'
@@ -10,16 +12,23 @@ import { dateTime, label, naira, qty } from '@/shared/utilities/format'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { DetailPage } from '@/shared/components/detail-page'
 import { priceCart } from '@/modules/sales/pricing'
+import { SalesToday } from '@/modules/sales/SalesToday'
+import { changeDue, holdLabel, loadHeld, paidOf, paymentsOf, remainingOf, saveHeld } from '@/modules/sales/till'
+import type { HeldSale, PayRow } from '@/modules/sales/till'
 import { ReceiptDialog } from '@/modules/sales/Receipt'
 import * as api from '@/modules/sales/tradeApi'
-import type { CustomerDto, SaleDetail, SaleDto } from '@/modules/sales/tradeApi'
+import type { CustomerDto, SaleDetail } from '@/modules/sales/tradeApi'
 
 const METHODS = [['cash', 'Cash'], ['bank_transfer', 'Bank transfer'], ['pos', 'POS terminal'], ['card', 'Card'], ['other', 'Other']] as const
-const TABS = ['New sale', 'History'] as const
+const TABS = ['New sale', 'History', 'Today'] as const
+const TAB_KEYS: Record<(typeof TABS)[number], string> = { 'New sale': 'new', History: 'history', Today: 'today' }
 
 export function SalesPage() {
   const { active } = useBusiness()
-  const [tab, setTab] = useState<(typeof TABS)[number]>('New sale')
+  // Which part is open is in the address (?tab=history), so the sidebar, the tabs and the back button agree.
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.find((t) => TAB_KEYS[t] === params.get('tab')) ?? 'New sale'
+  const setTab = (t: (typeof TABS)[number]) => setParams({ tab: TAB_KEYS[t] })
   const [receipt, setReceipt] = useState<string | null>(null)
   const businessId = active?.id ?? ''
   const industry = active?.industry ?? 'retail'
@@ -35,7 +44,7 @@ export function SalesPage() {
 
   return (
     <>
-      <PageHeader title="Sales" description="Ring up sales, take payments, issue receipts and handle returns. Totals are confirmed by the server." />
+      <PageHeader title="Sales / POS" description="Ring up sales, split payments, hold a sale while the customer fetches something, print or send receipts, and close the day. Totals are confirmed by the server." />
       <UsageNotice keys={['sales_per_month']} />
       <div role="tablist" aria-label="Sales sections" className="mb-4 flex gap-1 border-b border-ink/10">
         {TABS.map((t) => (
@@ -48,9 +57,8 @@ export function SalesPage() {
         <Pos businessId={businessId} catalog={catalog.data} packs={packs.data ?? []} customers={customers.data ?? []} canDiscount={can('sales.discount')} canCreate={can('sales.create')}
           onSold={async (id) => { await reloadAll(); setReceipt(id) }} />
       ) : <Spinner />)}
-      {tab === 'History' && (
-        <History businessId={businessId} sales={sales.data} loading={sales.loading} error={sales.error} customers={customers.data ?? []} can={can} onChanged={reloadAll} onReceipt={setReceipt} />
-      )}
+      {tab === 'History' && <History businessId={businessId} customers={customers.data ?? []} can={can} onChanged={reloadAll} onReceipt={setReceipt} refreshKey={sales.data} />}
+      {tab === 'Today' && <SalesToday businessId={businessId} />}
       {receipt && <ReceiptDialog businessId={businessId} saleId={receipt} onClose={() => setReceipt(null)} />}
     </>
   )
@@ -67,8 +75,10 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
   const [cart, setCart] = useState<CartLine[]>([])
   const [customerId, setCustomerId] = useState('')
   const [locationId, setLocationId] = useState(catalog.locations[0]?.id ?? '')
-  const [method, setMethod] = useState('cash')
-  const [payNow, setPayNow] = useState('')
+  const [rows, setRows] = useState<PayRow[]>([{ method: 'cash', amount: '' }])
+  const [given, setGiven] = useState('')
+  // Sales set aside while the customer fetches something: kept on this device only.
+  const [held, setHeld] = useState<HeldSale[]>(() => loadHeld(businessId))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const key = useIdempotencyKey()
@@ -91,8 +101,22 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
   }, [cart, catalog.products, packs])
 
   const total = priced.ok?.grandTotal ?? 0
-  const paying = payNow === '' ? total : Number(payNow)
-  const balance = Math.max(Math.round((total - paying) * 100) / 100, 0)
+  const pays = paymentsOf(rows, total)
+  const paying = paidOf(pays)
+  const balance = remainingOf(total, pays)
+  const cashDue = pays.filter((p) => p.method === 'cash').reduce((a, p) => a + p.amount, 0)
+  const change = changeDue(Number(given || 0), cashDue)
+  const setRow = (i: number, patch: Partial<PayRow>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  const keepHeld = (next: HeldSale[]) => { setHeld(next); saveHeld(businessId, next) }
+  function hold() {
+    if (!cart.length) return
+    keepHeld([{ id: `${Date.now()}`, label: holdLabel(cart.length, new Date(), customers.find((c) => c.id === customerId)?.name), at: new Date().toISOString(), customerId, cart: cart.map(({ productId, quantity, discount, pack }) => ({ productId, quantity, discount, pack })) }, ...held])
+    setCart([]); setCustomerId(''); setRows([{ method: 'cash', amount: '' }]); setGiven(''); setError(null)
+  }
+  function resume(h: HeldSale) {
+    if (cart.length) return setError('Hold or clear the current sale before resuming another.')
+    setError(null); setCart(h.cart.filter((l) => catalog.products.some((p) => p.id === l.productId))); setCustomerId(h.customerId); keepHeld(held.filter((x) => x.id !== h.id))
+  }
 
   const add = (id: string) => setCart((c) => (c.some((l) => lineKey(l) === `${id}|`) ? c.map((l) => (lineKey(l) === `${id}|` ? { ...l, quantity: l.quantity + 1 } : l)) : [...c, { productId: id, quantity: 1, discount: 0, pack: null }]))
   const setLine = (key: string, patch: Partial<CartLine>) => setCart((c) => c.map((l) => (lineKey(l) === key ? { ...l, ...patch } : l)))
@@ -112,15 +136,16 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
     setError(null)
     if (!cart.length) return setError('Add at least one product.')
     if (priced.err) return setError(priced.err)
+    if (rows.length > 1 && !pays.length) return setError('Enter the amount for each way the customer is paying.')
     if (!(paying >= 0) || paying > total) return setError('The amount paid cannot be more than the total.')
     if (balance > 0 && !customerId) return setError('Select a customer to sell on credit, or take the full payment.')
     setBusy(true)
     const r = await api.postSale(businessId, locationId, customerId || null,
       cart.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount, pack: l.pack })),
-      paying > 0 ? [{ method, amount: paying }] : [], key.current())
+      pays, key.current())
     setBusy(false)
     if (r.error) return setError(r.error)
-    key.renew(); setCart([]); setPayNow(''); setCustomerId('')
+    key.renew(); setCart([]); setRows([{ method: 'cash', amount: '' }]); setGiven(''); setCustomerId('')
     await onSold(r.saleId!)
   }
 
@@ -159,7 +184,14 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
       </div>
 
       <form onSubmit={submit} noValidate className="h-fit space-y-3 rounded-lg border border-ink/10 bg-white p-4 shadow-card lg:sticky lg:top-20">
-        <h2 className="text-sm font-semibold">Current sale</h2>
+        <div className="flex items-center justify-between gap-2"><h2 className="text-sm font-semibold">Current sale</h2>{cart.length > 0 && <button type="button" onClick={hold} className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs font-semibold hover:bg-surface"><Pause className="size-3.5" aria-hidden /> Hold</button>}</div>
+        {held.length > 0 && (
+          <div className="rounded-md bg-surface p-2 text-xs">
+            <p className="mb-1 font-semibold">Held sales ({held.length})</p>
+            <ul className="space-y-1">{held.map((h) => <li key={h.id} className="flex items-center justify-between gap-2"><span className="truncate">{h.label}</span><span className="flex shrink-0 gap-1"><button type="button" onClick={() => resume(h)} className="inline-flex items-center gap-1 rounded border border-line bg-white px-1.5 py-0.5 font-semibold"><Play className="size-3" aria-hidden /> Resume</button><button type="button" aria-label={`Discard held sale ${h.label}`} onClick={() => keepHeld(held.filter((x) => x.id !== h.id))} className="rounded border border-line bg-white p-1 text-ink/60 hover:text-danger"><Trash2 className="size-3" aria-hidden /></button></span></li>)}</ul>
+            <p className="mt-1 text-ink/55">Kept on this device only.</p>
+          </div>
+        )}
         {cart.length === 0 ? <p className="py-6 text-center text-sm text-ink/60">Tap a product to add it.</p> : (
           <ul className="divide-y divide-ink/10">
             {cart.map((l, i) => {
@@ -206,11 +238,18 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
           {(priced.ok?.taxTotal ?? 0) > 0 && <div className="flex justify-between"><dt>Tax</dt><dd className="tabular">{naira(priced.ok!.taxTotal)}</dd></div>}
           <div className="flex justify-between text-base font-semibold"><dt>Total</dt><dd className="tabular">{naira(total)}</dd></div>
         </dl>
-        <div className="grid grid-cols-2 gap-2">
-          <SelectField label="Payment" value={method} onChange={(e) => setMethod(e.target.value)}>
-            {METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </SelectField>
-          <TextField label="Amount paid (₦)" type="number" min="0" step="0.01" value={payNow} placeholder={String(total)} onChange={(e) => setPayNow(e.target.value)} hint={balance > 0 ? `On credit: ${naira(balance)}` : undefined} />
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink/60">Payment</p>
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[1fr_6.5rem_auto] items-end gap-2">
+              <SelectField label={i === 0 ? 'Method' : `Method ${i + 1}`} value={r.method} onChange={(e) => setRow(i, { method: e.target.value })}>{METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</SelectField>
+              <TextField label="Amount (₦)" type="number" min="0" step="0.01" value={r.amount} placeholder={rows.length === 1 ? String(total) : ''} onChange={(e) => setRow(i, { amount: e.target.value })} />
+              {rows.length > 1 ? <button type="button" aria-label={`Remove payment ${i + 1}`} onClick={() => setRows((x) => x.filter((_, j) => j !== i))} className="mb-2 p-1 text-ink/50 hover:text-danger"><X className="size-4" aria-hidden /></button> : <span />}
+            </div>
+          ))}
+          <button type="button" onClick={() => setRows((x) => [...x, { method: 'bank_transfer', amount: '' }])} className="text-xs font-semibold text-accent underline">Split between another way of paying</button>
+          {pays.some((p) => p.method === 'cash') && <TextField label="Cash given (₦)" type="number" min="0" step="0.01" value={given} onChange={(e) => setGiven(e.target.value)} hint={change > 0 ? `Change to give back: ${naira(change)}` : 'To work out the change (not recorded)'} />}
+          {balance > 0 && <p className="text-xs text-warning">{rows.length > 1 || paying > 0 ? 'Still to pay' : 'On credit'}: {naira(balance)}</p>}
         </div>
         {error && <ErrorState title="Sale not posted" message={error} />}
         <Button type="submit" loading={busy} className="w-full" disabled={!cart.length}>Complete sale · {naira(total)}</Button>
@@ -223,33 +262,43 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
 // --------------------------------------------------------------------------------- history
 const SALE_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = { posted: 'neutral', refunded: 'warning', voided: 'danger', paid: 'success', partially_paid: 'warning', unpaid: 'danger' }
 
-function History({ businessId, sales, loading, error, customers, can, onChanged, onReceipt }: {
-  businessId: string; sales: SaleDto[] | null; loading: boolean; error: string | null; customers: CustomerDto[]; can: (p: string) => boolean
-  onChanged: () => Promise<void>; onReceipt: (id: string) => void
+function History({ businessId, customers, can, onChanged, onReceipt, refreshKey }: {
+  businessId: string; customers: CustomerDto[]; can: (p: string) => boolean; onChanged: () => Promise<void>; onReceipt: (id: string) => void; refreshKey: unknown
 }) {
   const [open, setOpen] = useState<string | null>(null)
-  if (loading) return <Spinner />
-  if (error) return <ErrorState message={error} />
-  if (!sales?.length) return <EmptyState title="No sales yet" description="Completed sales appear here." />
+  const [q, setQ] = useState(''); const [show, setShow] = useState(''); const [from, setFrom] = useState(''); const [to, setTo] = useState('')
+  const list = useAsync(() => api.listSales(businessId, from || to ? { from: from || undefined, to: to || undefined } : undefined), [businessId, from, to, refreshKey])
   const customer = (id: string | null) => customers.find((c) => c.id === id)?.name ?? 'Walk-in'
+  const rows = (list.data ?? []).filter((s) => (!show || (show === 'owing' ? s.balanceDue > 0 && s.status !== 'voided' : s.status === show))
+    && (!q.trim() || [s.number, customer(s.customerId)].some((v) => v.toLowerCase().includes(q.trim().toLowerCase()))))
   return (
     <>
-      <Card className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Sale</th><th className="p-3">Customer</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Balance</th><th className="p-3">Status</th></tr></thead>
-          <tbody className="divide-y divide-ink/10">
-            {sales.map((s) => (
-              <tr key={s.id} className="cursor-pointer hover:bg-surface" onClick={() => setOpen(s.id)}>
-                <td className="p-3"><b>{s.number}</b><div className="text-xs text-ink/60">{dateTime(s.soldAt)}</div></td>
-                <td className="p-3">{customer(s.customerId)}</td>
-                <td className="p-3 text-right tabular">{naira(s.grandTotal)}</td>
-                <td className="p-3 text-right tabular">{naira(s.balanceDue)}</td>
-                <td className="p-3"><span className="flex flex-wrap gap-1">{s.status !== 'posted' && <Badge tone={SALE_TONE[s.status]}>{label(s.status)}</Badge>}<Badge tone={SALE_TONE[s.paymentStatus]}>{label(s.paymentStatus)}</Badge></span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <div className="w-60"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Sale number or customer" /></div>
+        <div className="w-40"><SelectField label="Show" value={show} onChange={(e) => setShow(e.target.value)}><option value="">All sales</option><option value="owing">Owing money</option><option value="refunded">Refunded</option><option value="voided">Voided</option></SelectField></div>
+        <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+        <div className="w-40"><TextField label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <Button variant="secondary" disabled={!rows.length} onClick={() => downloadCsv('sales.csv', [['Sale', 'Date', 'Customer', 'Total', 'Paid', 'Balance', 'Status', 'Payment'], ...rows.map((s) => [s.number, s.soldAt, customer(s.customerId), s.grandTotal, s.amountPaid, s.balanceDue, s.status, s.paymentStatus])])}><Download className="size-4" aria-hidden /> Export</Button>
+        <p className="pb-2 text-sm text-ink/60">{rows.length} shown{!from && !to ? ' (latest 100)' : ''}</p>
+      </div>
+      {list.loading && !list.data ? <Spinner /> : list.error ? <ErrorState message={list.error} /> : !rows.length ? <EmptyState title={list.data?.length ? 'No sales match' : 'No sales yet'} description="Completed sales appear here." /> : (
+        <Card className="overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Sale</th><th className="p-3">Customer</th><th className="p-3 text-right">Total</th><th className="p-3 text-right">Balance</th><th className="p-3">Status</th></tr></thead>
+            <tbody className="divide-y divide-ink/10">
+              {rows.map((s) => (
+                <tr key={s.id} className="cursor-pointer hover:bg-surface" onClick={() => setOpen(s.id)}>
+                  <td className="p-3"><b>{s.number}</b><div className="text-xs text-ink/60">{dateTime(s.soldAt)}</div></td>
+                  <td className="p-3">{customer(s.customerId)}</td>
+                  <td className="p-3 text-right tabular">{naira(s.grandTotal)}</td>
+                  <td className="p-3 text-right tabular">{naira(s.balanceDue)}</td>
+                  <td className="p-3"><span className="flex flex-wrap gap-1">{s.status !== 'posted' && <Badge tone={SALE_TONE[s.status]}>{label(s.status)}</Badge>}<Badge tone={SALE_TONE[s.paymentStatus]}>{label(s.paymentStatus)}</Badge></span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
       {open && <SaleDialog businessId={businessId} saleId={open} can={can} onClose={() => setOpen(null)} onChanged={onChanged} onReceipt={onReceipt} />}
     </>
   )

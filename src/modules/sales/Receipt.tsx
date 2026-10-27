@@ -1,13 +1,17 @@
-import { Printer } from 'lucide-react'
+import { MessageCircle, Printer } from 'lucide-react'
+import { useState } from 'react'
 import { Button, ErrorState, Spinner } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { dateTime, label, naira, qty } from '@/shared/utilities/format'
 import { receiptData } from '@/modules/sales/tradeApi'
+import { receiptText } from '@/modules/sales/till'
+import { whatsappUrl } from '@/shared/utilities/contact'
 
 /** Printable receipt (80mm thermal-friendly). Figures come from the database record, not the browser cart. */
 export function ReceiptDialog({ businessId, saleId, onClose }: { businessId: string; saleId: string; onClose: () => void }) {
   const { data, error, loading } = useAsync(() => receiptData(businessId, saleId), [businessId, saleId])
+  const [phone, setPhone] = useState<string | null>(null)
   return (
     <Dialog title="Receipt" onClose={onClose}>
       {loading && <Spinner />}
@@ -36,8 +40,12 @@ export function ReceiptDialog({ businessId, saleId, onClose }: { businessId: str
             {data.sale.balance_due > 0 && <Row k="Balance due" v={data.sale.balance_due} strong />}
             <p className="mt-3 text-center text-xs text-ink/60">Thank you for your business.</p>
           </div>
-          <div className="no-print mt-4 flex justify-end">
-            <Button onClick={() => window.print()}><Printer className="size-4" /> Print</Button>
+          <div className="no-print mt-4 flex flex-wrap items-end justify-end gap-2">
+            <label className="text-xs text-ink/70">Send on WhatsApp
+              <input aria-label="Customer's WhatsApp number" value={phone ?? data.customer?.phone ?? ''} onChange={(e) => setPhone(e.target.value)} placeholder="0803 123 4567" className="mt-1 block w-40 rounded-md border border-line px-2 py-1.5 text-sm" />
+            </label>
+            {(phone ?? data.customer?.phone) ? <a href={whatsappUrl(phone ?? data.customer?.phone ?? '', receiptText({ business: data.business.name, number: data.sale.sale_number, at: data.sale.sold_at, customer: data.customer?.name, items: data.items.map((i) => ({ description: i.description, quantity: i.quantity, total: i.total })), total: data.sale.grand_total, paid: data.sale.amount_paid, balance: data.sale.balance_due }, naira))} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold hover:bg-surface"><MessageCircle className="size-4" aria-hidden /> Send</a> : null}
+            <Button onClick={() => window.print()}><Printer className="size-4" /> Print or save as PDF</Button>
           </div>
         </>
       )}

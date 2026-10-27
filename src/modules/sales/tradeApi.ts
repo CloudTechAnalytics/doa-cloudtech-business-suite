@@ -20,7 +20,7 @@ export interface SaleDetail { sale: SaleDto; items: SaleItemDto[]; payments: Pay
 export interface PurchaseDto { id: string; number: string; supplierId: string; reference: string | null; status: string; paymentStatus: string; total: number; amountPaid: number; at: string }
 export interface PurchaseItemDto { id: string; productId: string; ordered: number; received: number; unitCost: number; lineTotal: number }
 export interface PurchaseDetail { purchase: PurchaseDto; items: PurchaseItemDto[]; payments: PaymentDto[] }
-export interface ReceiptData { business: { name: string; currency: string }; sale: { sale_number: string; sold_at: string; subtotal: number; discount_total: number; tax_total: number; grand_total: number; amount_paid: number; balance_due: number; status: string }; customer: { name: string } | null; items: { description: string; quantity: number; unit_price: number; discount: number; tax: number; total: number }[]; payments: { method: string; amount: number; status: string; type: string; at: string }[] }
+export interface ReceiptData { business: { name: string; currency: string }; sale: { sale_number: string; sold_at: string; subtotal: number; discount_total: number; tax_total: number; grand_total: number; amount_paid: number; balance_due: number; status: string }; customer: { name: string; phone?: string | null } | null; items: { description: string; quantity: number; unit_price: number; discount: number; tax: number; total: number }[]; payments: { method: string; amount: number; status: string; type: string; at: string }[] }
 
 const n = (v: unknown) => Number(v ?? 0)
 const msg = (e: { message: string } | null) => e?.message ?? null
@@ -93,9 +93,14 @@ export async function updateSupplier(businessId: string, id: string, v: { name: 
 const saleFromDemo = (s: demo.DSale): SaleDto => ({ id: s.id, number: s.number, soldAt: s.soldAt, customerId: s.customerId, status: s.status, paymentStatus: s.paymentStatus, grandTotal: s.grandTotal, amountPaid: s.amountPaid, balanceDue: s.balanceDue, returnedTotal: s.returnedTotal, refundDue: s.refundDue })
 const saleFromRow = (s: Record<string, unknown>): SaleDto => ({ id: String(s.id), number: String(s.sale_number), soldAt: String(s.sold_at), customerId: (s.customer_id as string | null) ?? null, status: String(s.status), paymentStatus: String(s.payment_status), grandTotal: n(s.grand_total), amountPaid: n(s.amount_paid), balanceDue: n(s.balance_due), returnedTotal: n(s.returned_total), refundDue: n(s.refund_due) })
 
-export async function listSales(businessId: string): Promise<SaleDto[]> {
-  if (isDemoMode) return demo.getTrade().sales.filter((s) => s.businessId === businessId).map(saleFromDemo).reverse().slice(0, 100)
-  const r = await db().from('sales').select('*').eq('business_id', businessId).order('sold_at', { ascending: false }).limit(100)
+/** Sales, newest first. With a date range (YYYY-MM-DD, both ends included) up to 1000 of that period; without one, the latest 100. */
+export async function listSales(businessId: string, range?: { from?: string; to?: string }): Promise<SaleDto[]> {
+  const limit = range?.from || range?.to ? 1000 : 100
+  if (isDemoMode) return demo.getTrade().sales.filter((s) => s.businessId === businessId && (!range?.from || s.soldAt.slice(0, 10) >= range.from) && (!range?.to || s.soldAt.slice(0, 10) <= range.to)).map(saleFromDemo).reverse().slice(0, limit)
+  let q = db().from('sales').select('*').eq('business_id', businessId)
+  if (range?.from) q = q.gte('sold_at', `${range.from}T00:00:00`)
+  if (range?.to) q = q.lt('sold_at', new Date(new Date(`${range.to}T00:00:00Z`).getTime() + 86400000).toISOString())
+  const r = await q.order('sold_at', { ascending: false }).limit(limit)
   if (r.error) throw new Error(r.error.message)
   return (r.data ?? []).map(saleFromRow)
 }
@@ -186,7 +191,7 @@ export async function receiptData(b: string, saleId: string): Promise<ReceiptDat
     return {
       business: { name: getDemoState().businesses.find((x) => x.id === b)?.name ?? 'Business', currency: 'NGN' },
       sale: { sale_number: sale.number, sold_at: sale.soldAt, subtotal: sale.subtotal, discount_total: sale.discountTotal, tax_total: sale.taxTotal, grand_total: sale.grandTotal, amount_paid: sale.amountPaid, balance_due: sale.balanceDue, status: sale.status },
-      customer: cust ? { name: cust.name } : null,
+      customer: cust ? { name: cust.name, phone: cust.phone } : null,
       items: d.items.map((i) => ({ description: i.description, quantity: i.quantity, unit_price: i.unitPrice, discount: i.discount, tax: i.tax, total: i.total })),
       payments: d.payments.map((p) => ({ method: p.method, amount: p.amount, status: p.status, type: p.type, at: p.at })),
     }
@@ -244,4 +249,23 @@ export async function payPurchase(b: string, purchaseId: string, method: string,
 export async function cancelPurchase(b: string, purchaseId: string, reason: string, key: string) {
   if (isDemoMode) return demo.demoCancelPurchase(b, purchaseId, reason, key)
   return msg((await db().rpc('cancel_purchase', { p_purchase: purchaseId, p_reason: reason, p_key: key })).error)
+}
+
+export interface DaySummary {
+  day: string; salesCount: number; gross: number; discounts: number; tax: number; returns: number; outstanding: number; voidedCount: number; voidedTotal: number
+  byMethod: { method: string; amount: number }[]; byCashier: { cashier: string; sales: number; total: number }[]; topProducts: { name: string; quantity: number; total: number }[]
+}
+/** The end-of-day figures for one day: what was sold, handed back, collected and how, what is owed, who sold, and the best sellers. */
+export async function daySummary(businessId: string, day: string): Promise<DaySummary> {
+  if (isDemoMode) { demo.ensureDemoTrade(businessId); return demo.demoSalesDaySummary(businessId, day) }
+  const { data, error } = await db().rpc('sales_day_summary', { p_business: businessId, p_day: day })
+  if (error) throw new Error(error.message)
+  const x = data as Record<string, unknown>
+  const arr = <T,>(v: unknown) => (v as T[] | null) ?? []
+  return {
+    day: String(x.day).slice(0, 10), salesCount: n(x.sales_count), gross: n(x.gross), discounts: n(x.discounts), tax: n(x.tax), returns: n(x.returns), outstanding: n(x.outstanding), voidedCount: n(x.voided_count), voidedTotal: n(x.voided_total),
+    byMethod: arr<{ method: string; amount: number }>(x.by_method).map((m) => ({ method: m.method, amount: n(m.amount) })),
+    byCashier: arr<{ cashier: string; sales: number; total: number }>(x.by_cashier).map((c) => ({ cashier: c.cashier, sales: n(c.sales), total: n(c.total) })),
+    topProducts: arr<{ name: string; quantity: number; total: number }>(x.top_products).map((p) => ({ name: p.name, quantity: n(p.quantity), total: n(p.total) })),
+  }
 }

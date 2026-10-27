@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { UsageNotice } from '@/core/subscriptions/UsageViews'
 import { Badge, Button, Card, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
@@ -30,7 +31,10 @@ const LEAD_TONE: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'da
 
 export function CrmPage() {
   const { active } = useBusiness()
-  const [tab, setTab] = useState<(typeof TABS)[number]>('Pipeline')
+  // Which part is open is in the address (?tab=leads), so the sidebar, the tabs and the browser's back button all agree.
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.find((t) => t.toLowerCase() === params.get('tab')) ?? 'Pipeline'
+  const setTab = (t: (typeof TABS)[number]) => setParams({ tab: t.toLowerCase() }, { replace: false })
   const businessId = active?.id ?? ''
   const perms = useAsync(() => myTradePermissions(businessId), [businessId])
   if (!active) return null
