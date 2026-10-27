@@ -69,3 +69,25 @@ describe('the app models the same roles', () => {
     for (const role of ['parent', 'viewer', 'cashier'] as const) expect(rolePermissions(role).has('school.guardians')).toBe(false)
   })
 })
+
+describe('a teacher and the Timetable and Reports pages', () => {
+  it('can open both, as can the owner and the principal', async () => {
+    for (const u of [teacher, owner, principal]) expect(await usable(u)).toEqual(expect.arrayContaining(['school-timetable', 'school-reports']))
+  })
+  it('sees the timetable of the class they teach and no other', async () => {
+    const cls = async (name: string) => (await q<{ id: string }>('select id from public.school_classes where business_id=$1 and name=$2', [biz, name]))[0].id
+    const [p1, p2] = [await cls('Primary 1'), await cls('Primary 2')]
+    await as(owner, () => q('select public.school_save_periods($1,$2::jsonb)', [biz, J([{ label: 'P1', starts: '08:00', ends: '08:40', is_break: false }])]))
+    const period = (await q<{ id: string }>('select id from public.school_periods where business_id=$1', [biz]))[0].id
+    for (const c of [p1, p2]) {
+      const sub = (await q<{ subject_id: string }>('select subject_id from public.school_class_subjects where class_id=$1 limit 1', [c]))[0].subject_id
+      await as(owner, () => q('select public.school_set_slot($1,$2,1,$3,$4,null,null)', [biz, c, period, sub]))
+    }
+    const seen = (await as(teacher, () => q<{ class_id: string }>('select distinct class_id from public.school_timetable where business_id=$1', [biz]))).map((r) => r.class_id)
+    expect(seen).toEqual([p1])
+    expect(await q('select 1 from public.school_timetable where business_id=$1', [biz])).toHaveLength(2)
+  })
+  it('still cannot change the timetable', async () => {
+    await expect(as(teacher, () => q(`select public.school_save_periods($1,'[]'::jsonb)`, [biz]))).rejects.toThrow(/permission denied/)
+  })
+})

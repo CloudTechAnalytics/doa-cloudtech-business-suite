@@ -28,7 +28,7 @@ export function SchoolReportsPage() {
   const tables: Record<Report, () => Table> = {
     enrolment: () => ({
       head: ['Class', 'Active', 'Female', 'Male', 'Transferred', 'Withdrawn', 'Graduated'],
-      rows: (s?.classes ?? []).filter((c) => !cls || c.id === cls).map((c) => { const k = (students.data ?? []).filter((x) => x.classId === c.id); const n = (f: (x: (typeof k)[number]) => boolean) => k.filter(f).length; return [c.name, n((x) => x.status === 'active'), n((x) => x.status === 'active' && x.gender === 'female'), n((x) => x.status === 'active' && x.gender === 'male'), n((x) => x.status === 'transferred'), n((x) => x.status === 'withdrawn'), n((x) => x.status === 'graduated')] }),
+      rows: ctx.classes.filter((c) => !cls || c.id === cls).map((c) => { const k = (students.data ?? []).filter((x) => x.classId === c.id); const n = (f: (x: (typeof k)[number]) => boolean) => k.filter(f).length; return [c.name, n((x) => x.status === 'active'), n((x) => x.status === 'active' && x.gender === 'female'), n((x) => x.status === 'active' && x.gender === 'male'), n((x) => x.status === 'transferred'), n((x) => x.status === 'withdrawn'), n((x) => x.status === 'graduated')] }),
     }),
     attendance: () => {
       const within = (att.data ?? []).filter((a) => ids.has(a.studentId) && (!termInfo || (a.on >= termInfo.startsOn && a.on <= termInfo.endsOn)))
