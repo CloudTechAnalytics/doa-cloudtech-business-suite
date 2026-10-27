@@ -48,7 +48,7 @@ export function PayDialog({ title, due, subject, onPay, onClose, onSaved }: { ti
 }
 
 /** What customers still owe: open invoices, oldest first, with ageing. Money received is recorded against the invoice. */
-export function ReceivablesPage() {
+export function ReceivablesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { active } = useBusiness()
   const businessId = active?.id ?? ''
   const rows = useAsync(() => listReceivables(businessId), [businessId])
@@ -62,7 +62,7 @@ export function ReceivablesPage() {
   for (const r of data) byCustomer.set(r.customerName, (byCustomer.get(r.customerName) ?? 0) + Math.round(r.balanceDue * 100))
   return (
     <>
-      <PageHeader title="Receivables" description="What customers still owe you, from open invoices. Age counts from the sale date." />
+      {embedded ? <p className="mb-3 max-w-2xl text-sm text-ink/70">What customers still owe you, from open sales and sent invoices. Age counts from the sale or invoice date. Record an invoice's payment in Invoices.</p> : <PageHeader title="Receivables" description="What customers still owe you, from open invoices. Age counts from the sale date." />}
       {rows.error && <ErrorState message={rows.error} />}
       {rows.loading ? <Spinner /> : data.length === 0 ? <Card><EmptyState title="Nothing is owed to you" description="Credit sales with a balance appear here until they are paid." /></Card> : (
         <>
@@ -94,7 +94,7 @@ export function ReceivablesPage() {
 }
 
 /** What you still owe suppliers, from purchase orders. Paying a supplier is recorded against the order. */
-export function PayablesPage() {
+export function PayablesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { active } = useBusiness()
   const businessId = active?.id ?? ''
   const rows = useAsync(() => listPayables(businessId), [businessId])
@@ -108,7 +108,7 @@ export function PayablesPage() {
   for (const r of data) bySupplier.set(r.supplierName, (bySupplier.get(r.supplierName) ?? 0) + Math.round(r.balanceDue * 100))
   return (
     <>
-      <PageHeader title="Payables" description="What you still owe suppliers, from purchase orders. Age counts from the order date." />
+      {embedded ? <p className="mb-3 max-w-2xl text-sm text-ink/70">What you still owe suppliers, from purchase orders. Age counts from the order date.</p> : <PageHeader title="Payables" description="What you still owe suppliers, from purchase orders. Age counts from the order date." />}
       {rows.error && <ErrorState message={rows.error} />}
       {rows.loading ? <Spinner /> : data.length === 0 ? <Card><EmptyState title="You owe no supplier" description="Purchase orders with an unpaid balance appear here." /></Card> : (
         <>

@@ -15,7 +15,7 @@ function csv(rows: (string | number)[][]) {
 }
 
 /** Every cash movement in date order: payments received and paid, and expenses, with a running balance per payment method. */
-export function CashbookPage() {
+export function CashbookPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { active } = useBusiness()
   const businessId = active?.id ?? ''
   const all = useAsync(() => listCashbook(businessId), [businessId])
@@ -40,8 +40,10 @@ export function CashbookPage() {
 
   return (
     <>
-      <PageHeader title="Cashbook" description="Every recorded cash movement: payments received, supplier payments, refunds and expenses. Reversed payments and voided expenses are not cash movements and are left out."
-        actions={<Button variant="secondary" onClick={download} disabled={!rows.length}><Download className="size-4" aria-hidden /> Export CSV</Button>} />
+      {embedded
+        ? <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><p className="max-w-2xl text-sm text-ink/70">Every recorded cash movement: payments received, supplier payments, refunds and expenses. Reversed payments and voided expenses are not cash movements and are left out.</p><Button variant="secondary" onClick={download} disabled={!rows.length}><Download className="size-4" aria-hidden /> Export CSV</Button></div>
+        : <PageHeader title="Cashbook" description="Every recorded cash movement: payments received, supplier payments, refunds and expenses. Reversed payments and voided expenses are not cash movements and are left out."
+          actions={<Button variant="secondary" onClick={download} disabled={!rows.length}><Download className="size-4" aria-hidden /> Export CSV</Button>} />}
       {all.error && <ErrorState message={all.error} />}
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="w-44"><TextField label="From" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>

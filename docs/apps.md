@@ -110,6 +110,7 @@ Built, on top of drafts, sending, payments (with reversal), cancelling, quotes-t
 - **Customer statements**: pick a customer (and optionally a date range) for every invoice sent to them, every payment and credit note, a running balance, a balance brought forward, and what is owing now. Print or save as PDF, or export CSV. Drafts and cancelled invoices are left out.
 - **Ageing**: open invoices by customer, in how late they are (not yet due, 1-30, 31-60, 61-90, over 90 days), biggest debt first, with totals and CSV export. An invoice with no due date counts from the day it was issued.
 - **Reminders**: on an open invoice, a polite message (what is owed, how late) to send by WhatsApp or email, or copy. DOA sends nothing itself.
+- **Recording payments is quicker**: every open invoice in the list has a **Record payment** button (no need to open it first). The amount has one-tap choices (the full balance, or half), how it was paid is a row of buttons, and a part payment leaves the invoice part-paid. Once saved, a **payment receipt** (RCT number, who paid, how much, how, the invoice, what is still owed) can be printed or saved as PDF, or sent by WhatsApp or email, and any earlier payment on the invoice can print its receipt too. A repeat of the same submit never records twice.
 - **Payment terms** (on receipt, 7, 14, 30, 60 days) when setting the due date, **copy as new invoice**, and **CSV export** of the list.
 - Every part is in the sidebar (Invoices, Statements, Ageing).
 
@@ -129,7 +130,19 @@ Not yet: receipt photos and file attachments (needs file storage), recurring exp
 
 ### The other apps (not yet deepened)
 
-- **Finance:** profit and loss by category, bank accounts and reconciliation, budget against actual, cash-flow forecast.
+
+### Finance (deepened last)
+
+Before, the Finance app was one summary page; the cashbook, receivables and payables existed only inside the farm. Now Finance is five parts, all in the sidebar:
+
+- **Overview**: the cash-basis summary for any dates (sales, purchases, expenses, stock, cash in and out, surplus, owed each way, expenses by category), as before.
+- **Cash flow** (`finance_cash_flow`): for This month, Last month, Last 30 days, This year or any dates: the **opening balance**, money in, money out and the **closing balance**, which must reconcile (the screen says so if it ever does not); by month; **where money came from** (sales, invoice payments) and **where it went** (supplier payments, refunds, and each expense category by name); **where the money is** (the balance in each way of paying: cash, bank transfer, card, POS, to the end of the period); and **expected from invoices** (overdue, due in the next 30 days, no due date, after credit notes and payments). CSV export.
+- **Cashbook**: every money movement with a running balance per way of paying, filterable by dates, CSV export.
+- **Owed to you** (receivables, sales and invoices, aged) and **You owe** (payables, purchase orders, aged).
+
+All of it is cash basis, and says so: it is money that moved, not profit.
+
+Not yet: profit and loss on an accrual basis (needs costs matched to sales and a chart of accounts), bank accounts you name and import statements for, **reconciliation** against a bank statement, a forecast beyond what invoices are due (bills have no due dates), budget against actual across all categories (it lives in Expenses), tax and VAT reporting, multi-currency, closing a period, and journals.
 
 ## One workspace, visible to the platform
 

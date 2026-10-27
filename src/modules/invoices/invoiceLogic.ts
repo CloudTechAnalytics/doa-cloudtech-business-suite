@@ -85,3 +85,23 @@ export function invoicesExport(rows: InvoiceRow[]): (string | number | null)[][]
     ...rows.map((i) => [i.number, i.customer, i.overdue ? 'overdue' : i.status, i.issuedOn, i.dueOn, i.subtotal, i.discount, i.taxAmount, i.total, i.credited, i.amountPaid, i.status === 'draft' || i.status === 'cancelled' ? 0 : i.balance]),
   ]
 }
+
+// ---------------------------------------------------------------------------------------------------- payments and receipts
+/** One-tap amounts for a payment: all of what is owed, and half of it (when there is enough to halve). */
+export function amountChoices(balance: number): { label: string; amount: number }[] {
+  const out = [{ label: 'Full balance', amount: money(balance) }]
+  if (balance >= 2) out.push({ label: 'Half', amount: money(balance / 2) })
+  return out
+}
+
+/** A receipt number made from the payment's own id, so the same payment always prints the same number. */
+export const receiptNumber = (p: Pick<InvoicePayment, 'id'>) => `RCT-${p.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`
+
+/** A thank-you with what was received and what is still owed, ready to send by WhatsApp or email. DOA sends nothing itself. */
+export function paymentReceiptText(i: InvoiceRow, p: InvoicePayment, business: string, fmt: (n: number) => string): string {
+  return `Hello ${i.customer}, ${business} has received ${fmt(p.amount)} by ${p.method.replace(/_/g, ' ')} on ${p.paidOn} for invoice ${i.number} (receipt ${receiptNumber(p)}). ${i.balance > 0 ? `The balance still due is ${fmt(i.balance)}.` : 'The invoice is now fully settled.'} Thank you.`
+}
+export const paymentReceiptLinks = (i: InvoiceRow, p: InvoicePayment, business: string, fmt: (n: number) => string, phone: string | null, email: string | null) => {
+  const text = paymentReceiptText(i, p, business, fmt)
+  return { text, whatsapp: phone ? whatsappUrl(phone, text) : null, mail: email ? mailUrl(email, `Payment received: invoice ${i.number}`, text) : null }
+}

@@ -238,3 +238,52 @@ export function demoExpenseReport(biz: string, from: string, to: string): Expens
     bySupplier: desc([...sum((e) => (e.supplierId ? getTrade().suppliers.find((s) => s.id === e.supplierId)?.name ?? null : null))].map(([supplier, v]) => ({ supplier, total: m_(v.cents) }))).slice(0, 10),
   }
 }
+
+// ---------------------------------------------------------------- cash flow (mirror 20261021000057)
+export interface CashFlow {
+  opening: number; inTotal: number; outTotal: number; closing: number
+  byMonth: { month: string; in: number; out: number }[]
+  inByKind: { kind: string; total: number }[]
+  outByKind: { kind: string; category: string | null; total: number }[]
+  byMethod: { method: string; balance: number }[]
+  expected: { overdue: number; due30: number; noDate: number }
+}
+
+/** Opening and closing balance for a period, money in and out by month and by where it came from and went, the balance in each way of paying, and what invoices are expected to bring in. */
+export function demoCashFlow(biz: string, from: string, to: string): CashFlow {
+  if (!demoAllowed(biz, 'reports', 'reports.finance.read')) throw new Error('permission denied')
+  if (!from || !to || to < from) throw new Error('choose a valid period')
+  const all = demoCashbook(biz)
+  const day = (e: CashEntry) => e.at.slice(0, 10)
+  const signed = (e: CashEntry) => (e.direction === 'in' ? c(e.amount) : -c(e.amount))
+  const inPeriod = all.filter((e) => day(e) >= from && day(e) <= to)
+  const group = <K extends string>(rows: CashEntry[], key: (e: CashEntry) => K, dir: 'in' | 'out') => { const t = new Map<K, number>(); for (const e of rows.filter((x) => x.direction === dir)) t.set(key(e), (t.get(key(e)) ?? 0) + c(e.amount)); return t }
+  const months = [...new Set(inPeriod.map((e) => day(e).slice(0, 7)))].sort()
+  const exp = new Map(state.expenses.filter((e) => e.businessId === biz).map((e) => [e.id, e.category]))
+  const outKeys = new Map<string, { kind: string; category: string | null; cents: number }>()
+  for (const e of inPeriod.filter((x) => x.direction === 'out')) {
+    const category = e.kind === 'expense' ? exp.get(e.sourceId) ?? null : null
+    const k = `${e.kind}|${category ?? ''}`; const cur = outKeys.get(k) ?? { kind: e.kind, category, cents: 0 }
+    cur.cents += c(e.amount); outKeys.set(k, cur)
+  }
+  const methods = new Map<string, number>()
+  for (const e of all.filter((x) => day(x) <= to)) methods.set(e.method, (methods.get(e.method) ?? 0) + signed(e))
+  const opening = all.filter((e) => day(e) < from).reduce((a, e) => a + signed(e), 0)
+  const inT = inPeriod.filter((e) => e.direction === 'in').reduce((a, e) => a + c(e.amount), 0)
+  const outT = inPeriod.filter((e) => e.direction === 'out').reduce((a, e) => a + c(e.amount), 0)
+  const open = getInvoices().invoices.filter((i) => i.businessId === biz && (i.status === 'sent' || i.status === 'partially_paid'))
+  const owed = (i: (typeof open)[number]) => c(i.total) - c(i.credited ?? 0) - c(i.amountPaid)
+  const t0 = today(); const t30 = new Date(Date.parse(t0) + 30 * 86400000).toISOString().slice(0, 10)
+  return {
+    opening: m(opening), inTotal: m(inT), outTotal: m(outT), closing: m(opening + inT - outT),
+    byMonth: months.map((mo) => ({ month: mo, in: m(inPeriod.filter((e) => day(e).slice(0, 7) === mo && e.direction === 'in').reduce((a, e) => a + c(e.amount), 0)), out: m(inPeriod.filter((e) => day(e).slice(0, 7) === mo && e.direction === 'out').reduce((a, e) => a + c(e.amount), 0)) })),
+    inByKind: [...group(inPeriod, (e) => e.kind, 'in')].map(([kind, cents]) => ({ kind, total: m(cents) })).sort((a, z) => z.total - a.total),
+    outByKind: [...outKeys.values()].map((v) => ({ kind: v.kind, category: v.category, total: m(v.cents) })).sort((a, z) => z.total - a.total),
+    byMethod: [...methods].map(([method, cents]) => ({ method, balance: m(cents) })).sort((a, z) => z.balance - a.balance),
+    expected: {
+      overdue: m(open.filter((i) => i.dueOn && i.dueOn < t0).reduce((a, i) => a + owed(i), 0)),
+      due30: m(open.filter((i) => i.dueOn && i.dueOn >= t0 && i.dueOn <= t30).reduce((a, i) => a + owed(i), 0)),
+      noDate: m(open.filter((i) => !i.dueOn).reduce((a, i) => a + owed(i), 0)),
+    },
+  }
+}

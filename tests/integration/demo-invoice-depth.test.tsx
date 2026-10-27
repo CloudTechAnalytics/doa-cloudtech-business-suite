@@ -156,3 +156,47 @@ describe('the sidebar for the Invoices app', () => {
     expect(e.map((x) => (x.kind === 'section' ? x.section.key : ''))).toEqual(['invoices', 'statements', 'ageing'])
   })
 })
+
+describe('recording payments from the invoice list, and receipts', () => {
+  const pay1 = (id: string, amount: number) => api.recordInvoicePayment(biz, id, { amount, method: 'bank_transfer', paidOn: null, reference: 'TRF-1' }, key())
+  it('offers the full balance and half as one-tap amounts, and only half when there is enough to halve', async () => {
+    const { amountChoices } = await import('@/modules/invoices/invoiceLogic')
+    expect(amountChoices(1000)).toEqual([{ label: 'Full balance', amount: 1000 }, { label: 'Half', amount: 500 }])
+    expect(amountChoices(1.5)).toEqual([{ label: 'Full balance', amount: 1.5 }]); expect(amountChoices(333.33)[1].amount).toBe(166.67)
+  })
+  it('finds the payment that was just recorded by comparing the list before and after, for a part payment and for the rest', async () => {
+    const id = sent(2000)
+    const ids = async () => new Set((await api.listInvoicePayments(biz, id)).map((p) => p.id))
+    const before = await ids()
+    expect(await pay1(id, 500)).toBeNull()
+    const first = (await api.listInvoicePayments(biz, id)).find((p) => !before.has(p.id))!
+    expect(first).toMatchObject({ amount: 500, method: 'bank_transfer', reference: 'TRF-1', status: 'successful' })
+    expect(get(id)).toMatchObject({ status: 'partially_paid', amountPaid: 500 })
+    const mid = await ids()
+    expect(await pay1(id, 1500)).toBeNull()
+    const second = (await api.listInvoicePayments(biz, id)).find((p) => !mid.has(p.id))!
+    expect(second.amount).toBe(1500); expect(second.id).not.toBe(first.id); expect(get(id).status).toBe('paid')
+  })
+  it('gives each payment its own steady receipt number', async () => {
+    const { receiptNumber } = await import('@/modules/invoices/invoiceLogic')
+    expect(receiptNumber({ id: 'ipay_ab12-cd34-ef56' })).toBe('RCT-CD34EF56') // the last eight letters and numbers of the id
+    expect(receiptNumber({ id: 'x1' })).toBe(receiptNumber({ id: 'x1' })); expect(receiptNumber({ id: 'aaaa1111' })).not.toBe(receiptNumber({ id: 'bbbb2222' }))
+    expect(receiptNumber({ id: 'ipay_ab12-cd34-ef56' })).toMatch(/^RCT-[A-Z0-9]{1,8}$/)
+  })
+  it('words a receipt with what was received, how, for which invoice, and what is left or that it is settled', async () => {
+    const { paymentReceiptLinks, paymentReceiptText } = await import('@/modules/invoices/invoiceLogic')
+    const inv = { id: 'i', number: 'INV-000009', customerId: 'c1', customer: 'Acme', quoteId: null, status: 'partially_paid' as const, issuedOn: '2031-01-01', dueOn: null, lines: [], discount: 0, taxPercent: 0, subtotal: 1000, taxAmount: 0, total: 1000, amountPaid: 400, credited: 0, balance: 600, notes: '', cancelReason: null, overdue: false }
+    const p = { id: 'ipay_zz99aa88', invoiceId: 'i', amount: 400, method: 'bank_transfer', paidOn: '2031-01-10', reference: null, status: 'successful' as const, reversalReason: null }
+    const t = paymentReceiptText(inv, p, 'Corner Shop', (x) => `₦${x}`)
+    for (const s of ['Hello Acme', 'Corner Shop', '₦400', 'bank transfer', '2031-01-10', 'INV-000009', 'balance still due is ₦600']) expect(t).toContain(s)
+    expect(paymentReceiptText({ ...inv, balance: 0 }, p, 'Corner Shop', String)).toContain('fully settled')
+    const l = paymentReceiptLinks(inv, p, 'Corner Shop', String, '0803 123 4567', null)
+    expect(l.whatsapp).toContain('wa.me/'); expect(l.mail).toBeNull(); expect(paymentReceiptLinks(inv, p, 'S', String, null, 'a@b.co').mail).toContain('mailto:')
+  })
+  it('prints a receipt with the amount, the invoice and the balance', async () => {
+    const { PaymentReceiptSheet } = await import('@/modules/invoices/InvoicePayments')
+    const inv = { id: 'i', number: 'INV-000009', customerId: 'c1', customer: 'Acme', quoteId: null, status: 'partially_paid' as const, issuedOn: '2031-01-01', dueOn: null, lines: [], discount: 0, taxPercent: 0, subtotal: 1000, taxAmount: 0, total: 1000, amountPaid: 400, credited: 0, balance: 600, notes: '', cancelReason: null, overdue: false }
+    const html = renderToStaticMarkup(<PaymentReceiptSheet invoice={inv} business="Corner Shop" payment={{ id: 'ipay_zz99aa88', invoiceId: 'i', amount: 400, method: 'bank_transfer', paidOn: '2031-01-10', reference: 'TRF-1', status: 'successful', reversalReason: null }} />)
+    for (const s of ['Payment receipt', 'Corner Shop', 'Acme', 'INV-000009', 'Bank transfer', 'TRF-1', 'Amount received', 'Balance still due', 'Thank you']) expect(html).toContain(s)
+  })
+})

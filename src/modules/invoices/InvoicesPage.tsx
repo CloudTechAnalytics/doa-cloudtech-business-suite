@@ -12,6 +12,7 @@ import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { printSheets } from '@/shared/print/printSheets'
 import { downloadCsv } from '@/shared/utilities/csvExport'
 import { label, naira, qty } from '@/shared/utilities/format'
+import { PaymentPanel, PaymentReceiptSheet, RecordPaymentDialog } from './InvoicePayments'
 import { AgeingTab, StatementsTab } from './InvoiceReports'
 import { TERMS, dueFromTerms, invoicesExport, reminderLinks } from './invoiceLogic'
 import * as api from './invoicesApi'
@@ -69,6 +70,7 @@ export function InvoicesPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<InvoiceRow | 'new' | { copyOf: InvoiceRow } | null>(null)
+  const [paying, setPaying] = useState<InvoiceRow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [params, setParams] = useSearchParams()
   // ?open=<id> (from the search box) opens that invoice once the list has loaded.
@@ -118,11 +120,13 @@ export function InvoicesPage() {
             <li key={i.id} className="flex flex-wrap items-center gap-2 p-3">
               <button className="text-left" onClick={() => setOpen(i)}><b>{i.number}</b> <span className="text-ink/70">· {i.customer || '–'}</span><span className="block text-xs text-ink/60">{naira(i.total)}{i.status !== 'draft' && i.status !== 'cancelled' ? ` · owes ${naira(i.balance)}` : ''}{i.dueOn ? ` · due ${i.dueOn}` : ''}</span></button>
               <Badge tone={TONE[shown(i)]}>{label(shown(i))}</Badge>
+              {manage && (i.status === 'sent' || i.status === 'partially_paid') && <Button variant="secondary" className="ml-auto" onClick={() => setPaying(i)}>Record payment</Button>}
             </li>
           ))}
         </ul>
       )}
       </>}
+      {paying && <RecordPaymentDialog businessId={businessId} businessName={active.name} invoice={paying} onClose={() => setPaying(null)} onChanged={refresh} />}
       {shownOpen && <InvoiceDialog businessId={businessId} businessName={active.name} invoice={shownOpen === 'new' || 'copyOf' in shownOpen ? null : shownOpen} seed={typeof shownOpen === 'object' && 'copyOf' in shownOpen ? shownOpen.copyOf : undefined} manage={manage} onClose={() => { setOpen(null); setDismissed(true) }} onChanged={refresh} onCopy={(i) => setOpen({ copyOf: i })} />}
     </>
   )
@@ -213,14 +217,10 @@ function ViewInvoice({ businessId, businessName, invoice, manage, onClose, onCha
   const [crediting, setCrediting] = useState(false)
   const [cnAmount, setCnAmount] = useState(''); const [cnReason, setCnReason] = useState('')
   const cnRunner = useFormRunner(async () => { setCrediting(false); setCnAmount(''); setCnReason(''); await onChanged() })
-  const [amount, setAmount] = useState(String(invoice.balance))
-  const [method, setMethod] = useState<(typeof api.PAY_METHODS)[number]>('bank_transfer')
-  const [paidOn, setPaidOn] = useState(new Date().toISOString().slice(0, 10))
-  const [ref, setRef] = useState('')
+  const [paidHere, setPaidHere] = useState(false)
   const [reason, setReason] = useState('')
   const [reversing, setReversing] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState(false)
-  const payRunner = useFormRunner(async () => { setRef(''); await onChanged() })
   const otherRunner = useFormRunner(onChanged)
   const canPay = manage && (invoice.status === 'sent' || invoice.status === 'partially_paid')
   const open = invoice.status === 'sent' || invoice.status === 'partially_paid'
@@ -232,19 +232,7 @@ function ViewInvoice({ businessId, businessName, invoice, manage, onClose, onCha
         <div className="flex flex-wrap items-center gap-2"><Badge tone={TONE[shown(invoice)]}>{label(shown(invoice))}</Badge><span className="text-ink/70">{invoice.customer} · {naira(invoice.total)}{invoice.dueOn ? ` · due ${invoice.dueOn}` : ''}</span></div>
         <div className={clsx('grid gap-2 text-center', invoice.credited > 0 ? 'grid-cols-4' : 'grid-cols-3')}><div className="rounded-md bg-surface p-2"><p className="text-[11px] uppercase text-ink/60">Total</p><b>{naira(invoice.total)}</b></div>{invoice.credited > 0 && <div className="rounded-md bg-surface p-2"><p className="text-[11px] uppercase text-ink/60">Credit notes</p><b>{naira(invoice.credited)}</b></div>}<div className="rounded-md bg-surface p-2"><p className="text-[11px] uppercase text-ink/60">Paid</p><b>{naira(invoice.amountPaid)}</b></div><div className="rounded-md bg-surface p-2"><p className="text-[11px] uppercase text-ink/60">Balance</p><b>{naira(invoice.balance)}</b></div></div>
         {invoice.status === 'cancelled' && <p className="rounded-md bg-surface px-3 py-2 text-xs">Cancelled: {invoice.cancelReason}</p>}
-        {canPay && (
-          <div className="rounded-lg border border-line p-3">
-            <p className="mb-2 font-semibold">Record a payment</p>
-            <div className="grid gap-3 sm:grid-cols-4">
-              <TextField label="Amount (₦)" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <SelectField label="Method" value={method} onChange={(e) => setMethod(e.target.value as (typeof api.PAY_METHODS)[number])}>{api.PAY_METHODS.map((m) => <option key={m} value={m}>{label(m)}</option>)}</SelectField>
-              <TextField label="Date received" type="date" value={paidOn} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setPaidOn(e.target.value)} />
-              <TextField label="Reference" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" />
-            </div>
-            {payRunner.error && <div className="mt-2"><ErrorState title="Not recorded" message={payRunner.error} /></div>}
-            <Button className="mt-2" loading={payRunner.busy} onClick={() => void payRunner.run((key) => api.recordInvoicePayment(businessId, invoice.id, { amount: Number(amount), method, paidOn: paidOn || null, reference: ref }, key), 'Recorded.')}>Record payment</Button>
-          </div>
-        )}
+        {(canPay || paidHere) && <PaymentPanel businessId={businessId} businessName={businessName} invoice={invoice} onChanged={onChanged} onPaid={() => setPaidHere(true)} customer={who} />}
         {open && remind && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line p-3">
             <p className="mr-auto font-semibold">Remind the customer</p>
@@ -271,7 +259,7 @@ function ViewInvoice({ businessId, businessName, invoice, manage, onClose, onCha
           <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink/60">Payments</p>
             <ul className="divide-y divide-ink/10">{payments.data!.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center gap-2 py-1.5"><span className={p.status === 'reversed' ? 'text-ink/50 line-through' : ''}>{naira(p.amount)} · {label(p.method)} · {p.paidOn}{p.reference ? ` · ${p.reference}` : ''}</span>
-                {p.status === 'reversed' ? <Badge tone="danger">Reversed: {p.reversalReason}</Badge> : manage && <Button variant="secondary" className="ml-auto" onClick={() => { setReversing(p.id); setReason('') }}>Reverse</Button>}</li>
+                {p.status === 'reversed' ? <Badge tone="danger">Reversed: {p.reversalReason}</Badge> : <span className="ml-auto flex gap-1"><Button variant="ghost" onClick={() => printSheets(<PaymentReceiptSheet invoice={invoice} payment={p} business={businessName} />)}><Printer className="size-4" aria-hidden /> Receipt</Button>{manage && <Button variant="secondary" onClick={() => { setReversing(p.id); setReason('') }}>Reverse</Button>}</span>}</li>
             ))}</ul></div>
         )}
         {(reversing || cancelling) && (

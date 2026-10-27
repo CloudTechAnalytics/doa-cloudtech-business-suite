@@ -1,5 +1,5 @@
 import * as demo from '@/demo/demoFinance'
-import type { BudgetRow, BudgetStatus, CashEntry, ExpenseCategory, ExpenseReport, NewExpense, PayableRow, ReceivableRow, ReportSummary } from '@/demo/demoFinance'
+import type { BudgetRow, BudgetStatus, CashEntry, CashFlow, ExpenseCategory, ExpenseReport, NewExpense, PayableRow, ReceivableRow, ReportSummary } from '@/demo/demoFinance'
 import { demoCan as invCan } from '@/demo/demoInventory'
 import { demoCanTrade, ensureDemoTrade } from '@/demo/demoTrade'
 import { isDemoMode } from '@/shared/utilities/env'
@@ -7,7 +7,7 @@ import { supabase } from '@/shared/utilities/supabase'
 
 /** Expenses, receivables, payables, cashbook and the summary report. Live mode reads the database views and calls the
  *  functions; demo mode runs the browser mirror. Mutations return an error message or null. */
-export type { BudgetRow, BudgetStatus, CashEntry, ExpenseCategory, ExpenseReport, NewExpense, PayableRow, ReceivableRow, ReportSummary }
+export type { BudgetRow, BudgetStatus, CashEntry, CashFlow, ExpenseCategory, ExpenseReport, NewExpense, PayableRow, ReceivableRow, ReportSummary }
 export { EXPENSE_CATEGORIES, PAY_METHODS } from '@/demo/demoFinance'
 
 export interface ExpenseDto {
@@ -119,4 +119,18 @@ export async function expenseReport(b: string, from: string, to: string): Promis
   if (error) throw new Error(error.message)
   const x = data as { total: number; count: number; by_category: { category: string; total: number; count: number }[]; by_month: { month: string; total: number }[]; by_method: { method: string; total: number }[]; by_supplier: { supplier: string; total: number }[] }
   return { total: n(x.total), count: n(x.count), byCategory: x.by_category.map((r) => ({ category: r.category, total: n(r.total), count: n(r.count) })), byMonth: x.by_month.map((r) => ({ month: r.month, total: n(r.total) })), byMethod: x.by_method.map((r) => ({ method: r.method, total: n(r.total) })), bySupplier: x.by_supplier.map((r) => ({ supplier: r.supplier, total: n(r.total) })) }
+}
+
+/** Cash flow for a period: opening and closing balance, in and out by month and source, the balance in each way of paying, and what is expected from invoices. */
+export async function cashFlow(b: string, from: string, to: string): Promise<CashFlow> {
+  if (isDemoMode) { ensureDemoTrade(b); return demo.demoCashFlow(b, from, to) }
+  const { data, error } = await db().rpc('finance_cash_flow', { p_business: b, p_from: from, p_to: to })
+  if (error) throw new Error(error.message)
+  const x = data as { opening: number; in_total: number; out_total: number; closing: number; by_month: { month: string; in: number; out: number }[]; in_by_kind: { kind: string; total: number }[]; out_by_kind: { kind: string; category: string | null; total: number }[]; by_method: { method: string; balance: number }[]; expected: { overdue: number; due_30: number; no_date: number } }
+  return {
+    opening: n(x.opening), inTotal: n(x.in_total), outTotal: n(x.out_total), closing: n(x.closing),
+    byMonth: x.by_month.map((r) => ({ month: r.month, in: n(r.in), out: n(r.out) })), inByKind: x.in_by_kind.map((r) => ({ kind: r.kind, total: n(r.total) })),
+    outByKind: x.out_by_kind.map((r) => ({ kind: r.kind, category: r.category, total: n(r.total) })), byMethod: x.by_method.map((r) => ({ method: r.method, balance: n(r.balance) })),
+    expected: { overdue: n(x.expected.overdue), due30: n(x.expected.due_30), noDate: n(x.expected.no_date) },
+  }
 }
