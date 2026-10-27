@@ -88,3 +88,16 @@ describe('the sidebar for the Finance app', () => {
     expect(e.map((x) => (x.kind === 'section' ? x.section.key : ''))).toEqual(['overview', 'cashflow', 'cashbook', 'owed', 'bills'])
   })
 })
+
+describe('Expenses and Finance in a Business apps workspace', () => {
+  it('are two apps, so each lists its own parts in the sidebar', () => {
+    const apps = buildApps('general', new Set(['dashboard', 'expenses', 'reports']))
+    expect(apps.map((a) => a.label)).toEqual(expect.arrayContaining(['Expenses', 'Finance']))
+    const keys = (code: string) => sidebarEntries(apps).filter((x) => x.kind === 'section' && x.module.code === code).map((x) => (x.kind === 'section' ? x.section.key : ''))
+    expect(keys('expenses')).toEqual(['expenses', 'budgets', 'report']); expect(keys('reports')).toEqual(['overview', 'cashflow', 'cashbook', 'owed', 'bills'])
+  })
+  it('stay together under Finance in an industry business', () => {
+    const apps = buildApps('retail', new Set(['dashboard', 'expenses', 'reports']))
+    expect(apps.find((a) => a.label === 'Finance')!.modules.map((m) => m.code)).toEqual(['expenses', 'reports']); expect(apps.some((a) => a.label === 'Expenses')).toBe(false)
+  })
+})

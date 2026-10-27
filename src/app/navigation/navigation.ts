@@ -64,7 +64,11 @@ export function buildApps(industry: IndustryCode, usable: ReadonlySet<ModuleCode
   // A module an industry lists in its own sections (e.g. the farm's Inventory) is not repeated under the generic apps.
   const claimed = new Set(getIndustry(industry).navigation.flatMap((s) => s.modules))
   const generic = (s: SharedAppSpec) => fromSpec({ ...s, modules: s.modules.filter((c) => !claimed.has(c)) })
-  return [...BEFORE.map(generic), ...industryApps, ...AFTER.map(generic)].filter((a): a is AppDef => a !== null)
+  // A Business apps workspace has Expenses and Finance as two apps, as on the Apps page; an industry keeps them together under Finance.
+  const after = industry === 'general'
+    ? AFTER.flatMap((s) => (s.id === 'finance' ? [{ ...s, id: 'expenses', label: 'Expenses', modules: ['expenses' as ModuleCode] }, { ...s, modules: ['reports' as ModuleCode] }] : [s]))
+    : AFTER
+  return [...BEFORE.map(generic), ...industryApps, ...after.map(generic)].filter((a): a is AppDef => a !== null)
 }
 
 export const appPath = (m: ModuleDefinition) => `/app/${m.path}`
