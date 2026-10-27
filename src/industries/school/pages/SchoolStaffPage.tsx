@@ -84,11 +84,12 @@ function accessBadge(a: StaffAccess | null) {
 
 function StaffDialog({ ctx, v, onClose, onSaved }: { ctx: ReturnType<typeof useSchool>; v: SStaff | null; onClose: () => void; onSaved: () => Promise<void> }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null)
+  const [working, setWorking] = useState(v ? v.status === 'active' : true)
   const [login, setLogin] = useState(false); const [role, setRole] = useState('teacher'); const [password, setPassword] = useState(() => tempPassword())
   const [done, setDone] = useState<{ name: string; email: string; password: string } | null>(null)
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const f = new FormData(e.currentTarget); const g = (k: string) => String(f.get(k) ?? '').trim()
-    const value = { id: v?.id ?? null, name: g('name'), phone: g('phone'), email: g('email'), jobTitle: g('title'), department: g('dept'), active: f.get('active') === 'on' }
+    const value = { id: v?.id ?? null, name: g('name'), phone: g('phone'), email: g('email'), jobTitle: g('title'), department: g('dept'), active: working }
     const wantLogin = !v && login
     if (wantLogin) {
       if (!value.email) return setError("Enter the email address: it is how they sign in.")
@@ -106,7 +107,8 @@ function StaffDialog({ ctx, v, onClose, onSaved }: { ctx: ReturnType<typeof useS
     <Dialog title={v ? 'Edit staff' : 'Add staff'} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-3">
         <TextField label="Name" name="name" defaultValue={v?.name} autoFocus /><div className="grid gap-3 sm:grid-cols-2"><TextField label="Phone" name="phone" defaultValue={v?.phone ?? ''} /><TextField label="Email" name="email" type="email" defaultValue={v?.email ?? ''} /><TextField label="Job title" name="title" defaultValue={v?.jobTitle ?? ''} placeholder="Teacher, Bursar, Cleaner" /><TextField label="Department" name="dept" defaultValue={v?.department ?? ''} /></div>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={v ? v.status === 'active' : true} /> Still working here</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" checked={working} onChange={(e) => setWorking(e.target.checked)} /> Still working here <span className="text-ink/55">(ticked already; leave it ticked for anyone who works at the school now)</span></label>
+        {!working && (login || v?.userId) && <Notice>This person can sign in, but is marked as not working here, so they will not see any classes or pupils. Tick "Still working here" unless they have left.</Notice>}
         {!v && (
           <fieldset className="space-y-2 rounded-lg border border-line bg-surface p-3 text-sm"><legend className="px-1 font-semibold">Sign-in</legend>
             <label className="flex items-start gap-2"><input type="radio" name="login" className="mt-1" checked={!login} onChange={() => setLogin(false)} /><span><b>No login</b><br /><span className="text-ink/60">Just a record. Right for a cleaner, driver or security.</span></span></label>
