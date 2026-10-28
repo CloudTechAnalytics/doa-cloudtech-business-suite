@@ -91,8 +91,8 @@ function ShiftDialog({ businessId, shift, manage, onClose, onChanged }: { busine
   const isOpen = shift.status === 'open'
   const projected = counted === '' ? null : Math.round((Number(counted) - shift.expectedCash) * 100) / 100
   const needsNote = shift.variance !== null && shift.variance !== 0
-  // A shift where nothing happened (no cash sales, refunds or cash in and out) was opened by mistake and can be deleted; anything else is a money record.
-  const idle = shift.cashSales === 0 && shift.cashRefunds === 0 && shift.movedIn === 0 && shift.movedOut === 0
+  // Only a shift that is still open and where nothing has happened (no sales of any kind, no refunds, no cash in or out) was opened by mistake and can be deleted.
+  const idle = isOpen && shift.cashSales === 0 && shift.cashRefunds === 0 && shift.movedIn === 0 && shift.movedOut === 0 && shift.otherMethods === 0
 
   function addMove(e: FormEvent) {
     e.preventDefault()
@@ -117,7 +117,7 @@ function ShiftDialog({ businessId, shift, manage, onClose, onChanged }: { busine
             <p><b>Cash in</b> is money you put into the drawer that is not a sale: for example change brought from the safe, or the owner topping up the float. <b>Cash out</b> is money you take from the drawer that is not a refund: for example a bank drop, paying a delivery person, or an errand. Each needs a reason, and both appear in this shift's record.</p>
             <p><b>Cash out cannot be more than what is in the drawer.</b> If the drawer should hold {naira(shift.expectedCash)}, you can take out at most {naira(shift.expectedCash)}. This stops the expected cash from going below zero and a short drawer from being hidden by a large payout.</p>
             <p><b>Closing:</b> count the real cash and type it in. The difference between what you counted and what was expected is recorded; a manager must write a note if it does not match. A shift cannot be edited after it is closed.</p>
-            <p><b>Deleting:</b> only a manager can delete a shift, and only one where nothing happened (opened by mistake, no cash sales, refunds or cash in and out). A shift with any cash activity is a money record: it is kept, closed and reviewed, never deleted.</p>
+            <p><b>Deleting:</b> only a manager or the owner can delete a shift, and only one that is still open with nothing in it (opened by mistake: no sales of any kind, no refunds, no cash in or out). Once there is a sale or any cash movement, or the shift is closed, it is a money record: it is kept, closed and reviewed, never deleted.</p>
           </div>
         </details>
         {shift.otherMethods > 0 && <p className="text-xs text-ink/60">Card, transfer and other payments this shift: {naira(shift.otherMethods)}. These are not cash and are not counted in the drawer.</p>}
@@ -176,7 +176,7 @@ function DeleteShift({ businessId, shift, onDeleted }: { businessId: string; shi
       {asking && (
         <Dialog title={`Delete shift ${shift.number}?`} onClose={() => setAsking(false)}>
           <div className="space-y-3 text-sm">
-            <p>This shift has no cash sales, refunds or cash in and out, so it can be removed. This cannot be undone; the reason is kept in the audit trail.</p>
+            <p>This shift is still open and nothing has happened in it, so it can be removed. This cannot be undone; the reason is kept in the audit trail.</p>
             <TextField label="Why is it being deleted?" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Opened by mistake" autoFocus />
             {error && <ErrorState title="Not deleted" message={error} />}
             <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setAsking(false)}>Cancel</Button><Button loading={busy} onClick={() => void confirm()} className="bg-danger text-white hover:bg-danger/90">Delete</Button></div>

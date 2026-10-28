@@ -5,6 +5,7 @@ import { useAsync } from '@/shared/hooks/useAsync'
 import { naira } from '@/shared/utilities/format'
 import { loadAnnouncements, loadOverview } from '../services/schoolApi'
 import { Stat, useSchool } from './schoolUi'
+import { TeacherDashboard } from './TeacherDashboard'
 
 function Bars({ rows, format }: { rows: { name: string; value: number; of?: number }[]; format: (n: number) => string }) {
   const max = Math.max(...rows.map((r) => r.of ?? r.value), 0)
@@ -24,6 +25,7 @@ function Bars({ rows, format }: { rows: { name: string; value: number; of?: numb
 /** The school dashboard: every figure comes from the records for the chosen term. Money shows only to people who may read fees. */
 export function SchoolOverview() {
   const { can } = useSchool()
+  if (can('school.teach') && !(can('school.read') || can('school.manage'))) return <TeacherDashboard />
   if (!(can('school.read') || can('school.manage'))) return <Shortcuts />
   return <Figures />
 }

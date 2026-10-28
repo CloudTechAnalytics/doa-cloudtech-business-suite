@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { STANDALONE_APPS } from '@/core/app-catalogue/apps'
-import { afterAuthPath, rememberApp } from '@/core/app-catalogue/pendingApp'
+import { afterAuthPath, afterSignInPath, rememberApp } from '@/core/app-catalogue/pendingApp'
 import { DEMO_LOGINS, demoSignIn, demoSignUp } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
@@ -83,6 +83,9 @@ export const passwordProblem = (p: string) => (p.length < 10 || !/[a-z]/.test(p)
 
 function AuthForm({ mode }: { mode: Mode }) {
   const navigate = useNavigate()
+  // Signing in goes to the person's businesses, unless they came from an app's own link (?app=pos) on this visit.
+  const [params] = useSearchParams()
+  const fromAppLink = STANDALONE_APPS.some((a) => a.id === params.get('app'))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   // An address waiting for its confirmation email: shows the "Check your email" screen instead of the form.
@@ -117,7 +120,7 @@ function AuthForm({ mode }: { mode: Mode }) {
     if (isDemoMode) {
       const err = mode === 'signin' ? demoSignIn(email, password) : demoSignUp(name, email, password)
       if (err) setFormError(err)
-      else navigate(afterAuthPath(), { replace: true })
+      else navigate(mode === 'signin' ? afterSignInPath(fromAppLink) : afterAuthPath(), { replace: true })
       return
     }
     if (!supabase) return
@@ -127,7 +130,7 @@ function AuthForm({ mode }: { mode: Mode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error && /not confirmed/i.test(error.message)) setPending({ email, reason: 'unconfirmed' })
       else if (error) setFormError(error.message)
-      else navigate(afterAuthPath(), { replace: true })
+      else navigate(afterSignInPath(fromAppLink), { replace: true })
     } else {
       const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: `${window.location.origin}/email-confirmed` } })
       if (error) setFormError(error.message)

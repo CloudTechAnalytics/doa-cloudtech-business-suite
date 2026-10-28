@@ -5,7 +5,9 @@
  *  3. never touches anything that is not this site's own files: the database, sign-in, and every POST go straight to the network, so no business data is ever
  *     stored by the service worker.
  */
-const VERSION = 'doa-v1'
+// v2: version 1 could save the app's front page under the name of a script that a new release had removed, so a page kept failing to load. Changing the name
+// makes every device drop those saved copies.
+const VERSION = 'doa-v2'
 const SHELL = `${VERSION}-shell`
 const FILES = `${VERSION}-files`
 
@@ -37,7 +39,13 @@ self.addEventListener('fetch', (event) => {
   // The app's own built files and icons never change under the same name: serve the saved copy, and save it the first time.
   if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/') || url.pathname === '/favicon.svg') {
     event.respondWith(
-      caches.match(req).then((hit) => hit || fetch(req).then((res) => { if (res.ok) { const copy = res.clone(); caches.open(FILES).then((c) => c.put(req, copy)) } return res })),
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        // Only a real file is kept. When a release has removed a file, the host answers with the front page (an HTML page, with a success code); keeping that under the
+        // file's name would break the page for good.
+        const type = res.headers.get('content-type') || ''
+        if (res.ok && !type.includes('text/html')) { const copy = res.clone(); caches.open(FILES).then((c) => c.put(req, copy)) }
+        return res
+      })),
     )
   }
 })

@@ -33,6 +33,7 @@ import { DetailSlotContext } from '@/shared/components/detail-page'
 import { Menu } from '@/shared/components/menu'
 import { isDemoMode } from '@/shared/utilities/env'
 import { Sidebar } from './Sidebar'
+import { ChunkErrorBoundary } from '@/shared/components/ChunkErrorBoundary'
 
 const COLLAPSE_KEY = 'doa.sidebar.collapsed'
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1' } catch { return false } }
@@ -181,7 +182,7 @@ export function AppShell() {
       </header>
 
       <CrumbContext.Provider value={current?.label ?? null}>
-        {isHome ? <Outlet key={`${active.id}-${refreshKey}`} /> : (
+        {isHome ? <ChunkErrorBoundary><Outlet key={`${active.id}-${refreshKey}`} /></ChunkErrorBoundary> : (
           <div className="flex">
             <aside className={`no-print sticky top-12 hidden h-[calc(100dvh-3rem)] shrink-0 self-start border-r border-line bg-white transition-[width] lg:block ${collapsed ? 'w-16' : 'w-60'}`}>
               <Sidebar apps={apps} collapsed={collapsed} />
@@ -191,7 +192,7 @@ export function AppShell() {
               <DetailSlotContext.Provider value={detailSlot}>
                 <div className={panel ? 'flex items-start gap-4' : 'max-w-[1400px]'}>
                   {/* Keyed by business so no view state or data leaks across a business switch. */}
-                  <div hidden={detailOpen > 0 && !panel} className={panel ? 'min-w-0 flex-1' : undefined}><Outlet key={`${active.id}-${refreshKey}`} /></div>
+                  <div hidden={detailOpen > 0 && !panel} className={panel ? 'min-w-0 flex-1' : undefined}><ChunkErrorBoundary><Outlet key={`${active.id}-${refreshKey}`} /></ChunkErrorBoundary></div>
                   {/* Full page: the record replaces the list. Side panel: it sits beside the list and the list stays in view. */}
                   <div ref={setDetailNode} className={panel ? (detailOpen > 0 ? 'sticky top-14 max-h-[calc(100dvh-4.5rem)] w-full max-w-[46%] shrink-0 basis-[46%] overflow-y-auto' : 'hidden') : undefined} />
                 </div>

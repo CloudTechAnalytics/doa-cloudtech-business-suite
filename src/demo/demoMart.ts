@@ -400,14 +400,15 @@ export function demoCloseShift(biz: string, shiftId: string, counted: number, no
   })
 }
 
-/** Mirrors mart_delete_shift(): a manager may delete a shift with no cash sales, refunds or cash in and out; anything else is a money record. */
+/** Mirrors mart_delete_shift(): a manager may delete a shift that is still open with no sales of any kind, refunds or cash in and out; anything else is a money record. */
 export function demoDeleteShift(biz: string, shiftId: string, reason: string): string | null {
   return run(biz, 'mart_delete_shift', null, ['retail-shifts'], ['retail.manage'], ({ m }) => {
     const s = m.shifts.find((x) => x.id === shiftId && x.businessId === biz)
     if (!s) throw new Error('permission denied')
     if (reason.trim().length < 3) throw new Error('a reason is required')
+    if (s.status !== 'open') throw new Error('a closed shift carries the cash count and is a record, so it cannot be deleted; mark it reviewed instead')
     const sum = demoShiftSummaries(biz).find((x) => x.id === shiftId)
-    if (!sum || sum.cashSales !== 0 || sum.cashRefunds !== 0 || sum.movedIn !== 0 || sum.movedOut !== 0) throw new Error('this shift has cash sales or cash in and out, so it is a money record and cannot be deleted; close it and mark it reviewed instead')
+    if (!sum || sum.cashSales !== 0 || sum.cashRefunds !== 0 || sum.movedIn !== 0 || sum.movedOut !== 0 || sum.otherMethods !== 0) throw new Error('this shift has sales or cash in and out, so it is a money record and cannot be deleted; close it and mark it reviewed instead')
     m.shifts = m.shifts.filter((x) => x.id !== shiftId)
     m.moves = m.moves.filter((x) => x.shiftId !== shiftId)
     return null

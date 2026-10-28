@@ -106,7 +106,7 @@ describe('deleting a shift', () => {
     const log = await q<{ metadata: { reason: string } }>(`select metadata from public.audit_logs where business_id=$1 and action='cashier_shifts.delete'`, [biz])
     expect(log.map((l) => l.metadata.reason)).toContain('Opened by mistake')
   })
-  it('refuses a shift with cash sales or cash in and out: it is a money record, closed and reviewed instead', async () => {
+  it('refuses a shift with any sale or cash in and out: it is a money record, closed and reviewed instead', async () => {
     const a = await openShift(cashier, 100); await sell(cashier, 1)
     await expect(delShift(manager, a)).rejects.toThrow(/money record/)
     await closeShift(cashier, a, 400)
@@ -114,5 +114,19 @@ describe('deleting a shift', () => {
     await expect(delShift(manager, b)).rejects.toThrow(/money record/)
     await closeShift(cashier2, b, 150)
     await expect(delShift(outsider, b)).rejects.toThrow(/permission denied/)
+  })
+  it('refuses a shift where only card payments were taken, since there are still sales in it', async () => {
+    const s = await openShift(cashier, 100); await sell(cashier, 1, 'card')
+    await expect(delShift(manager, s)).rejects.toThrow(/money record/)
+    await closeShift(cashier, s, 100)
+  })
+  it('refuses a closed shift even when nothing happened in it, and lets the owner delete an open empty one', async () => {
+    const closed = await openShift(cashier2, 250); await closeShift(cashier2, closed, 250)
+    await expect(delShift(manager, closed)).rejects.toThrow(/closed shift carries the cash count/)
+    await expect(delShift(owner, closed)).rejects.toThrow(/closed shift carries the cash count/)
+    expect(await q('select 1 from public.cashier_shifts where id=$1', [closed])).toHaveLength(1)
+    const open = await openShift(cashier2, 75)
+    await delShift(owner, open)
+    expect(await q('select 1 from public.cashier_shifts where id=$1', [open])).toHaveLength(0)
   })
 })

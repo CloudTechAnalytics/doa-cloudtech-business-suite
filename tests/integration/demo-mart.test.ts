@@ -189,6 +189,7 @@ describe('shifts, cash given and receipts in the demo, as in the database', () =
     expect(mart.demoCashMovement(B, busy.id, 'in', 50, 'Float', key()).error).toBeNull()
     expect(mart.demoDeleteShift(B, busy.id, 'Opened by mistake')).toMatch(/money record/)
     expect(mart.demoCloseShift(B, busy.id, 350, '', key()).error).toBeNull()
+    expect(mart.demoDeleteShift(B, busy.id, 'Opened by mistake')).toMatch(/closed shift carries the cash count/)
   })
   it('keeps the cash given for a sale, works out the change, and refuses too little, a second record and a card sale', () => {
     as('owner@demo.test')
