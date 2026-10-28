@@ -20,7 +20,7 @@ const ok = async (fn: () => Promise<unknown>) => { try { await fn(); return 'ok'
 const count = async (u: string, table: string) => (await as(u, () => q<{ c: string }>(`select count(*)::text as c from public.${table} where business_id=$1`, [biz])))[0].c
 const usable = async (u: string) => (await as(u, () => q<{ module_code: string; usable: boolean }>('select * from public.my_modules($1)', [biz]))).filter((m) => m.usable && m.module_code.startsWith('school')).map((m) => m.module_code).sort()
 
-const ROLES = ['owner', 'business_admin', 'manager', 'principal', 'teacher', 'bursar', 'admissions_officer', 'parent', 'viewer'] as const
+const ROLES = ['owner', 'business_admin', 'manager', 'principal', 'teacher', 'bursar', 'school_admin', 'admissions_officer', 'parent', 'viewer'] as const
 
 beforeAll(async () => {
   db = await createDb()
@@ -61,6 +61,11 @@ describe('which school pages each role can open', () => {
     expect(m).toEqual(expect.arrayContaining(['school-fees', 'school-payments', 'school-students', 'school-reports']))
     for (const no of ['school-attendance', 'school-results', 'school-staff', 'school-settings', 'school-my-classes']) expect(m, no).not.toContain(no)
   })
+  it('gives a school admin the office pages: pupils, admissions, parents, attendance, timetable, announcements and reports, and nothing about results, staff, settings or fees setup', async () => {
+    const m = await usable(U.school_admin)
+    expect(m).toEqual(expect.arrayContaining(['school-students', 'school-admissions', 'school-guardians', 'school-attendance', 'school-timetable', 'school-announcements', 'school-reports']))
+    for (const no of ['school-results', 'school-staff', 'school-settings', 'school-fees', 'school-payments', 'school-my-classes', 'school-portal']) expect(m, no).not.toContain(no)
+  })
   it('gives an admissions officer the admissions and students pages, not fees setup, results or staff', async () => {
     const m = await usable(U.admissions_officer)
     expect(m).toEqual(expect.arrayContaining(['school-admissions', 'school-students']))
@@ -78,6 +83,7 @@ describe('what each role sees', () => {
   const sees: Record<string, { students: string; bills: string; payments: string; guardians: string }> = {
     owner: { students: '2', bills: '2', payments: '0', guardians: '2' }, business_admin: { students: '2', bills: '2', payments: '0', guardians: '2' }, manager: { students: '2', bills: '2', payments: '0', guardians: '2' },
     principal: { students: '2', bills: '2', payments: '0', guardians: '2' }, bursar: { students: '2', bills: '2', payments: '0', guardians: '2' },
+    school_admin: { students: '2', bills: '0', payments: '0', guardians: '2' },
     teacher: { students: '1', bills: '0', payments: '0', guardians: '1' }, parent: { students: '1', bills: '1', payments: '0', guardians: '1' },
     stranger: { students: '0', bills: '0', payments: '0', guardians: '0' },
   }
@@ -106,12 +112,14 @@ describe('what each role can do', () => {
     'enter Primary 2 English results': (u) => as(u, () => q('select public.school_save_scores($1,$2,$3,$4,$5::jsonb,false)', [biz, p2, english, term, J([{ student_id: bola, ca: 30, exam: 50 }])])),
     'add or change a staff member': (u) => as(u, () => q('select public.school_save_staff($1,null,$2,null,null,$3,null,true)', [biz, 'Probe ' + n++, 'Cleaner'])),
     'change school settings': (u) => as(u, () => q('select public.school_save_settings($1,$3,null,null,null,40,60,true,$2)', [biz, [1, 2, 3, 4, 5], 'combined'])),
+    'set up the timetable': (u) => as(u, () => q('select public.school_save_periods($1,$2::jsonb)', [biz, J([{ label: 'P' + n++, starts: '0' + (1 + (n % 8)) + ':00', ends: '0' + (1 + (n % 8)) + ':30', is_break: false }])])),
     'publish an announcement': (u) => as(u, () => q('select public.school_publish_announcement($1,$2,$3,$4,null,null)', [biz, 'Probe', 'Body', 'everyone'])),
   }
   const can: Record<string, string[]> = {
-    owner: ['register a pupil', 'set up a fee', 'take attendance for Primary 1', 'take attendance for Primary 2', 'enter Primary 1 English results', 'enter Primary 2 English results', 'add or change a staff member', 'change school settings', 'publish an announcement'],
-    business_admin: ['register a pupil', 'set up a fee', 'take attendance for Primary 1', 'take attendance for Primary 2', 'enter Primary 1 English results', 'enter Primary 2 English results', 'add or change a staff member', 'change school settings', 'publish an announcement'],
-    principal: ['register a pupil', 'take attendance for Primary 1', 'take attendance for Primary 2', 'enter Primary 1 English results', 'enter Primary 2 English results', 'add or change a staff member', 'change school settings', 'publish an announcement'],
+    owner: ['register a pupil', 'set up a fee', 'take attendance for Primary 1', 'take attendance for Primary 2', 'enter Primary 1 English results', 'enter Primary 2 English results', 'add or change a staff member', 'change school settings', 'set up the timetable', 'publish an announcement'],
+    business_admin: ['register a pupil', 'set up a fee', 'take attendance for Primary 1', 'take attendance for Primary 2', 'enter Primary 1 English results', 'enter Primary 2 English results', 'add or change a staff member', 'change school settings', 'set up the timetable', 'publish an announcement'],
+    principal: ['register a pupil', 'take attendance for Primary 1', 'take attendance for Primary 2', 'enter Primary 1 English results', 'enter Primary 2 English results', 'add or change a staff member', 'change school settings', 'set up the timetable', 'publish an announcement'],
+    school_admin: ['register a pupil', 'take attendance for Primary 1', 'take attendance for Primary 2', 'set up the timetable', 'publish an announcement'],
     teacher: ['take attendance for Primary 1', 'enter Primary 1 English results'],
     bursar: ['set up a fee'],
     admissions_officer: ['register a pupil'],

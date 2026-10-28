@@ -13,5 +13,6 @@ export const schoolPermissions: PermissionDefinition[] = [
   { code: 'school.fees.record', description: 'Record fee payments and print receipts' },
   { code: 'school.portal', description: 'Parent portal: see only the children linked to this account' },
   { code: 'school.guardians', description: 'Read the parents and guardians of the students you can see' },
+  { code: 'school.office', description: 'Run the timetable and post announcements' },
   { code: 'school.delete', description: 'Permanently delete a student or a parent or guardian record' },
 ]

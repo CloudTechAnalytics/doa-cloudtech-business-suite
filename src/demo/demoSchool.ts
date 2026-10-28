@@ -641,7 +641,7 @@ export function demoSaveStaff(biz: string, v: { id: string | null; name: string;
   }).error
 }
 export type StaffAccess = { staffId: string; state: 'none' | 'invited' | 'signed_in' | 'suspended'; role: string | null }
-export const LOGIN_ROLES = ['teacher', 'bursar', 'admissions_officer', 'principal'] as const
+export const LOGIN_ROLES = ['teacher', 'bursar', 'school_admin', 'admissions_officer', 'principal'] as const
 export function demoStaffAccess(biz: string): StaffAccess[] {
   ensureDemoSchool(biz)
   if (!can(biz, 'school.manage')) return []

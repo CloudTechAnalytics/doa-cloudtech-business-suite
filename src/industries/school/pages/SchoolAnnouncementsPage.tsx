@@ -22,7 +22,7 @@ export function SchoolAnnouncementsPage() {
   return (
     <>
       <PageHeader title="Announcements" description="Notices from the school. Parents only see notices meant for parents, or for their child's class."
-        actions={can('school.manage') ? <Button onClick={() => setAdding(true)}><Megaphone className="size-4" aria-hidden /> New announcement</Button> : undefined} />
+        actions={can('school.office') ? <Button onClick={() => setAdding(true)}><Megaphone className="size-4" aria-hidden /> New announcement</Button> : undefined} />
       {list.error && <ErrorState message={list.error} />}
       {list.loading ? <Spinner /> : !list.data?.length ? <Card><EmptyState title="No announcements" /></Card> : (
         <div className="space-y-3">{list.data.map((a) => <Card key={a.id}><div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">{a.title}</h3><span className="text-xs text-ink/60">{a.publishOn}</span></div><div className="my-1"><Badge>{a.audience === 'class' ? className(a.classId) : WHO[a.audience]}</Badge></div><p className="whitespace-pre-wrap text-sm">{a.body}</p></Card>)}</div>

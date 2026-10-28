@@ -7,7 +7,7 @@ const ACTION_PERMS = [
   'suppliers.manage', 'purchases.manage', 'purchases.receive', 'purchases.pay', 'audit.read', 'farm.manage',
   'expenses.record', 'procurement.request', 'procurement.approve', 'reports.read', 'bakery.manage', 'retail.manage',
   'pharmacy.manage', 'pharmacy.rx', 'pharmacy.dispense', 'invoices.manage', 'calendar.manage',
-  'school.read', 'school.manage', 'school.students', 'school.teach', 'school.attendance', 'school.results.enter', 'school.results.approve', 'school.fees.read', 'school.fees.manage', 'school.fees.record', 'school.portal', 'school.guardians', 'school.delete',
+  'school.read', 'school.manage', 'school.students', 'school.teach', 'school.attendance', 'school.results.enter', 'school.results.approve', 'school.fees.read', 'school.fees.manage', 'school.fees.record', 'school.portal', 'school.guardians', 'school.office', 'school.delete',
 ]
 const ALL_PERMS = [...new Set([...ALL_MODULES.map((m) => m.permission), ...ACTION_PERMS])]
 
@@ -27,9 +27,10 @@ export function rolePermissions(role: RoleName): Set<string> {
     inventory_officer: ['dashboard.read', 'inventory.read', 'inventory.adjust', 'purchases.read', 'suppliers.read', 'purchases.manage', 'purchases.receive', 'suppliers.manage', 'procurement.request', 'calendar.read', 'calendar.manage'],
     pharmacist: ['dashboard.read', 'inventory.read', 'inventory.adjust', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'purchases.read', 'suppliers.read', 'pharmacy.rx', 'pharmacy.dispense', 'calendar.read', 'calendar.manage'],
     pharmacy_technician: ['dashboard.read', 'inventory.read', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'pharmacy.rx', 'calendar.read', 'calendar.manage'],
-    principal: ['dashboard.read', 'expenses.read', 'school.read', 'school.manage', 'school.students', 'school.attendance', 'school.results.enter', 'school.results.approve', 'school.fees.read', 'school.guardians'],
+    principal: ['dashboard.read', 'expenses.read', 'school.read', 'school.manage', 'school.office', 'school.students', 'school.attendance', 'school.results.enter', 'school.results.approve', 'school.fees.read', 'school.guardians'],
     teacher: ['dashboard.read', 'school.teach', 'school.attendance', 'school.results.enter', 'school.guardians'],
     bursar: ['dashboard.read', 'expenses.read', 'expenses.record', 'school.read', 'school.fees.read', 'school.fees.manage', 'school.fees.record', 'school.guardians'],
+    school_admin: ['dashboard.read', 'school.read', 'school.students', 'school.attendance', 'school.guardians', 'school.fees.record', 'school.office'],
     admissions_officer: ['dashboard.read', 'school.read', 'school.students', 'school.fees.record', 'school.guardians'],
     parent: ['school.portal'],
     operations_staff: ['dashboard.read', 'farm.read', 'farm.record', 'bakery.read', 'bakery.record', 'inventory.read', 'procurement.request', 'calendar.read', 'calendar.manage'],

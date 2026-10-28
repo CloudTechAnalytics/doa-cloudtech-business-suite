@@ -12,7 +12,7 @@ import { ConfirmDelete } from '@/shared/components/ConfirmDelete'
 import { addStaffWithLogin, cancelLogin, createLogin, deleteStaff, giveLogin, loadStaff, loadStaffAccess, saveStaff, setAssignments } from '../services/schoolApi'
 import type { SStaff, StaffAccess } from '../services/schoolApi'
 
-const ROLE_NAMES: Record<string, string> = { teacher: 'Teacher', bursar: 'Bursar', admissions_officer: 'Admissions officer', principal: 'Principal' }
+const ROLE_NAMES: Record<string, string> = { teacher: 'Teacher', bursar: 'Bursar', school_admin: 'School admin', admissions_officer: 'Admissions officer', principal: 'Principal' }
 const roleLabel = (r: string | null) => (r ? ROLE_NAMES[r] ?? r : '')
 
 /** Teachers and other staff, and which classes and subjects each teacher is responsible for. A teacher can only reach what is assigned here. */

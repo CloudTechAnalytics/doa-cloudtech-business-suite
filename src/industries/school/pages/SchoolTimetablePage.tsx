@@ -20,7 +20,7 @@ export function SchoolTimetablePage() {
   const [problem, setProblem] = useState<string | null>(null)
   useEffect(() => { if (!cls && classes.length) setCls(classes[0].id) }, [classes, cls])
   if (!active) return null
-  const manage = can('school.manage')
+  const manage = can('school.office')
   const days = WEEKDAYS.filter(([n]) => (s?.settings?.workingDays ?? [1, 2, 3, 4, 5]).includes(n))
   const periods = data.data?.periods ?? []
   const slots = (data.data?.slots ?? []).filter((x) => x.classId === cls)

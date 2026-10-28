@@ -107,6 +107,16 @@ describe('creating a login with a temporary password', () => {
     expect(await q('select 1 from auth.identities where user_id=$1 and provider=$2', [u.id, 'email'])).toHaveLength(1)
   })
 
+  it('can make a school admin, who may run the office but not manage staff', async () => {
+    await addStaff(principal, 'Miss Office', 'office@example.com')
+    const id = await staffId('Miss Office')
+    await make(principal, id, 'school_admin', 'Sunrise2026x')
+    const u = (await q<{ id: string }>(`select id from auth.users where email='office@example.com'`))[0].id
+    expect(await q(`select 1 from public.business_members m join public.roles r on r.id=m.role_id where m.business_id=$1 and m.user_id=$2 and r.name='school_admin'`, [biz, u])).toHaveLength(1)
+    expect((await access(principal)).find((a) => a.staff_id === id)).toMatchObject({ state: 'signed_in', role: 'school_admin' })
+    await expect(as(u, () => q('select public.school_save_staff($1,null,$2,null,null,$3,null,true)', [biz, 'X', 'Y']))).rejects.toThrow(/permission denied/)
+  })
+
   it('refuses weak passwords, missing emails, wrong roles and people without permission', async () => {
     await addStaff(principal, 'Mr Weak', 'weak@example.com'); await addStaff(principal, 'No Mail', null)
     const weak = await staffId('Mr Weak')

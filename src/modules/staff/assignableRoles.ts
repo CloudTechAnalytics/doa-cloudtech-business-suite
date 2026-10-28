@@ -7,7 +7,7 @@ const BY_INDUSTRY: Record<IndustryCode, string[]> = {
   bakery: [...COMMON, 'accountant', 'cashier', 'inventory_officer', 'operations_staff', 'viewer'],
   farm: [...COMMON, 'accountant', 'inventory_officer', 'operations_staff', 'viewer'],
   pharmacy: [...COMMON, 'accountant', 'cashier', 'inventory_officer', 'pharmacist', 'pharmacy_technician', 'viewer'],
-  school: ['business_admin', 'principal', 'teacher', 'bursar', 'admissions_officer', 'parent', 'viewer'],
+  school: ['business_admin', 'principal', 'teacher', 'bursar', 'school_admin', 'admissions_officer', 'parent', 'viewer'],
 }
 
 /** The roles that make sense to hand out in a business of this kind (a school has no pharmacists, a pharmacy has no teachers). */

@@ -26,6 +26,7 @@ export type RoleName =
   | 'teacher'
   | 'bursar'
   | 'admissions_officer'
+  | 'school_admin'
   | 'parent'
   | 'viewer'
 
