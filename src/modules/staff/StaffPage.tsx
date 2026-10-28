@@ -127,7 +127,7 @@ function LiveStaffPage() {
           <Button type="submit">Invite</Button>
         </form>
       </Card>
-      {loading ? <Spinner /> : (
+      {loading ? <p className="flex items-center gap-2 py-6 text-sm text-ink/60"><Spinner /> Loading the people with access…</p> : (
         <Card>
           <ul className="divide-y divide-ink/10">
             {members.map((m) => (
