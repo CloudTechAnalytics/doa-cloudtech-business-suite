@@ -85,6 +85,28 @@ describe('deleting a product', () => {
   })
 })
 
+describe('archiving a product that cannot be deleted', () => {
+  const saveAs = (u: string, o: { id?: string | null; name: string; barcode?: string | null; active?: boolean }) =>
+    as(u, () => q<{ r: { product_id: string } }>('select public.mart_save_product($1,$2,$3,null,$4,$5,null,$6,$7,$8,null,$9,null,$10,$11,$12::jsonb,$13) as r', [biz, o.id ?? null, o.name, o.barcode ?? null, null, 'each', 100, 150, 5, false, o.active ?? true, '[]', key()])).then((r) => r[0].r.product_id)
+  it('frees the name and the barcode, so the product can be entered again properly', async () => {
+    const wrong = await saveAs(manager, { name: 'Margarine', barcode: '5551110001' }); await receive(manager, wrong, 4); await sell(wrong, 1)
+    await expect(saveAs(manager, { name: 'Margarine', barcode: '5551110099' })).rejects.toThrow(/name already exists/)
+    await expect(saveAs(manager, { name: 'Margarine 2', barcode: '5551110001' })).rejects.toThrow(/SKU or barcode/)
+    await saveAs(manager, { id: wrong, name: 'Margarine', barcode: '5551110001', active: false })
+    const right = await saveAs(manager, { name: 'Margarine', barcode: '5551110001' })
+    expect(right).not.toBe(wrong)
+    expect(await q(`select 1 from public.products where business_id=$1 and lower(name)='margarine' and status='active'`, [biz])).toHaveLength(1)
+  })
+  it('refuses to bring an archived product back while an active one has its name or barcode', async () => {
+    await expect(saveAs(manager, { id: (await q<{ id: string }>(`select id from public.products where business_id=$1 and lower(name)='margarine' and status='archived'`, [biz]))[0].id, name: 'Margarine', barcode: '5551110001', active: true })).rejects.toThrow(/name already exists/)
+  })
+  it('keeps the archived product out of sales and its history in the books', async () => {
+    const id = (await q<{ id: string }>(`select id from public.products where business_id=$1 and lower(name)='margarine' and status='archived'`, [biz]))[0].id
+    await expect(sell(id, 1)).rejects.toThrow()
+    expect(await num('select count(*) as v from public.stock_movements where product_id=$1', [id])).toBeGreaterThan(0)
+  })
+})
+
 describe('product pictures', () => {
   const jpeg = (kb: number) => 'data:image/jpeg;base64,' + 'A'.repeat(kb * 1000)
   const set = (u: string, p: string, thumb: string | null, image: string | null) => as(u, () => q('select public.mart_set_product_image($1,$2,$3)', [p, thumb, image]))

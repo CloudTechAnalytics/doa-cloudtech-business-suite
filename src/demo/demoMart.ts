@@ -133,8 +133,8 @@ export function demoSaveMartProduct(biz: string, v: MartProductInput, key: strin
     if (v.wholesale !== null && (!(v.wholesale >= 0) || r2(v.wholesale) !== v.wholesale)) throw new Error('the wholesale price must be zero or more with at most 2 decimals')
     if (v.reorder !== null && v.reorder < 0) throw new Error('the reorder level cannot be negative')
     if (v.categoryId && !m.categories.some((c) => c.id === v.categoryId && c.businessId === biz)) throw new Error('unknown category')
-    if (inv.products.some((p) => p.businessId === biz && p.id !== v.id && p.name.trim().toLowerCase() === v.name.trim().toLowerCase())) throw new Error('duplicate key: a product with this name already exists')
-    const dup = (field: 'sku' | 'barcode', value: string) => value.trim() && inv.products.some((p) => p.businessId === biz && p.id !== v.id && p[field]?.toLowerCase() === value.trim().toLowerCase())
+    if (inv.products.some((p) => p.businessId === biz && p.status === 'active' && p.id !== v.id && p.name.trim().toLowerCase() === v.name.trim().toLowerCase())) throw new Error('duplicate key: a product with this name already exists')
+    const dup = (field: 'sku' | 'barcode', value: string) => value.trim() && inv.products.some((p) => p.businessId === biz && p.status === 'active' && p.id !== v.id && p[field]?.toLowerCase() === value.trim().toLowerCase())
     if (dup('sku', v.sku) || dup('barcode', v.barcode)) throw new Error('duplicate key: this SKU or barcode is already used by another product')
     const seen = new Set<string>()
     for (const k of v.packs) {

@@ -165,6 +165,12 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
   const [picture, setPicture] = useState<ProductPicture | null | undefined>(undefined)
   const [priceNow, setPriceNow] = useState(product ? String(product.price) : '')
   const [nameNow, setNameNow] = useState(product?.name ?? '')
+  async function toggleArchive() {
+    if (!product) return
+    const err = await inv.setProductStatus(businessId, product.id, product.active ? 'archived' : 'active')
+    if (err) return setErrors({ name: err })
+    await onSaved()
+  }
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget); const s = (k: string) => String(f.get(k) ?? '').trim()
@@ -188,7 +194,7 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
     }, 'Saved.')
   }
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} actions={product ? <DeleteButton businessId={businessId} kind="product" id={product.id} label={product.name} noun="product" onDeleted={onSaved} /> : undefined} wide>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} actions={product ? <div className="flex gap-2"><Button variant="secondary" onClick={() => void toggleArchive()}>{product.active ? 'Archive' : 'Restore'}</Button><DeleteButton onArchive={() => inv.setProductStatus(businessId, product.id, 'archived')} businessId={businessId} kind="product" id={product.id} label={product.name} noun="product" onDeleted={onSaved} /></div> : undefined} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <PictureField name={nameNow} current={thumb} picture={picture} onChange={setPicture} />
         <div className="grid gap-4 sm:grid-cols-3">

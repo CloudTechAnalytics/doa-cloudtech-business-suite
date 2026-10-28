@@ -9,8 +9,8 @@ import type { DeleteKind } from '@/shared/utilities/deleteRecord'
  * A Delete button with a confirmation. Only a record that was never used can be deleted; if it has history the server refuses and the
  * message says to archive it instead. The audit log keeps a note that it was deleted and by whom.
  */
-export function DeleteButton({ businessId, kind, id, label, noun, onDeleted, compact = false }: {
-  businessId: string; kind: DeleteKind; id: string; label: string; noun: string; onDeleted: () => void | Promise<void>; compact?: boolean
+export function DeleteButton({ businessId, kind, id, label, noun, onDeleted, onArchive, compact = false }: {
+  businessId: string; kind: DeleteKind; id: string; label: string; noun: string; onDeleted: () => void | Promise<void>; /** When given, a record that cannot be deleted can be archived instead from the same window. */ onArchive?: () => Promise<string | null>; compact?: boolean
 }) {
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -23,6 +23,16 @@ export function DeleteButton({ businessId, kind, id, label, noun, onDeleted, com
     setAsking(false)
     await onDeleted()
   }
+  async function archive() {
+    if (!onArchive) return
+    setBusy(true); setError(null)
+    const err = await onArchive()
+    setBusy(false)
+    if (err) return setError(err)
+    setAsking(false)
+    await onDeleted()
+  }
+  const canArchive = !!onArchive && !!error && /archive it instead/i.test(error)
   return (
     <>
       <button type="button" onClick={() => { setError(null); setAsking(true) }} className={compact ? 'rounded-md px-2 py-1 text-sm font-medium text-danger hover:bg-danger-soft' : 'no-print inline-flex shrink-0 items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger-soft'}>
@@ -36,6 +46,7 @@ export function DeleteButton({ businessId, kind, id, label, noun, onDeleted, com
             {error && <ErrorState title="Not deleted" message={error} />}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="secondary" onClick={() => setAsking(false)}>Cancel</Button>
+              {canArchive && <Button type="button" loading={busy} onClick={() => void archive()}>Archive instead</Button>}
               <Button type="button" loading={busy} onClick={() => void confirm()} className="bg-danger text-white hover:bg-danger/90">Delete</Button>
             </div>
           </div>
