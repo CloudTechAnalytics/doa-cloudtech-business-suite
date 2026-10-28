@@ -18,8 +18,10 @@ import { loadThumbs, setProductImage } from '@/modules/inventory/productPictures
 import type { ProductPicture } from '@/modules/inventory/productPictures'
 import { isDemoMode } from '@/shared/utilities/env'
 import { ScanButton, codeFrom } from '@/shared/components/BarcodeScanner'
+import { ImportProductsDialog } from '../components/CsvImport'
+import { downloadProductTemplate } from '../importDownloads'
 import type { MartLotRow, MartProductInput, MartProductRow } from '../services/martApi'
-import { parseCsv, toCsv } from '../csv'
+import { toCsv } from '../csv'
 import { openRow } from '@/shared/utilities/rows'
 import { DeleteButton } from '@/shared/components/delete-button'
 
@@ -68,7 +70,7 @@ export function RetailProductsPage() {
       <PageHeader title="Products" description="Everything you sell. A new price or cost applies to future sales only. Stock changes by receiving, selling, counting or recording losses, never by editing a number."
         actions={<div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={exportCsv} disabled={!products.data?.length}><Download className="size-4" aria-hidden /> Export CSV</Button>
-          {manage && <><input ref={file} type="file" accept=".csv,text/csv" className="hidden" onChange={pick} aria-label="Choose a CSV file to import" /><Button variant="secondary" onClick={() => file.current?.click()}><Upload className="size-4" aria-hidden /> Import CSV</Button></>}
+          {manage && <><input ref={file} type="file" accept=".csv,text/csv" className="hidden" onChange={pick} aria-label="Choose a CSV file to import" /><Button variant="secondary" onClick={() => file.current?.click()}><Upload className="size-4" aria-hidden /> Import CSV</Button><Button variant="ghost" onClick={downloadProductTemplate}><Download className="size-4" aria-hidden /> Template</Button></>}
           {stockIn && <Button variant="secondary" onClick={() => setReceiving('any')}><PackagePlus className="size-4" aria-hidden /> Receive stock</Button>}
           {manage && <Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> Add product</Button>}
         </div>} />
@@ -105,7 +107,7 @@ export function RetailProductsPage() {
       {viewing && <PictureViewer productId={viewing.id} name={viewing.name} onClose={() => setViewing(null)} />}
       {editing && <ProductDialog thumb={editing === 'new' ? null : thumbs.data?.[editing.id] ?? null} businessId={businessId} product={editing === 'new' ? null : editing} categories={categories.data ?? []} suppliers={suppliers.data ?? []} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await refresh() }} />}
       {receiving !== null && <ReceiveDialog businessId={businessId} products={(products.data ?? []).filter((p) => p.active)} locations={catalog.data?.locations ?? []} preset={receiving === 'any' ? null : receiving} onClose={() => setReceiving(null)} onSaved={async () => { setReceiving(null); await refresh() }} />}
-      {importing !== null && <ImportDialog businessId={businessId} text={importing} existing={products.data ?? []} categories={categories.data ?? []} onClose={() => setImporting(null)} onDone={async () => { setImporting(null); await refresh() }} />}
+      {importing !== null && <ImportProductsDialog businessId={businessId} text={importing} existing={products.data ?? []} categories={categories.data ?? []} onClose={() => setImporting(null)} onDone={async () => { setImporting(null); await refresh() }} />}
       {receiving === null && pending.length > 0 && importing === null && editing === null && <PendingLots lots={pending} onChanged={refresh} />}
       {stockIn && editing === null && receiving === null && <RecentDeliveries businessId={businessId} products={products.data ?? []} onChanged={refresh} />}
     </>
@@ -295,61 +297,3 @@ function ReceiveDialog({ businessId, products, locations, preset, onClose, onSav
   )
 }
 
-function ImportDialog({ businessId, text, existing, categories, onClose, onDone }: { businessId: string; text: string; existing: MartProductRow[]; categories: { id: string; name: string }[]; onClose: () => void; onDone: () => Promise<void> }) {
-  const grid = parseCsv(text)
-  const head = (grid[0] ?? []).map((h) => h.trim().toLowerCase())
-  const col = (name: string) => head.indexOf(name)
-  const rowsRaw = grid.slice(1).filter((r) => r.some((c) => c.trim()))
-  const names = new Set(existing.map((p) => p.name.trim().toLowerCase())); const skus = new Set(existing.map((p) => p.sku?.toLowerCase()).filter(Boolean)); const barcodes = new Set(existing.map((p) => p.barcode).filter(Boolean))
-  const seenNames = new Set<string>()
-  const rows = rowsRaw.map((r, i) => {
-    const g = (name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '')
-    const problems: string[] = []
-    const name = g('name'); const price = g('price'); const cost = g('cost')
-    if (name.length < 2) problems.push('name is missing')
-    if (price === '' || !(Number(price) >= 0)) problems.push('price must be a number')
-    if (cost !== '' && !(Number(cost) >= 0)) problems.push('cost must be a number')
-    if (name && (names.has(name.toLowerCase()) || seenNames.has(name.toLowerCase()))) problems.push('a product with this name already exists')
-    if (g('sku') && skus.has(g('sku').toLowerCase())) problems.push('SKU already used')
-    if (g('barcode') && barcodes.has(g('barcode'))) problems.push('barcode already used')
-    const cat = g('category') ? categories.find((c) => c.name.toLowerCase() === g('category').toLowerCase()) : undefined
-    if (g('category') && !cat) problems.push(`category "${g('category')}" does not exist`)
-    if (name) seenNames.add(name.toLowerCase())
-    return { line: i + 2, name, g, cat, problems }
-  })
-  const missing = ['name', 'price'].filter((h) => col(h) < 0)
-  const good = rows.filter((r) => r.problems.length === 0)
-  const [progress, setProgress] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  async function commit() {
-    setBusy(true); setError(null)
-    let done = 0
-    for (const r of good) {
-      const unit = ['each', 'dozen', 'kg', 'g', 'l', 'ml'].includes(r.g('unit')) ? r.g('unit') : 'each'
-      const err = await saveProduct(businessId, { id: null, name: r.name, sku: r.g('sku'), barcode: r.g('barcode'), categoryId: r.cat?.id ?? null, brand: r.g('brand'), unit, cost: r.g('cost') === '' ? null : Number(r.g('cost')), price: Math.round(Number(r.g('price')) * 100) / 100, wholesale: r.g('wholesale') === '' ? null : Number(r.g('wholesale')), reorder: r.g('reorder') === '' ? null : Number(r.g('reorder')), supplierId: null, trackExpiry: false, active: true, packs: [] }, crypto.randomUUID())
-      if (err) { setError(`Stopped at line ${r.line} (${r.name}): ${err}. ${done} product${done === 1 ? '' : 's'} before it were added.`); setBusy(false); await onDone(); return }
-      done++; setProgress(`${done} of ${good.length} added`)
-    }
-    setBusy(false)
-    await onDone()
-  }
-  return (
-    <Dialog title="Import products" onClose={onClose} wide>
-      {missing.length > 0 ? <ErrorState title="This file cannot be imported" message={`The first row must name its columns. Missing: ${missing.join(', ')}. Expected columns: name, price, and optionally sku, barcode, category, brand, unit, cost, wholesale, reorder.`} /> : (
-        <>
-          <p className="mb-3 text-sm text-ink/80">Preview: <b>{good.length}</b> product{good.length === 1 ? '' : 's'} ready to add, <b>{rows.length - good.length}</b> with problems that will be skipped. Nothing is saved until you confirm.</p>
-          <div className="max-h-72 overflow-auto rounded-md border border-line">
-            <table className="w-full text-sm">
-              <thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-2">Line</th><th className="p-2">Name</th><th className="p-2 text-right">Price</th><th className="p-2">Result</th></tr></thead>
-              <tbody className="divide-y divide-ink/10">{rows.map((r) => <tr data-row-link onClick={openRow} key={r.line}><td className="p-2">{r.line}</td><td className="p-2">{r.name || '–'}</td><td className="tabular p-2 text-right">{r.g('price')}</td><td className="p-2">{r.problems.length ? <span className="text-danger">{r.problems.join('; ')}</span> : <Badge tone="success">Ready</Badge>}</td></tr>)}</tbody>
-            </table>
-          </div>
-        </>
-      )}
-      {error && <ErrorState title="Import stopped" message={error} />}
-      {progress && !error && <p className="mt-2 text-sm text-ink/70">{progress}</p>}
-      <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Close</Button>{missing.length === 0 && <Button onClick={() => void commit()} loading={busy} disabled={!good.length}>Add {good.length} product{good.length === 1 ? '' : 's'}</Button>}</div>
-    </Dialog>
-  )
-}

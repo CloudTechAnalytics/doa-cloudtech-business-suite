@@ -1,5 +1,6 @@
-import { ChevronRight, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronRight, Download, Plus, Upload } from 'lucide-react'
+import { useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { usePermissions } from '@/core/permissions/usePermissions'
@@ -10,6 +11,8 @@ import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { loadCategories, loadProducts, saveCategory } from '../services/martApi'
 import type { MartCategory } from '../services/martApi'
 import { openRow } from '@/shared/utilities/rows'
+import { ImportCategoriesDialog } from '../components/CsvImport'
+import { downloadCategoryTemplate } from '../importDownloads'
 import { DeleteButton } from '@/shared/components/delete-button'
 
 /** Product categories, used to group the shelf, the stock count and the sales reports. */
@@ -20,13 +23,15 @@ export function RetailCategoriesPage() {
   const products = useAsync(() => loadProducts(businessId), [businessId])
   const { can } = usePermissions(businessId)
   const [editing, setEditing] = useState<MartCategory | 'new' | null>(null)
+  const [importing, setImporting] = useState<string | null>(null)
+  const file = useRef<HTMLInputElement>(null)
   if (!active) return null
   const manage = can('retail.manage')
   const count = (id: string) => (products.data ?? []).filter((p) => p.categoryId === id && p.active).length
 
   return (
     <>
-      <PageHeader title="Categories" description="Group products so shelves, counts and reports are easier to read." actions={manage ? <Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> Add category</Button> : undefined} />
+      <PageHeader title="Categories" description="Group products so shelves, counts and reports are easier to read." actions={manage ? <div className="flex flex-wrap gap-2"><input ref={file} type="file" accept=".csv,text/csv" className="hidden" aria-label="Choose a CSV file of categories" onChange={async (e: ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) setImporting(await f.text()); e.target.value = '' }} /><Button variant="secondary" onClick={() => file.current?.click()}><Upload className="size-4" aria-hidden /> Import CSV</Button><Button variant="ghost" onClick={downloadCategoryTemplate}><Download className="size-4" aria-hidden /> Template</Button><Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> Add category</Button></div> : undefined} />
       {categories.error && <ErrorState message={categories.error} />}
       {categories.loading ? <Spinner /> : !categories.data?.length ? <Card><EmptyState title="No categories yet" description="Add categories such as Groceries, Drinks or Household." /></Card> : (
         <Card className="p-0">
@@ -40,6 +45,7 @@ export function RetailCategoriesPage() {
           </ul>
         </Card>
       )}
+      {importing !== null && <ImportCategoriesDialog businessId={businessId} text={importing} existing={categories.data ?? []} onClose={() => setImporting(null)} onDone={async () => { setImporting(null); await categories.refresh() }} />}
       {editing && <CategoryDialog businessId={businessId} category={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await categories.refresh() }} />}
     </>
   )
