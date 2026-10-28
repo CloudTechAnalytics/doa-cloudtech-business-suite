@@ -36,6 +36,8 @@ interface BusinessState {
   error: string | null
   select: (id: string) => void
   refresh: () => Promise<void>
+  /** Reads the businesses again without showing the page as loading, so a settings card can show "Saved" instead of being reloaded away. */
+  reload: () => Promise<void>
 }
 
 const BusinessContext = createContext<BusinessState | null>(null)
@@ -86,6 +88,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     setLoadedFor(userId)
   }, [userId])
   const refresh = useCallback(() => load(false), [load])
+  const reload = useCallback(() => load(true), [load])
 
   useEffect(() => {
     // Clear previous user's businesses immediately, then re-fetch the authorised list.
@@ -117,7 +120,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <BusinessContext.Provider value={{ businesses, blocked, active, loading, error, select, refresh }}>
+    <BusinessContext.Provider value={{ businesses, blocked, active, loading, error, select, refresh, reload }}>
       {children}
     </BusinessContext.Provider>
   )

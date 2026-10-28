@@ -27,7 +27,7 @@ const BADGE: Record<ModuleStatus['availability'], string> = {
 }
 
 export function SettingsPage() {
-  const { active, refresh: refreshBusinesses } = useBusiness()
+  const { active, refresh: refreshBusinesses, reload: reloadBusinesses } = useBusiness()
   const { statuses, refresh } = useModules()
   const demo = useDemoState()
   const [error, setError] = useState<string | null>(null)
@@ -112,9 +112,9 @@ export function SettingsPage() {
         )}
       </Card>
 
-      {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <SalesTax businessId={active.id} current={active.taxRate ?? 0} onSaved={refreshBusinesses} />}
+      {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <SalesTax businessId={active.id} current={active.taxRate ?? 0} onSaved={reloadBusinesses} />}
 
-      {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <ReceiptSettings businessId={active.id} current={active.receipt ?? { address: '', phone: '', footer: '' }} onSaved={refreshBusinesses} />}
+      {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <ReceiptSettings businessId={active.id} current={active.receipt ?? { address: '', phone: '', footer: '' }} onSaved={reloadBusinesses} />}
 
       <Card className="mb-4">
         <h2 className="mb-2 text-sm font-semibold">Modules</h2>

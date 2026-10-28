@@ -58,7 +58,7 @@ export function ReceiptDialog({ businessId, saleId, onClose }: { businessId: str
               <Button variant="secondary" onClick={() => window.print()}><Printer className="size-4" aria-hidden /> Print</Button>
               <Button onClick={() => void sendWhatsapp()} loading={busy === 'whatsapp'}><MessageCircle className="size-4" aria-hidden /> Send on WhatsApp</Button>
             </div>
-            <p className="text-xs text-ink/60">{share ? 'On this phone, Send on WhatsApp opens your share sheet with the receipt as a picture. Choose WhatsApp, then the customer.' : 'Picture and PDF are saved to this device. Send on WhatsApp saves the picture and opens WhatsApp with the receipt text for the number above, because a computer cannot attach files to WhatsApp by itself.'}</p>
+            <p className="text-xs text-ink/60">{share ? 'Send on WhatsApp opens the share sheet of this device with the receipt as a picture. Choose WhatsApp, then the customer. Picture and PDF save the file.' : 'Picture and PDF are saved to this device. Send on WhatsApp saves the picture and opens WhatsApp with the receipt text for the number above, because a computer cannot attach files to WhatsApp by itself.'}</p>
             {note && <p role="status" className="rounded-md bg-surface p-2 text-xs text-ink/80">{note}</p>}
             {problem && <ErrorState title="Not done" message={problem} />}
           </div>
