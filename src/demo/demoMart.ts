@@ -20,7 +20,7 @@ export interface MartReturn { id: string; businessId: string; number: string; su
 export interface MartCount { id: string; businessId: string; locationId: string; status: 'open' | 'posted'; createdAt: string; items: { productId: string; expected: number; counted: number | null }[] }
 export interface MartShift { id: string; businessId: string; number: string; cashierId: string; openedAt: string; openingCash: number; closedAt: string | null; counted: number | null; expected: number | null; variance: number | null; status: 'open' | 'closed' | 'reviewed'; notes: string | null; reviewedBy: string | null; reviewNote: string | null }
 export interface CashMove { id: string; shiftId: string; direction: 'in' | 'out'; amount: number; reason: string; at: string }
-export interface Mart { categories: MartCategory[]; profiles: MartProfile[]; packs: MartPack[]; losses: MartLoss[]; returns: MartReturn[]; counts: MartCount[]; shifts: MartShift[]; moves: CashMove[]; seq: Record<string, number>; keys: Record<string, string>; seeded: string[] }
+export interface Mart { categories: MartCategory[]; profiles: MartProfile[]; packs: MartPack[]; losses: MartLoss[]; returns: MartReturn[]; counts: MartCount[]; shifts: MartShift[]; moves: CashMove[]; seq: Record<string, number>; keys: Record<string, string>; seeded: string[]; images?: Record<string, { thumb: string; image: string }> }
 
 const KEY = 'doa.demo.mart.v1'
 const empty = (): Mart => ({ categories: [], profiles: [], packs: [], losses: [], returns: [], counts: [], shifts: [], moves: [], seq: {}, keys: {}, seeded: [] })
@@ -34,6 +34,24 @@ function commit(next: Mart) {
   try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* storage unavailable */ }
 }
 export const getMart = () => state
+
+/** Mirrors product_thumbs / product_images / mart_set_product_image(): small JPEG pictures kept with the product, changed by product managers. */
+export function demoProductThumbs(biz: string): Record<string, string> {
+  ensureDemoMart(biz)
+  const mine = new Set(getInv().products.filter((p) => p.businessId === biz).map((p) => p.id))
+  return Object.fromEntries(Object.entries(state.images ?? {}).filter(([id]) => mine.has(id)).map(([id, x]) => [id, x.thumb]))
+}
+export const demoProductImage = (productId: string): string | null => state.images?.[productId]?.image ?? null
+export function demoSetProductImage(biz: string, productId: string, thumb: string | null, image: string | null): string | null {
+  return run(biz, 'mart_image', null, ['retail-products'], ['retail.manage'], ({ m, inv }) => {
+    if (!inv.products.some((p) => p.id === productId && p.businessId === biz)) throw new Error('permission denied')
+    m.images = m.images ?? {}
+    if (!thumb) { delete m.images[productId]; return }
+    if (!/^data:image\/jpeg;base64,/.test(thumb) || !/^data:image\/jpeg;base64,/.test(image ?? '')) throw new Error('the picture must be a JPEG picture')
+    if (thumb.length > 30000 || (image ?? '').length > 200000) throw new Error('the picture is too large; use a smaller one')
+    m.images[productId] = { thumb, image: image as string }
+  }).error
+}
 export const resetDemoMart = () => commit(empty())
 creditHook.credit = (purchaseId) => state.returns.filter((r) => r.purchaseId === purchaseId).reduce((a, r) => a + r.totalCredit, 0)
 

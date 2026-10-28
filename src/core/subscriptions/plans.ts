@@ -7,7 +7,7 @@ import type { ModuleCode, PlanCode } from '@/shared/types/domain'
  * Prices are a commercial decision and are deliberately not defined here.
  */
 export const PLANS: Record<PlanCode, { name: string; excluded: ModuleCode[]; limits: { maxMembers: number; maxBranches: number } }> = {
-  starter: { name: 'Starter', excluded: ['purchases', 'suppliers', 'farm-expenses'], limits: { maxMembers: 3, maxBranches: 1 } },
+  starter: { name: 'Starter', excluded: ['purchases', 'farm-expenses'], limits: { maxMembers: 3, maxBranches: 1 } },
   basic: { name: 'Basic', excluded: [], limits: { maxMembers: 5, maxBranches: 1 } },
   growth: { name: 'Growth', excluded: [], limits: { maxMembers: 15, maxBranches: 3 } },
   business: { name: 'Business', excluded: [], limits: { maxMembers: 50, maxBranches: 10 } },

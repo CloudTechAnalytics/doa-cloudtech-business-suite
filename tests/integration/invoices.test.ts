@@ -48,9 +48,9 @@ describe('who has the Invoices app', () => {
     await expect(as(owner, () => q('select public.enable_module($1,$2)', [school, 'invoices']))).rejects.toThrow(/not compatible/)
   })
 
-  it('is part of the free Starter plan along with Expenses and Reports', async () => {
+  it('is part of the free Starter plan along with Expenses, Reports and the supplier list (purchase orders are not)', async () => {
     const r = await q<{ code: string; included: boolean }>(`select m.code, pm.included from public.plan_modules pm join public.modules m on m.id = pm.module_id join public.subscription_plans p on p.id = pm.plan_id where p.code = 'starter' and m.code in ('invoices','expenses','reports','purchases','suppliers')`)
-    expect(Object.fromEntries(r.map((x) => [x.code, x.included]))).toEqual({ invoices: true, expenses: true, reports: true, purchases: false, suppliers: false })
+    expect(Object.fromEntries(r.map((x) => [x.code, x.included]))).toEqual({ invoices: true, expenses: true, reports: true, purchases: false, suppliers: true })
   })
 })
 

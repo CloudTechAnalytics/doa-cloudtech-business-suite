@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { UsageNotice } from '@/core/subscriptions/UsageViews'
-import { Download, Minus, Pause, Play, Plus, Receipt as ReceiptIcon, Search, Trash2, X } from 'lucide-react'
+import { Download, Minus, Pause, Play, Plus, Receipt as ReceiptIcon, Search, Trash2, X, ZoomIn } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -16,6 +16,8 @@ import { SalesToday } from '@/modules/sales/SalesToday'
 import { changeDue, holdLabel, loadHeld, paidOf, paymentsOf, remainingOf, saveHeld } from '@/modules/sales/till'
 import type { HeldSale, PayRow } from '@/modules/sales/till'
 import { ReceiptDialog } from '@/modules/sales/Receipt'
+import { PictureViewer, ProductThumb } from '@/modules/inventory/ProductPicture'
+import { loadThumbs } from '@/modules/inventory/productPictures'
 import * as api from '@/modules/sales/tradeApi'
 import type { CustomerDto, SaleDetail } from '@/modules/sales/tradeApi'
 
@@ -33,6 +35,7 @@ export function SalesPage() {
   const businessId = active?.id ?? ''
   const industry = active?.industry ?? 'retail'
   const catalog = useAsync(() => api.loadCatalog(businessId, industry), [businessId, industry])
+  const thumbs = useAsync(() => (industry === 'retail' ? loadThumbs(businessId) : Promise.resolve({} as Record<string, string>)), [businessId, industry])
   const customers = useAsync(() => api.listCustomers(businessId).catch(() => [] as CustomerDto[]), [businessId])
   const sales = useAsync(() => api.listSales(businessId), [businessId])
   const perms = useAsync(() => api.myTradePermissions(businessId), [businessId])
@@ -54,7 +57,7 @@ export function SalesPage() {
       </div>
       {catalog.error && <ErrorState message={catalog.error} />}
       {tab === 'New sale' && (catalog.data ? (
-        <Pos businessId={businessId} catalog={catalog.data} packs={packs.data ?? []} customers={customers.data ?? []} canDiscount={can('sales.discount')} canCreate={can('sales.create')}
+        <Pos businessId={businessId} thumbs={thumbs.data ?? {}} catalog={catalog.data} packs={packs.data ?? []} customers={customers.data ?? []} canDiscount={can('sales.discount')} canCreate={can('sales.create')}
           onSold={async (id) => { await reloadAll(); setReceipt(id) }} />
       ) : <Spinner />)}
       {tab === 'History' && <History businessId={businessId} customers={customers.data ?? []} can={can} onChanged={reloadAll} onReceipt={setReceipt} refreshKey={sales.data} />}
@@ -68,10 +71,11 @@ export function SalesPage() {
 interface CartLine { productId: string; quantity: number; discount: number; pack: string | null }
 const lineKey = (l: { productId: string; pack: string | null }) => `${l.productId}|${l.pack ?? ''}`
 
-function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, onSold }: {
-  businessId: string; catalog: api.InventoryData; packs: api.PackDto[]; customers: CustomerDto[]; canDiscount: boolean; canCreate: boolean; onSold: (saleId: string) => Promise<void>
+function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCreate, onSold }: {
+  businessId: string; thumbs: Record<string, string>; catalog: api.InventoryData; packs: api.PackDto[]; customers: CustomerDto[]; canDiscount: boolean; canCreate: boolean; onSold: (saleId: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
+  const [bigger, setBigger] = useState<{ id: string; name: string } | null>(null)
   const [cart, setCart] = useState<CartLine[]>([])
   const [customerId, setCustomerId] = useState('')
   const [locationId, setLocationId] = useState(catalog.locations[0]?.id ?? '')
@@ -166,6 +170,7 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
             </SelectField>
           )}
         </div>
+        {bigger && <PictureViewer productId={bigger.id} name={bigger.name} onClose={() => setBigger(null)} />}
         {products.length === 0 ? <EmptyState title="No products found" description={catalog.products.length ? 'Try another search.' : 'Add products in Inventory first.'} /> : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {products.map((p) => {
@@ -175,6 +180,7 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
               return (
                 <button key={p.id} type="button" disabled={out} onClick={() => add(p.id)}
                   className="rounded-lg border border-ink/10 bg-white p-3 text-left shadow-card transition-colors hover:border-brand disabled:cursor-not-allowed disabled:opacity-50">
+                  {thumbs[p.id] && <span className="relative mb-2 block"><ProductThumb name={p.name} thumb={thumbs[p.id]} size="lg" /><span role="button" tabIndex={0} aria-label={`Show a bigger picture of ${p.name}`} onClick={(e) => { e.stopPropagation(); setBigger({ id: p.id, name: p.name }) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setBigger({ id: p.id, name: p.name }) } }} className="absolute right-1 top-1 grid size-6 cursor-zoom-in place-items-center rounded-full bg-white/90 shadow"><ZoomIn className="size-3.5" aria-hidden /></span></span>}
                   <span className="block text-sm font-medium leading-snug">{p.name}</span>
                   <span className="mt-1 block text-sm tabular">{naira(p.sellingPrice)}</span>
                   <span className="mt-1 block"><Badge tone={service ? 'neutral' : out ? 'danger' : p.reorderLevel !== null && have <= p.reorderLevel ? 'warning' : 'success'}>{service ? 'Service' : out ? 'Out of stock' : `${qty(have)} ${p.unit}`}</Badge></span>

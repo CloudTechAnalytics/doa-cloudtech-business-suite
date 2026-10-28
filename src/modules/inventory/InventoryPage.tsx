@@ -16,6 +16,7 @@ import type { StockStatus } from '@/modules/inventory/ledger'
 import { DeleteButton } from '@/shared/components/delete-button'
 import { downloadCsv } from '@/shared/utilities/csvExport'
 import { CountsTab } from '@/modules/inventory/InventoryCounts'
+import { UndoMovementDialog } from '@/modules/inventory/UndoMovementDialog'
 import { ImportProductsDialog } from '@/modules/inventory/InventoryImport'
 import { categoryName, needsAttention, productExport, stockExport, stockRows, summarise } from '@/modules/inventory/stockLogic'
 
@@ -450,23 +451,13 @@ const TYPE_LABEL: Record<string, string> = {
 
 function MovementsTab({ data, businessId, canWrite, onChanged }: { data: InventoryData; businessId: string; canWrite: boolean; onChanged: () => Promise<void> }) {
   const [type, setType] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const key = useIdempotencyKey()
+  const [undoing, setUndoing] = useState<MovementRow | null>(null)
   const name = (id: string) => data.products.find((p) => p.id === id)?.name ?? 'Unknown'
   const loc = (id: string) => data.locations.find((l) => l.id === id)?.name ?? ''
   const rows = data.movements.filter((m) => !type || m.type === type)
 
-  async function undo(m: MovementRow) {
-    const reason = window.prompt('Reason for reversing this movement?')
-    if (!reason) return
-    const err = await api.reverse(businessId, m.id, reason, key.current())
-    setError(err)
-    if (!err) { key.renew(); await onChanged() }
-  }
-
   return (
     <>
-      {error && <ErrorState message={error} />}
       <div className="mb-3 max-w-xs">
         <SelectField label="Type" value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">All movements</option>
@@ -487,8 +478,8 @@ function MovementsTab({ data, businessId, canWrite, onChanged }: { data: Invento
                   <td className="p-3 text-right tabular-nums">{naira(m.unitCost)}</td>
                   <td className="p-3 text-ink/70">{m.reason ?? ''}</td>
                   <td className="p-3 text-right">
-                    {canWrite && !m.reversed && !['reversal', 'transfer_in', 'transfer_out'].includes(m.type) && (
-                      <Button variant="ghost" onClick={() => void undo(m)}>Reverse</Button>
+                    {canWrite && !m.reversed && ['receipt', 'adjustment', 'issue'].includes(m.type) && (
+                      <Button variant="ghost" onClick={() => setUndoing(m)}>Reverse</Button>
                     )}
                   </td>
                 </tr>
@@ -497,6 +488,7 @@ function MovementsTab({ data, businessId, canWrite, onChanged }: { data: Invento
           </table>
         </Card>
       )}
+      {undoing && <UndoMovementDialog businessId={businessId} movementId={undoing.id} summary={`${name(undoing.productId)}: ${undoing.delta > 0 ? '+' : ''}${fmt(undoing.delta)}`} onClose={() => setUndoing(null)} onDone={async () => { setUndoing(null); await onChanged() }} />}
     </>
   )
 }
