@@ -4,6 +4,13 @@ import { Button, ErrorState, Notice, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
 import { reverse } from './inventoryApi'
 
+/** What the person is told when the database refuses to undo an entry: plain words instead of a stock error. */
+export function undoMessage(error: string): string {
+  const m = /insufficient stock: ([\d.]+) on hand, ([\d.]+) requested/i.exec(error)
+  if (m) return `Some of this stock has already been sold or written off, so it cannot all be taken back (${Number(m[1])} left, ${Number(m[2])} to remove). Use a stock count or record a loss for the difference instead.`
+  return error
+}
+
 /**
  * Takes back a stock movement made by mistake (a delivery entered twice, the wrong quantity). The reason is kept with the reversal; the original line stays in the
  * history marked as reversed, so nothing is erased. The database refuses it when the stock has since been sold.
@@ -18,7 +25,7 @@ export function UndoMovementDialog({ businessId, movementId, summary, onClose, o
     setBusy(true); setError(null)
     const err = await reverse(businessId, movementId, reason, key.current)
     setBusy(false)
-    if (err) return setError(err)
+    if (err) return setError(undoMessage(err))
     await onDone()
   }
   return (
