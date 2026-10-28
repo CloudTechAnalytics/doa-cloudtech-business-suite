@@ -23,7 +23,7 @@ export function rolePermissions(role: RoleName): Set<string> {
     business_admin: ALL_PERMS.filter((p) => p !== 'school.portal' && p !== 'school.teach'),
     manager: ALL_PERMS.filter((p) => !['staff.manage', 'settings.manage', 'audit.read', 'pharmacy.dispense', 'school.portal', 'school.delete', 'school.teach'].includes(p)),
     accountant: ['dashboard.read', 'expenses.read', 'reports.read', 'purchases.read', 'suppliers.read', 'sales.read', 'inventory.read', 'purchases.pay', 'customers.credit', 'reports.finance.read', 'expenses.record', 'procurement.approve', 'invoices.read', 'invoices.manage', 'calendar.read', 'calendar.manage'],
-    cashier: ['dashboard.read', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'inventory.read', 'calendar.read', 'calendar.manage'],
+    cashier: ['dashboard.read', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'calendar.read', 'calendar.manage'],
     inventory_officer: ['dashboard.read', 'inventory.read', 'inventory.adjust', 'purchases.read', 'suppliers.read', 'purchases.manage', 'purchases.receive', 'suppliers.manage', 'procurement.request', 'calendar.read', 'calendar.manage'],
     pharmacist: ['dashboard.read', 'inventory.read', 'inventory.adjust', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'purchases.read', 'suppliers.read', 'pharmacy.rx', 'pharmacy.dispense', 'calendar.read', 'calendar.manage'],
     pharmacy_technician: ['dashboard.read', 'inventory.read', 'sales.read', 'sales.create', 'customers.read', 'customers.manage', 'pharmacy.rx', 'calendar.read', 'calendar.manage'],

@@ -107,6 +107,89 @@ describe('archiving a product that cannot be deleted', () => {
   })
 })
 
+describe('profit counts the stock that was lost', () => {
+  const overview = async () => (await as(owner, () => q<{ o: { financial: Record<string, number> } }>('select public.mart_overview($1,current_date,current_date) as o', [biz])))[0].o.financial
+  it('takes written-off stock and count shortages off the profit, and leaves out what was voided', async () => {
+    const p = await save(manager, 'Profit probe'); await receive(manager, p, 50); await sell(p, 10)
+    const before = await overview()
+    expect(Number(before.operating_profit_estimate)).toBeCloseTo(Number(before.gross_profit) - Number(before.operating_expenses) - Number(before.stock_write_offs) + Number(before.count_difference), 2)
+    await as(manager, () => q('select public.mart_record_loss($1,$2,$3,5,$4,$5,$6)', [biz, p, loc, 'damaged', 'water damage', key()]))
+    const mid = await overview()
+    expect(Number(mid.stock_write_offs) - Number(before.stock_write_offs)).toBeCloseTo(500, 2)
+    expect(Number(mid.operating_profit_estimate)).toBeCloseTo(Number(before.operating_profit_estimate) - 500, 2)
+    const c = (await as(manager, () => q<{ r: { count_id: string } }>('select public.mart_start_count($1,$2,null,$3) as r', [biz, loc, key()])))[0].r
+    expect(c).toBeTruthy()
+    const loss = (await q<{ id: string }>('select id from public.stock_loss_records where product_id=$1', [p]))[0].id
+    await as(manager, () => q('select public.mart_void_loss($1,$2,$3)', [loss, 'recorded twice', key()]))
+    const after = await overview()
+    expect(Number(after.stock_write_offs)).toBeCloseTo(Number(before.stock_write_offs), 2)
+    expect(Number(after.operating_profit_estimate)).toBeCloseTo(Number(before.operating_profit_estimate), 2)
+  })
+})
+
+describe('a pack with a price of its own', () => {
+  const withPacks = (u: string, name: string, price: number, packs: object[], id: string | null = null) =>
+    as(u, () => q<{ r: { product_id: string } }>('select public.mart_save_product($1,$2,$3,null,$4,$5,null,$6,$7,$8,null,$9,null,$10,$11,$12::jsonb,$13) as r', [biz, id, name, null, null, 'each', 100, price, 5, false, true, J(packs), key()])).then((r) => r[0].r.product_id)
+  const sellPack = (u: string, p: string, pack: string, unitPrice: number | null, paid: number, extra: object = {}) =>
+    as(u, () => q<{ r: { sale_id: string } }>('select public.mart_post_sale($1,$2,null,$3::jsonb,$4::jsonb,$5) as r', [biz, loc, J([{ product_id: p, quantity: 1, pack, unit_price: unitPrice, ...extra }]), J([{ method: 'cash', amount: paid }]), key()])).then((r) => r[0].r.sale_id)
+  const total = async (sale: string) => num('select grand_total as v from public.sales where id=$1', [sale])
+  it('sells at the pack price, takes the units off the stock, and records the saving as a discount the cashier did not need permission for', async () => {
+    const p = await withPacks(manager, 'Soda', 200, [{ name: 'carton', units: 12, price: 2000 }, { name: 'dozen', units: 12 }]); await receive(manager, p, 100)
+    const sale = await sellPack(cashier, p, 'carton', 2000, 2000)
+    expect(await total(sale)).toBe(2000); expect(await stock(p)).toBe(88)
+    expect(await num('select discount_amount as v from public.sale_items where sale_id=$1', [sale])).toBe(400)
+    expect(await total(await sellPack(cashier, p, 'dozen', 2400, 2400))).toBe(2400)
+  })
+  it('does not let the till set the pack price, and still needs the permission for a discount typed by hand', async () => {
+    const p = await withPacks(manager, 'Water', 100, [{ name: 'carton', units: 10, price: 900 }]); await receive(manager, p, 50)
+    await expect(sellPack(cashier, p, 'carton', 800, 800)).rejects.toThrow(/price of the carton has changed to 900/)
+    await expect(sellPack(cashier, p, 'carton', 900, 850, { discount_amount: 50 })).rejects.toThrow(/not allowed to give discounts/)
+    expect(await total(await sellPack(manager, p, 'carton', 900, 850, { discount_amount: 50 }))).toBe(850)
+  })
+  it('refuses a pack price above its units sold one by one, and a pack price goes back to the default when it is cleared', async () => {
+    await expect(withPacks(manager, 'Juice box', 100, [{ name: 'case', units: 6, price: 700 }])).rejects.toThrow(/cannot be more than its units sold one by one/)
+    const p = await withPacks(manager, 'Tea', 100, [{ name: 'box', units: 6, price: 500 }]); await receive(manager, p, 30)
+    expect(await total(await sellPack(cashier, p, 'box', 500, 500))).toBe(500)
+    await withPacks(manager, 'Tea', 100, [{ name: 'box', units: 6 }], p)
+    expect(await total(await sellPack(cashier, p, 'box', 600, 600))).toBe(600)
+  })
+  it('keeps the tax on what was charged, not on the full price', async () => {
+    const p = await withPacks(manager, 'Biscuit tin', 100, [{ name: 'carton', units: 10, price: 800 }]); await receive(manager, p, 100)
+    await as(owner, () => q('select public.set_business_tax($1,$2)', [biz, 10]))
+    try { expect(await total(await sellPack(cashier, p, 'carton', 800, 880))).toBe(880) } finally { await as(owner, () => q('select public.set_business_tax($1,$2)', [biz, 0])) }
+  })
+})
+
+describe('what the shop pays is private to people who run the stock', () => {
+  type Till = { products: { id: string; name: string; selling_price: number; default_cost: unknown }[]; balances: { product_id: string; qty: number; avg_cost: unknown }[]; packs: unknown[] }
+  const till = async (u: string) => (await as(u, () => q<{ r: Till }>('select public.till_catalog($1) as r', [biz])))[0].r
+  it('gives a cashier the till list with prices and quantities, and no costs anywhere in it', async () => {
+    const p = await save(manager, 'Costly'); await receive(manager, p, 7)
+    const c = await till(cashier)
+    const mine = c.products.find((x) => x.id === p)!
+    expect(mine.name).toBe('Costly'); expect(Number(mine.selling_price)).toBe(150); expect(mine.default_cost).toBeNull()
+    expect(Number(c.balances.find((b) => b.product_id === p)!.qty)).toBe(7); expect(c.balances.every((b) => b.avg_cost === null)).toBe(true)
+    expect(JSON.stringify(c)).not.toMatch(/"default_cost":\s*[0-9]|"avg_cost":\s*[0-9]/)
+  })
+  it('gives the manager the costs in the same list, and an outsider nothing', async () => {
+    const p = await save(manager, 'Costly 2'); await receive(manager, p, 3)
+    const m = await till(manager)
+    expect(Number(m.products.find((x) => x.id === p)!.default_cost)).toBe(100); expect(Number(m.balances.find((b) => b.product_id === p)!.avg_cost)).toBe(100)
+    await expect(till(outsider)).rejects.toThrow(/permission denied/)
+  })
+  it('keeps a cashier out of every table that holds a cost', async () => {
+    for (const t of ['products', 'inventory_balances', 'stock_movements', 'mart_products', 'mart_lots']) expect(await as(cashier, () => q(`select * from public.${t} where business_id=$1`, [biz])), t).toHaveLength(0)
+  })
+  it('keeps the cost on a sale line from everyone, while a cashier still reads the lines themselves; the reports still use it', async () => {
+    const p = await save(manager, 'Costly 3'); await receive(manager, p, 10); const sale = await sell(p, 2)
+    expect(await as(cashier, () => q('select id, quantity, unit_price, line_total from public.sale_items where business_id=$1', [biz]))).not.toHaveLength(0)
+    for (const u of [cashier, manager, owner]) await expect(as(u, () => q('select unit_cost_snapshot from public.sale_items where business_id=$1', [biz]))).rejects.toThrow(/permission denied/)
+    expect(sale).toBeTruthy()
+    const f = (await as(owner, () => q<{ o: { financial: { cogs: number } } }>('select public.mart_overview($1,current_date,current_date) as o', [biz])))[0].o.financial
+    expect(Number(f.cogs)).toBeGreaterThan(0)
+  })
+})
+
 describe('product pictures', () => {
   const jpeg = (kb: number) => 'data:image/jpeg;base64,' + 'A'.repeat(kb * 1000)
   const set = (u: string, p: string, thumb: string | null, image: string | null) => as(u, () => q('select public.mart_set_product_image($1,$2,$3)', [p, thumb, image]))

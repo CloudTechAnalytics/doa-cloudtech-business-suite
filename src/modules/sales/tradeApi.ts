@@ -27,8 +27,31 @@ const msg = (e: { message: string } | null) => e?.message ?? null
 const db = () => supabase!
 
 export type { InventoryData }
+
+/** What the till needs, without what the shop pays: asked of the server by someone who may sell but not read the stock tables (a cashier). Cached briefly so the catalog and the packs share one call. */
+interface TillRows { units: string[]; categories: { id: string; name: string }[]; locations: { id: string; name: string }[]; products: Record<string, unknown>[]; balances: Record<string, unknown>[]; packs: { product_id: string; name: string; units: number | string; price: number | string | null }[] }
+const tillCache = new Map<string, { at: number; rows: Promise<TillRows | null> }>()
+function tillRows(businessId: string): Promise<TillRows | null> {
+  const hit = tillCache.get(businessId)
+  if (hit && Date.now() - hit.at < 4000) return hit.rows
+  const rows = (async () => { const r = await db().rpc('till_catalog', { p_business: businessId }); return r.error ? null : (r.data as unknown as TillRows) })()
+  tillCache.set(businessId, { at: Date.now(), rows })
+  return rows
+}
 export async function loadCatalog(businessId: string, industry: IndustryCode): Promise<InventoryData> {
-  if (!isDemoMode) return loadInventory(businessId)
+  if (!isDemoMode) {
+    const inv = await loadInventory(businessId)
+    if (inv.products.length > 0) return inv
+    // Nothing came back from the stock tables: either there are no products yet, or this person may sell but not read stock. The till list covers the second case.
+    const till = await tillRows(businessId)
+    if (!till || till.products.length === 0) return inv
+    const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+    return {
+      units: till.units, categories: till.categories, locations: till.locations, movements: [],
+      products: till.products.map((x) => ({ id: String(x.id), sku: (x.sku as string | null) ?? null, barcode: (x.barcode as string | null) ?? null, name: String(x.name), unit: String(x.unit ?? ''), sellingPrice: Number(x.selling_price), defaultCost: num(x.default_cost), reorderLevel: num(x.reorder_level), status: x.status as 'active' | 'archived', tracksStock: x.tracks_stock !== false, categoryId: (x.category_id as string | null) ?? null })),
+      balances: till.balances.map((x) => ({ productId: String(x.product_id), locationId: String(x.location_id), qty: Number(x.qty), avgCost: num(x.avg_cost) })),
+    }
+  }
   ensureDemoInventory(businessId, industry)
   demo.ensureDemoTrade(businessId)
   const inv = getInv()
@@ -121,7 +144,7 @@ export async function saleDetail(_businessId: string, saleId: string): Promise<S
   }
   const [s, i, p, r] = await Promise.all([
     db().from('sales').select('*').eq('id', saleId).single(),
-    db().from('sale_items').select('*').eq('sale_id', saleId).order('id'),
+    db().from('sale_items').select('id, sale_id, product_id, description_snapshot, quantity, unit_price, discount_amount, tax_amount, line_total').eq('sale_id', saleId).order('id'),
     db().from('payments').select('*').eq('sale_id', saleId).order('created_at'),
     db().from('sale_return_items').select('sale_item_id, quantity'),
   ])
@@ -134,13 +157,15 @@ export async function saleDetail(_businessId: string, saleId: string): Promise<S
 }
 
 export interface CartLineInput { productId: string; quantity: number; unitPrice: number; discount: number; pack?: string | null }
-export interface PackDto { productId: string; name: string; units: number }
+export interface PackDto { productId: string; name: string; units: number; /** The pack's own price, when it has one (cheaper than its units one by one). */ price: number | null }
 
 /** Pack sizes (carton, dozen) for products sold by the pack. Empty for businesses that do not use them. */
 export async function loadPacks(b: string): Promise<PackDto[]> {
-  if (isDemoMode) { const ids = new Set(martDemo.demoMartProducts(b).map((p) => p.id)); return martDemo.getMart().packs.filter((k) => ids.has(k.productId)).map((k) => ({ productId: k.productId, name: k.name, units: k.units })) }
-  const r = await db().from('product_packs').select('product_id, name, units_per_pack').eq('business_id', b)
-  return r.error ? [] : (r.data ?? []).map((k) => ({ productId: k.product_id, name: k.name, units: Number(k.units_per_pack) }))
+  if (isDemoMode) { const ids = new Set(martDemo.demoMartProducts(b).map((p) => p.id)); return martDemo.getMart().packs.filter((k) => ids.has(k.productId)).map((k) => ({ productId: k.productId, name: k.name, units: k.units, price: k.price ?? null })) }
+  const r = await db().from('product_packs').select('product_id, name, units_per_pack, price').eq('business_id', b)
+  if (!r.error && (r.data ?? []).length > 0) return (r.data ?? []).map((k) => ({ productId: k.product_id, name: k.name, units: Number(k.units_per_pack), price: k.price === null || k.price === undefined ? null : Number(k.price) }))
+  const till = await tillRows(b)
+  return (till?.packs ?? []).map((k) => ({ productId: k.product_id, name: k.name, units: Number(k.units), price: k.price === null || k.price === undefined ? null : Number(k.price) }))
 }
 export interface TillPayment { method: string; amount: number; status?: 'pending' | 'successful'; reference?: string }
 

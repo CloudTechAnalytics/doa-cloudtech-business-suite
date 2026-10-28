@@ -12,7 +12,7 @@ import { demoAllowed, demoCanTrade, demoCreatePurchase, demoPostSale, ensureDemo
  */
 export interface MartCategory { id: string; businessId: string; name: string }
 export interface MartProfile { productId: string; businessId: string; categoryId: string | null; brand: string | null; wholesale: number | null; supplierId: string | null; trackExpiry: boolean }
-export interface MartPack { id: string; productId: string; name: string; units: number }
+export interface MartPack { id: string; productId: string; name: string; units: number; price?: number | null }
 export const LOSS_REASONS = ['damaged', 'expired', 'missing', 'other'] as const
 export type LossReason = (typeof LOSS_REASONS)[number]
 export interface MartLoss { id: string; businessId: string; number: string; productId: string; locationId: string; quantity: number; reason: LossReason; loss: number; notes: string | null; status: 'posted' | 'voided'; voidReason: string | null; movementId: string; createdAt: string }
@@ -121,7 +121,7 @@ export function demoSaveCategory(biz: string, v: { id: string | null; name: stri
 // ------------------------------------------------------------------ products
 export interface MartProductInput {
   id: string | null; name: string; sku: string; barcode: string; categoryId: string | null; brand: string; unit: string; cost: number | null; price: number; wholesale: number | null
-  reorder: number | null; supplierId: string | null; trackExpiry: boolean; active: boolean; packs: { name: string; units: number }[]
+  reorder: number | null; supplierId: string | null; trackExpiry: boolean; active: boolean; packs: { name: string; units: number; price?: number | null }[]
 }
 const UNIT_CODES = ['each', 'dozen', 'kg', 'g', 'l', 'ml']
 
@@ -140,6 +140,10 @@ export function demoSaveMartProduct(biz: string, v: MartProductInput, key: strin
     for (const k of v.packs) {
       if (!k.name.trim()) throw new Error('every pack needs a name')
       if (!(k.units > 0)) throw new Error(`pack "${k.name}" must contain more than zero units`)
+      if (k.price !== undefined && k.price !== null) {
+        if (!(k.price >= 0) || r2(k.price) !== k.price) throw new Error(`the price of pack "${k.name}" must be zero or more with at most 2 decimals`)
+        if (k.price > r2(k.units * v.price)) throw new Error(`the price of pack "${k.name}" cannot be more than its units sold one by one (${r2(k.units * v.price)})`)
+      }
       if (seen.has(k.name.trim().toLowerCase())) throw new Error('each pack name can be used once')
       seen.add(k.name.trim().toLowerCase())
     }
@@ -163,7 +167,7 @@ export function demoSaveMartProduct(biz: string, v: MartProductInput, key: strin
     if (v.trackExpiry && at < 0) tracked.push(p.id)
     if (!v.trackExpiry && at >= 0) tracked.splice(at, 1)
     m.packs = m.packs.filter((k) => k.productId !== p.id)
-    for (const k of v.packs) m.packs.push({ id: newId('pk'), productId: p.id, name: k.name.trim(), units: r4(k.units) })
+    for (const k of v.packs) m.packs.push({ id: newId('pk'), productId: p.id, name: k.name.trim(), units: r4(k.units), price: k.price ?? null })
     return { productId: p.id }
   })
 }
@@ -211,7 +215,15 @@ export function demoCreateMartPurchase(biz: string, supplierId: string, items: {
 
 export function demoMartSale(biz: string, locationId: string, customerId: string | null, items: { productId: string; quantity: number; pack?: string | null; unitPrice?: number; discount?: number }[], payments: { method: string; amount: number }[], key: string) {
   try {
-    const lines = items.map((it) => { const f = packFactor(state, it.productId, it.pack); return { productId: it.productId, quantity: r4(it.quantity * f), unitPrice: it.unitPrice === undefined ? undefined : r4(it.unitPrice / f), discount: it.discount ?? 0 } })
+    const lines = items.map((it) => {
+      const f = packFactor(state, it.productId, it.pack)
+      const pk = it.pack ? state.packs.find((x) => x.productId === it.productId && x.name.trim().toLowerCase() === it.pack!.trim().toLowerCase()) : undefined
+      const price = pk?.price ?? null
+      if (price !== null && it.unitPrice !== undefined && it.unitPrice !== price) throw new Error(`the price of the ${it.pack} has changed to ${price}; refresh and retry`)
+      const sellingPrice = getInv().products.find((p) => p.id === it.productId)?.sellingPrice ?? 0
+      const saving = price === null ? 0 : Math.max(r2(it.quantity * f * sellingPrice - it.quantity * price), 0)
+      return { productId: it.productId, quantity: r4(it.quantity * f), unitPrice: price !== null || it.unitPrice === undefined ? undefined : r4(it.unitPrice / f), discount: it.discount ?? 0, systemDiscount: saving }
+    })
     return demoPostSale(biz, locationId, customerId, lines, payments, key)
   } catch (e) { return { error: (e as Error).message as string | null, result: undefined } }
 }
@@ -397,7 +409,7 @@ export function demoReviewShift(biz: string, shiftId: string, note: string): str
 // --------------------------------------------------------------------- views
 export interface MartProductRow {
   id: string; name: string; sku: string | null; barcode: string | null; categoryId: string | null; categoryName: string | null; brand: string | null; unit: string; costPrice: number | null; price: number; wholesale: number | null
-  reorder: number | null; supplierId: string | null; trackExpiry: boolean; active: boolean; onHand: number; avgCost: number | null; stockValue: number; low: boolean; out: boolean; packs: { name: string; units: number }[]; nextExpiry: string | null
+  reorder: number | null; supplierId: string | null; trackExpiry: boolean; active: boolean; onHand: number; avgCost: number | null; stockValue: number; low: boolean; out: boolean; packs: { name: string; units: number; price?: number | null }[]; nextExpiry: string | null
 }
 export function demoMartProducts(biz: string): MartProductRow[] {
   ensureDemoMart(biz)
@@ -410,7 +422,7 @@ export function demoMartProducts(biz: string): MartProductRow[] {
       id: p.id, name: p.name, sku: p.sku, barcode: p.barcode, categoryId: f?.categoryId ?? null, categoryName: state.categories.find((c) => c.id === f?.categoryId)?.name ?? null, brand: f?.brand ?? null, unit: p.unit,
       costPrice: p.defaultCost, price: p.sellingPrice, wholesale: f?.wholesale ?? null, reorder: p.reorderLevel, supplierId: f?.supplierId ?? null, trackExpiry: f?.trackExpiry ?? false, active: p.status === 'active',
       onHand: have, avgCost: avg, stockValue: r2(have * (avg ?? p.defaultCost ?? 0)), low: (p.reorderLevel ?? 0) > 0 && have > 0 && have <= (p.reorderLevel ?? 0), out: have <= 0,
-      packs: state.packs.filter((k) => k.productId === p.id).sort((a, b) => a.units - b.units).map((k) => ({ name: k.name, units: k.units })), nextExpiry: exp,
+      packs: state.packs.filter((k) => k.productId === p.id).sort((a, b) => a.units - b.units).map((k) => ({ name: k.name, units: k.units, price: k.price ?? null })), nextExpiry: exp,
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -430,7 +442,7 @@ export interface MartOverview {
   daily: { day: string; netSales: number; sales: number }[]; bestSellers: { product: string; units: number; revenue: number }[]
   recentSales: { number: string; at: string; total: number; status: string }[]; recentMovements: { product: string; type: string; quantity: number; at: string }[]; slowMovers: { product: string; onHand: number; value: number }[]
   financial: null | {
-    netSales: number; discounts: number; refunds: number; cogs: number; grossProfit: number; grossMarginPercent: number | null; operatingExpenses: number; operatingProfitEstimate: number; inventoryValue: number
+    netSales: number; discounts: number; refunds: number; cogs: number; grossProfit: number; grossMarginPercent: number | null; operatingExpenses: number; stockWriteOffs?: number; countDifference?: number; operatingProfitEstimate: number; inventoryValue: number
     supplierBalances: number; customerBalances: number; shiftVariance: number; byCategory: { category: string; units: number; revenue: number }[]; byCashier: { cashier: string; sales: number; netSales: number }[]; paymentMethods: { method: string; amount: number }[]
   }
 }
@@ -475,11 +487,13 @@ export function demoMartOverview(biz: string, from: string, to: string): MartOve
   }
   if (demoCanTrade(biz, 'reports.finance.read')) {
     const exps = getFinance().expenses.filter((e) => e.businessId === biz && e.status === 'posted' && e.date >= from && e.date <= to).reduce((a, e) => a + c100(e.amount), 0)
+    const writeOffs = state.losses.filter((l) => l.businessId === biz && l.status === 'posted' && inRange(l.createdAt)).reduce((a, l) => a + c100(l.loss), 0)
+    const countDiff = inv.movements.filter((x) => x.businessId === biz && x.type === 'count_adjustment' && inRange(x.at)).reduce((a, x) => a + Math.round(x.delta * (x.unitCost ?? 0) * 100), 0)
     const owedByUs = t.purchases.filter((p) => p.businessId === biz && p.status !== 'cancelled').reduce((a, p) => a + Math.max(c100(p.total) - c100(p.amountPaid) - c100(creditHook.credit(p.id)), 0), 0)
     const owedToUs = t.sales.filter((s) => s.businessId === biz && s.status !== 'voided' && s.balanceDue > 0).reduce((a, s) => a + c100(s.balanceDue), 0)
     out.financial = {
       netSales: salesNet / 100, discounts: sales.reduce((a, s) => a + c100(s.discountTotal), 0) / 100, refunds: sales.reduce((a, s) => a + c100(s.returnedTotal), 0) / 100, cogs: cogs / 100, grossProfit: (salesNet - cogs) / 100,
-      grossMarginPercent: salesNet > 0 ? Math.round(((salesNet - cogs) * 1000) / salesNet) / 10 : null, operatingExpenses: exps / 100, operatingProfitEstimate: (salesNet - cogs - exps) / 100,
+      grossMarginPercent: salesNet > 0 ? Math.round(((salesNet - cogs) * 1000) / salesNet) / 10 : null, operatingExpenses: exps / 100, stockWriteOffs: writeOffs / 100, countDifference: countDiff / 100, operatingProfitEstimate: (salesNet - cogs - exps - writeOffs + countDiff) / 100,
       inventoryValue: r2(live.reduce((a, p) => a + p.stockValue, 0)), supplierBalances: owedByUs / 100, customerBalances: owedToUs / 100,
       shiftVariance: r2(state.shifts.filter((s) => s.businessId === biz && s.status !== 'open' && s.closedAt && inRange(s.closedAt)).reduce((a, s) => a + (s.variance ?? 0), 0)),
       byCategory: [...byCat].sort((a, b) => b[1].revenue - a[1].revenue).map(([category, v]) => ({ category, units: v.units, revenue: v.revenue / 100 })),

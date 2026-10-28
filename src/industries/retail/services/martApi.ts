@@ -21,7 +21,7 @@ export async function loadProducts(b: string): Promise<MartProductRow[]> {
   return (r.data ?? []).map((x) => ({
     id: x.id!, name: x.name!, sku: x.sku, barcode: x.barcode, categoryId: x.category_id, categoryName: x.category_name, brand: x.brand, unit: x.unit_code!, costPrice: x.cost_price === null ? null : n(x.cost_price), price: n(x.selling_price),
     wholesale: x.wholesale_price === null ? null : n(x.wholesale_price), reorder: x.reorder_level === null ? null : n(x.reorder_level), supplierId: x.preferred_supplier_id, trackExpiry: !!x.track_expiry, active: x.status === 'active',
-    onHand: n(x.on_hand), avgCost: x.avg_cost === null ? null : n(x.avg_cost), stockValue: n(x.stock_value), low: !!x.low_stock, out: !!x.out_of_stock, packs: ((x.packs ?? []) as { name: string; units: number }[]).map((k) => ({ name: k.name, units: n(k.units) })), nextExpiry: dateOnly(x.next_expiry),
+    onHand: n(x.on_hand), avgCost: x.avg_cost === null ? null : n(x.avg_cost), stockValue: n(x.stock_value), low: !!x.low_stock, out: !!x.out_of_stock, packs: ((x.packs ?? []) as { name: string; units: number; price?: number | null }[]).map((k) => ({ name: k.name, units: n(k.units), price: k.price === null || k.price === undefined ? null : n(k.price) })), nextExpiry: dateOnly(x.next_expiry),
   }))
 }
 
@@ -29,7 +29,7 @@ export async function saveProduct(b: string, v: MartProductInput, key: string) {
   if (isDemoMode) return mart.demoSaveMartProduct(b, v, key).error
   return msg((await db().rpc('mart_save_product', {
     p_business: b, p_id: v.id, p_name: v.name, p_sku: v.sku || null, p_barcode: v.barcode || null, p_category: v.categoryId, p_brand: v.brand || null, p_unit_code: v.unit, p_cost: v.cost, p_price: v.price,
-    p_wholesale: v.wholesale, p_reorder: v.reorder, p_supplier: v.supplierId, p_track_expiry: v.trackExpiry, p_active: v.active, p_packs: v.packs.map((k) => ({ name: k.name, units: k.units })), p_key: key,
+    p_wholesale: v.wholesale, p_reorder: v.reorder, p_supplier: v.supplierId, p_track_expiry: v.trackExpiry, p_active: v.active, p_packs: v.packs.map((k) => ({ name: k.name, units: k.units, price: k.price ?? null })), p_key: key,
   })).error)
 }
 
@@ -172,7 +172,7 @@ export async function loadOverview(b: string, from: string, to: string): Promise
     slowMovers: list<{ product: string; on_hand: number; value: number }>(x.slow_movers).map((d) => ({ product: d.product, onHand: n(d.on_hand), value: n(d.value) })),
     financial: f ? {
       netSales: n(f.net_sales), discounts: n(f.discounts), refunds: n(f.refunds), cogs: n(f.cogs), grossProfit: n(f.gross_profit), grossMarginPercent: f.gross_margin_percent === null ? null : n(f.gross_margin_percent),
-      operatingExpenses: n(f.operating_expenses), operatingProfitEstimate: n(f.operating_profit_estimate), inventoryValue: n(f.inventory_value), supplierBalances: n(f.supplier_balances), customerBalances: n(f.customer_balances), shiftVariance: n(f.shift_variance),
+      operatingExpenses: n(f.operating_expenses), stockWriteOffs: n(f.stock_write_offs), countDifference: n(f.count_difference), operatingProfitEstimate: n(f.operating_profit_estimate), inventoryValue: n(f.inventory_value), supplierBalances: n(f.supplier_balances), customerBalances: n(f.customer_balances), shiftVariance: n(f.shift_variance),
       byCategory: list<{ category: string; units: number; revenue: number }>(f.by_category).map((d) => ({ category: d.category, units: n(d.units), revenue: n(d.revenue) })),
       byCashier: list<{ cashier: string; sales: number; net_sales: number }>(f.by_cashier).map((d) => ({ cashier: d.cashier, sales: n(d.sales), netSales: n(d.net_sales) })),
       paymentMethods: list<{ method: string; amount: number }>(f.payment_methods).map((d) => ({ method: d.method, amount: n(d.amount) })),

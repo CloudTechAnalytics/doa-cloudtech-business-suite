@@ -34,10 +34,10 @@ describe('which mart pages each role can open', () => {
     for (const r of ['owner', 'business_admin', 'manager']) expect(await usable(U[r]), r).toEqual(expect.arrayContaining(['sales', 'retail-products', 'retail-counts', 'retail-losses', 'retail-returns', 'retail-shifts', 'retail-reports', 'purchases', 'suppliers', 'expenses', 'reports', 'customers']))
     for (const r of ['owner', 'business_admin']) expect(await usable(U[r]), r).toEqual(expect.arrayContaining(['settings', 'staff']))
   })
-  it('gives a cashier the till, their shift, customers and the product lists, and nothing about money out, purchasing, reports or staff', async () => {
+  it('gives a cashier the till, their shift and customers, and no stock pages, nothing about money out, purchasing, reports or staff', async () => {
     const m = await usable(U.cashier)
-    expect(m).toEqual(expect.arrayContaining(['sales', 'retail-shifts', 'customers', 'retail-products']))
-    for (const no of ['purchases', 'suppliers', 'expenses', 'reports', 'retail-reports', 'staff', 'settings', 'retail-returns']) expect(m, no).not.toContain(no)
+    expect(m).toEqual(expect.arrayContaining(['sales', 'retail-shifts', 'customers']))
+    for (const no of ['inventory', 'retail-products', 'retail-counts', 'retail-losses', 'retail-categories', 'purchases', 'suppliers', 'expenses', 'reports', 'retail-reports', 'staff', 'settings', 'retail-returns']) expect(m, no).not.toContain(no)
   })
   it('gives a storekeeper stock, purchasing and suppliers, and no till, shifts, expenses or staff', async () => {
     const m = await usable(U.inventory_officer)

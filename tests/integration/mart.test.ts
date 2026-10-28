@@ -51,9 +51,13 @@ describe('products, categories and packs', () => {
     expect(await save(manager, 'Peak Milk Tin', { k, expiry: true })).toBe(await save(manager, 'Peak Milk Tin', { k, expiry: true }))
     milk = (await q<{ id: string }>(`select id from public.products where name='Peak Milk Tin'`))[0].id
     soap = await save(manager, 'Bar Soap', { price: 300, cost: 200 })
-    const p = (await as(cashier, () => q<{ category_name: string; packs: { name: string; units: number }[]; track_expiry: boolean }>('select category_name, packs, track_expiry from public.mart_products where id=$1', [noodles])))[0]
-    expect(p.category_name).toBe('Groceries')
-    expect(p.packs.map((x) => x.name)).toEqual(['pack', 'carton'])
+    // the cashier's till list has the product and its packs, and no costs; the stock tables themselves are not readable by a cashier
+    const till = (await as(cashier, () => q<{ r: { products: { id: string; default_cost: unknown }[]; packs: { product_id: string; name: string }[] } }>('select public.till_catalog($1) as r', [biz])))[0].r
+    expect(till.products.find((x) => x.id === noodles)!.default_cost).toBeNull()
+    expect(till.packs.filter((x) => x.product_id === noodles).map((x) => x.name).sort()).toEqual(['carton', 'pack'])
+    expect(await as(cashier, () => q('select 1 from public.mart_products where id=$1', [noodles]))).toHaveLength(0)
+    const costed = (await as(manager, () => q<{ r: { products: { id: string; default_cost: unknown }[] } }>('select public.till_catalog($1) as r', [biz])))[0].r
+    expect(costed.products.find((x) => x.id === noodles)!.default_cost).not.toBeNull()
   })
 
   it('validates prices, costs, packs and categories', async () => {
@@ -255,7 +259,7 @@ describe('overview', () => {
     const fin = (await overview(accountant)).financial!
     expect(fin.net_sales).toBeGreaterThan(0)
     expect(fin.gross_profit).toBeCloseTo(fin.net_sales - fin.cogs, 2)
-    expect(fin.operating_profit_estimate).toBeCloseTo(fin.gross_profit - fin.operating_expenses, 2)
+    expect(fin.operating_profit_estimate).toBeCloseTo(fin.gross_profit - fin.operating_expenses - fin.stock_write_offs + fin.count_difference, 2)
     expect(fin.shift_variance).toBe(-50)
   })
 

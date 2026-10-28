@@ -48,6 +48,7 @@ export function RetailProductsPage() {
   const q = search.trim().toLowerCase()
   const list = (products.data ?? []).filter((p) => (status === 'archived' ? !p.active : p.active) && (!category || p.categoryId === category) && (!q || [p.name, p.sku, p.barcode, p.brand].some((v) => v?.toLowerCase().includes(q))) && (status !== 'low' || p.low || p.out))
   const pending = (lots.data ?? []).filter((l) => l.expiresOn === null)
+  const archivedCount = (products.data ?? []).filter((p) => !p.active).length
   const refresh = async () => { await Promise.all([products.refresh(), lots.refresh(), catalog.refresh(), thumbs.refresh()]) }
 
   function exportCsv() {
@@ -77,6 +78,8 @@ export function RetailProductsPage() {
         <div className="w-48"><SelectField label="Category" value={category} onChange={(e) => setCategory(e.target.value)}><option value="">All categories</option>{(categories.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField></div>
         <div className="w-44"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Active</option><option value="low">Low or out of stock</option><option value="archived">Archived</option></SelectField></div>
       </div>
+      {archivedCount > 0 && status !== 'archived' && <p className="mb-2 text-xs text-ink/60">{archivedCount} archived product{archivedCount === 1 ? '' : 's'} {archivedCount === 1 ? 'is' : 'are'} hidden. <button type="button" className="font-semibold underline" onClick={() => setStatus('archived')}>Show archived</button></p>}
+      {status === 'archived' && <p className="mb-2 text-xs text-ink/60">Archived products cannot be sold. Open one and press Restore to bring it back. <button type="button" className="font-semibold underline" onClick={() => setStatus('')}>Back to active products</button></p>}
       {products.loading ? <Spinner /> : list.length === 0 ? <Card><EmptyState title={products.data?.length ? 'No products match' : 'No products yet'} description={products.data?.length ? 'Try a different search or filter.' : 'Add your products one by one, or import a CSV file.'} /></Card> : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
@@ -160,7 +163,7 @@ function PendingLots({ lots, onChanged }: { lots: MartLotRow[]; onChanged: () =>
 
 function ProductDialog({ businessId, product, thumb, categories, suppliers, onClose, onSaved }: { businessId: string; product: MartProductRow | null; thumb: string | null; categories: { id: string; name: string }[]; suppliers: { id: string; name: string }[]; onClose: () => void; onSaved: () => Promise<void> }) {
   const runner = useFormRunner(onSaved)
-  const [packs, setPacks] = useState<{ name: string; units: string }[]>(product ? product.packs.map((k) => ({ name: k.name, units: String(k.units) })) : [])
+  const [packs, setPacks] = useState<{ name: string; units: string; price: string }[]>(product ? product.packs.map((k) => ({ name: k.name, units: String(k.units), price: k.price === null || k.price === undefined ? '' : String(k.price) })) : [])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [picture, setPicture] = useState<ProductPicture | null | undefined>(undefined)
   const [priceNow, setPriceNow] = useState(product ? String(product.price) : '')
@@ -179,12 +182,14 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
     if (s('price') === '' || !(Number(s('price')) >= 0)) next.price = 'Enter the price (0 or more).'
     if (s('cost') !== '' && !(Number(s('cost')) >= 0)) next.cost = 'Enter zero or more.'
     if (packs.some((k) => !k.name.trim() || !(Number(k.units) > 0))) next.packs = 'Every pack needs a name and a number of units above zero.'
+    else if (packs.some((k) => k.price.trim() !== '' && !(Number(k.price) >= 0))) next.packs = 'A pack price must be zero or more, or left empty.'
+    else if (packs.some((k) => k.price.trim() !== '' && Number(k.price) > Math.round(Number(k.units) * Number(s('price')) * 100) / 100)) next.packs = 'A pack cannot cost more than its units sold one by one. Leave the price empty to use that sum.'
     setErrors(next)
     if (Object.keys(next).length) return
     const input: MartProductInput = {
       id: product?.id ?? null, name: s('name'), sku: s('sku'), barcode: s('barcode'), categoryId: s('category') || null, brand: s('brand'), unit: product?.unit ?? s('unit'), cost: s('cost') === '' ? null : Number(s('cost')),
       price: Math.round(Number(s('price')) * 100) / 100, wholesale: s('wholesale') === '' ? null : Math.round(Number(s('wholesale')) * 100) / 100, reorder: s('reorder') === '' ? null : Number(s('reorder')),
-      supplierId: s('supplier') || null, trackExpiry: f.get('expiry') === 'on', active: product ? f.get('active') === 'on' : true, packs: packs.map((k) => ({ name: k.name.trim(), units: Number(k.units) })),
+      supplierId: s('supplier') || null, trackExpiry: f.get('expiry') === 'on', active: product ? f.get('active') === 'on' : true, packs: packs.map((k) => ({ name: k.name.trim(), units: Number(k.units), price: k.price.trim() === '' ? null : Math.round(Number(k.price) * 100) / 100 })),
     }
     await runner.run(async (k) => {
       const err = await saveProduct(businessId, input, k)
@@ -203,7 +208,7 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
           <TextField label="SKU (optional)" name="sku" defaultValue={product?.sku ?? ''} />
           <TextField label="Barcode (optional)" name="barcode" defaultValue={product?.barcode ?? ''} hint="A scanner types this into the till." />
           <TextField label="Brand (optional)" name="brand" defaultValue={product?.brand ?? ''} />
-          <TextField label="Selling price" name="price" type="number" min="0" step="0.01" defaultValue={product?.price ?? ''} onChange={(e) => setPriceNow(e.target.value)} error={errors.price} hint="For one unit. A pack sells for this price times the units in it." />
+          <TextField label="Selling price" name="price" type="number" min="0" step="0.01" defaultValue={product?.price ?? ''} onChange={(e) => setPriceNow(e.target.value)} error={errors.price} hint="For one unit. A pack sells for this price times its units, unless you give the pack its own price below." />
           <TextField label="Cost price" name="cost" type="number" min="0" step="0.01" defaultValue={product?.costPrice ?? ''} error={errors.cost} hint="Per unit; receiving stock sets the real average." />
           <TextField label="Wholesale price (optional, for your reference)" name="wholesale" type="number" min="0" step="0.01" defaultValue={product?.wholesale ?? ''} />
           {product ? <TextField label="Sold and stocked in" value={product.unit} disabled readOnly hint="Fixed once created." /> : (
@@ -215,16 +220,17 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
         <div>
           <p className="mb-1 text-sm font-semibold">Packs <span className="font-normal text-ink/60">(how many of the unit above are in a pack, carton or case)</span></p>
           {packs.map((k, i) => (
-            <div key={i} className="mb-2 grid items-end gap-2 sm:grid-cols-[1fr_160px_auto]">
+            <div key={i} className="mb-2 grid items-end gap-2 sm:grid-cols-[1fr_130px_150px_auto]">
               <TextField label={i === 0 ? 'Pack name' : ' '} value={k.name} placeholder="e.g. carton" onChange={(e) => setPacks(packs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
               <TextField label={i === 0 ? 'Units in it' : ' '} type="number" min="0" step="any" value={k.units} onChange={(e) => setPacks(packs.map((x, j) => (j === i ? { ...x, units: e.target.value } : x)))} />
+              <TextField label={i === 0 ? 'Pack price (optional)' : ' '} type="number" min="0" step="0.01" value={k.price} placeholder={k.units && priceNow !== '' ? String(Math.round(Number(k.units) * Number(priceNow) * 100) / 100) : ''} onChange={(e) => setPacks(packs.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} />
               <button type="button" aria-label="Remove pack" onClick={() => setPacks(packs.filter((_, j) => j !== i))} className="mb-2 p-2 text-ink/50 hover:text-danger"><X className="size-4" aria-hidden /></button>
             </div>
           ))}
           {errors.packs && <p className="text-xs text-danger">{errors.packs}</p>}
-          <Button type="button" variant="ghost" onClick={() => setPacks([...packs, { name: '', units: '' }])}><Plus className="size-4" aria-hidden /> Add pack</Button>
-          {packs.filter((k) => k.name.trim() && Number(k.units) > 0 && Number(priceNow) >= 0 && priceNow !== '').map((k, i) => <p key={i} className="text-xs text-ink/70">A {k.name.trim()} of {qty(Number(k.units))} sells for <b>{naira(Math.round(Number(priceNow) * Number(k.units) * 100) / 100)}</b> ({qty(Number(k.units))} × {naira(Number(priceNow))}), and takes {qty(Number(k.units))} off the stock.</p>)}
-          <p className="text-xs text-ink/60">Example: a pack of 6 is 6, and a carton of 12 packs is 72. Stock is always kept in the unit above, and a pack is always priced as its units times the selling price.</p>
+          <Button type="button" variant="ghost" onClick={() => setPacks([...packs, { name: '', units: '', price: '' }])}><Plus className="size-4" aria-hidden /> Add pack</Button>
+          {packs.filter((k) => k.name.trim() && Number(k.units) > 0 && Number(priceNow) >= 0 && priceNow !== '').map((k, i) => { const full = Math.round(Number(priceNow) * Number(k.units) * 100) / 100; const own = k.price.trim() === '' ? null : Number(k.price); return <p key={i} className="text-xs text-ink/70">A {k.name.trim()} of {qty(Number(k.units))} sells for <b>{naira(own ?? full)}</b>{own !== null && own < full ? <> (<b>{naira(full - own)}</b> less than {qty(Number(k.units))} × {naira(Number(priceNow))})</> : <> ({qty(Number(k.units))} × {naira(Number(priceNow))})</>}, and takes {qty(Number(k.units))} off the stock.</p> })}
+          <p className="text-xs text-ink/60">Example: a pack of 6 is 6, and a carton of 12 packs is 72. Stock is always kept in the unit above, and a pack sells for the pack price you type, or for its units times the selling price when you leave it empty.</p>
         </div>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="expiry" defaultChecked={product?.trackExpiry} /> Track batch and expiry date <span className="text-ink/60">(stock is then sold oldest expiry first)</span></label>
         {product && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={product.active} /> Active <span className="text-ink/60">(archived products cannot be sold)</span></label>}

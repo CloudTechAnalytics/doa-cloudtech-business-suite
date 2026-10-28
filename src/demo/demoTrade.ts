@@ -214,7 +214,7 @@ export function demoCreateSupplier(biz: string, name: string, phone: string): st
 /** Lets an industry refuse a sale line (the pharmacy refuses restricted medicines outside a dispensing). */
 export const saleGuard = { check: (_biz: string, _productId: string, _quantity: number, _name: string): void => {} }
 
-export interface SaleLineInput { productId: string; quantity: number; unitPrice?: number; discount?: number }
+export interface SaleLineInput { productId: string; quantity: number; unitPrice?: number; discount?: number; /** A saving the server works out itself (a pack sold at its own price): added to the discount without needing the discount permission. */ systemDiscount?: number }
 export interface PaymentInput { method: string; amount: number; status?: 'pending' | 'successful'; reference?: string }
 
 export function demoPostSale(biz: string, locationId: string, customerId: string | null, lines: SaleLineInput[], payments: PaymentInput[], key: string) {
@@ -236,7 +236,7 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
     let priced
     try {
       const rate = getDemoState().businesses.find((b) => b.id === biz)?.settings?.tax_rate_percent ?? 0
-      priced = priceCart(lines.map((l, i) => ({ quantity: l.quantity, unitPrice: prods[i].sellingPrice, discount: l.discount ?? 0 })), rate)
+      priced = priceCart(lines.map((l, i) => ({ quantity: l.quantity, unitPrice: prods[i].sellingPrice, discount: (l.discount ?? 0) + (l.systemDiscount ?? 0) })), rate)
     } catch { throw new Error('invalid discount') }
 
     const sale: DSale = { by: getDemoState().userId, id: newId('sal'), businessId: biz, number: nextNumber(t, biz, 'sale', 'SAL'), locationId, customerId, status: 'posted', paymentStatus: 'unpaid', subtotal: priced.subtotal, discountTotal: priced.discountTotal, taxTotal: priced.taxTotal, grandTotal: priced.grandTotal, amountPaid: 0, returnedTotal: 0, balanceDue: priced.grandTotal, refundDue: 0, soldAt: new Date().toISOString(), voidReason: null }

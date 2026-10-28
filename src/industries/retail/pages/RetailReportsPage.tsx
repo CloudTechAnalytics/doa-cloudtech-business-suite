@@ -56,7 +56,8 @@ export function RetailReportsPage() {
                 <Figure title="Net sales" value={naira(f.netSales)} note={`${o.transactions} sales; discounts ${naira(f.discounts)}, refunds ${naira(f.refunds)}`} />
                 <Figure title="Cost of goods sold" value={naira(f.cogs)} />
                 <Figure title="Gross profit" value={naira(f.grossProfit)} tone={f.grossProfit >= 0 ? 'good' : 'bad'} note={f.grossMarginPercent === null ? undefined : `${f.grossMarginPercent}% margin`} />
-                <Figure title="Operating profit (estimate)" value={naira(f.operatingProfitEstimate)} tone={f.operatingProfitEstimate >= 0 ? 'good' : 'bad'} note={`After expenses of ${naira(f.operatingExpenses)}`} />
+                <Figure title="Operating profit (estimate)" value={naira(f.operatingProfitEstimate)} tone={f.operatingProfitEstimate >= 0 ? 'good' : 'bad'} note={`After expenses of ${naira(f.operatingExpenses)} and stock lost of ${naira((f.stockWriteOffs ?? 0) - (f.countDifference ?? 0))}`} />
+                <Figure title="Stock lost" value={naira((f.stockWriteOffs ?? 0) - (f.countDifference ?? 0))} note={`Written off ${naira(f.stockWriteOffs ?? 0)}; counts ${(f.countDifference ?? 0) < 0 ? 'found short' : 'found extra'} ${naira(Math.abs(f.countDifference ?? 0))}`} />
                 <Figure title="Stock value (now)" value={naira(f.inventoryValue)} note="On hand at average cost" />
                 <Figure title="Owed to suppliers (now)" value={naira(f.supplierBalances)} />
                 <Figure title="Owed by customers (now)" value={naira(f.customerBalances)} />

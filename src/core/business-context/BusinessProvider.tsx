@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { needsRelist } from './relist'
 import { taxRateOf } from './taxRate'
 import type { ReactNode } from 'react'
 import type { IndustryCode, RoleName } from '@/shared/types/domain'
@@ -63,13 +64,14 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       return
     }
     if (!quiet) setLoading(true)
-    // Pick up any invitations addressed to this (confirmed) email before listing businesses.
-    await supabase.rpc('accept_my_invitations')
-    const { data, error } = await supabase
-      .from('businesses')
-      .select('id, name, primary_industry_code, owner_user_id, settings')
-      .order('created_at')
-    const blockedRows = await supabase.rpc('my_blocked_memberships')
+    // Pick up any invitations addressed to this (confirmed) email, and list the businesses and blocked access, all at once: each round trip is slow on a
+    // mobile connection. If an invitation was accepted the lists are asked for again so the new business is in them.
+    const list = () => Promise.all([
+      supabase!.from('businesses').select('id, name, primary_industry_code, owner_user_id, settings').order('created_at'),
+      supabase!.rpc('my_blocked_memberships'),
+    ])
+    const [accepted, first] = await Promise.all([supabase.rpc('accept_my_invitations'), list()])
+    const [{ data, error }, blockedRows] = needsRelist(accepted) ? await list() : first
     if (!blockedRows.error) setBlocked(((blockedRows.data ?? []) as { business_id: string; business_name: string; status: string }[]).map((r) => ({ id: r.business_id, name: r.business_name, status: r.status as BlockedAccess['status'] })))
     if (error) setError(error.message)
     else {

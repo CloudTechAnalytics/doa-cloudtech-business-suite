@@ -139,8 +139,9 @@ describe('roles inside a business', () => {
 
   it('removing a member removes every kind of access immediately', async () => {
     const m = (await q<{ id: string }>('select id from public.business_members where business_id=$1 and user_id=$2', [bizA, cashierA]))[0].id
-    expect((await as(cashierA, () => q('select * from public.products where business_id=$1', [bizA]))).length).toBeGreaterThan(0)
+    expect((await as(cashierA, () => q<{ r: { products: unknown[] } }>('select public.till_catalog($1) as r', [bizA])))[0].r.products.length).toBeGreaterThan(0)
     await as(userA, () => q(`select public.set_member_status($1,'revoked')`, [m]))
+    await expect(as(cashierA, () => q('select public.till_catalog($1)', [bizA]))).rejects.toThrow(/permission denied/)
     for (const t of ['products', 'sales', 'customers', 'crm_leads', 'stock_movements']) {
       expect(await as(cashierA, () => q(`select * from public.${t} where business_id=$1`, [bizA])), t).toHaveLength(0)
     }

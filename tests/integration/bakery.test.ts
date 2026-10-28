@@ -71,7 +71,7 @@ describe('ingredients and products', () => {
     await expect(product(manager, 'standard bread')).rejects.toThrow(/duplicate key/)
     await expect(product(manager, 'Bad', { price: -1 })).rejects.toThrow(/price/)
     await expect(product(manager, 'Bad', { shelf: 400 })).rejects.toThrow(/shelf life/)
-    const g = (await as(cashier, () => q<{ shelf_life_days: number; selling_price: string }>('select shelf_life_days, selling_price from public.bakery_finished_goods where id=$1', [bread])))[0]
+    const g = (await as(manager, () => q<{ shelf_life_days: number; selling_price: string }>('select shelf_life_days, selling_price from public.bakery_finished_goods where id=$1', [bread])))[0]
     expect(g.shelf_life_days).toBe(3)
   })
 })

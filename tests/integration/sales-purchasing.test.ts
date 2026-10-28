@@ -342,7 +342,7 @@ describe('purchasing', () => {
 describe('tenant isolation, plans and modules', () => {
   it('another business sees nothing and cannot act', async () => {
     for (const t of ['sales', 'sale_items', 'payments', 'purchases', 'purchase_items', 'customers', 'suppliers', 'sale_returns']) {
-      expect(await as(other, () => q(`select * from public.${t} where business_id=$1`, [biz])), t).toHaveLength(0)
+      expect(await as(other, () => q(`select ${t === 'sale_items' ? 'id' : '*'} from public.${t} where business_id=$1`, [biz])), t).toHaveLength(0)
     }
     await expect(as(other, () => q('select public.post_sale($1,$2,null,$3::jsonb,null,$4)', [biz, loc, J([{ product_id: widget, quantity: 1 }]), key()]))).rejects.toThrow(/permission denied/)
   })

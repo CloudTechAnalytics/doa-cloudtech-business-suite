@@ -64,8 +64,9 @@ describe('catalogue', () => {
     await expect(newProduct(owner, bizA, 'Bad unit', await unit(bizB, 'kg'))).rejects.toThrow(/foreign key/)
   })
 
-  it('applies role permissions: cashier reads but cannot write the catalogue', async () => {
-    expect(await as(cashier, () => q('select id from public.products where business_id=$1', [bizA]))).not.toHaveLength(0)
+  it('applies role permissions: a cashier does not read the stock tables (the till has its own list) and cannot write the catalogue', async () => {
+    expect(await as(cashier, () => q('select id from public.products where business_id=$1', [bizA]))).toHaveLength(0)
+    expect((await as(cashier, () => q<{ r: { products: unknown[] } }>('select public.till_catalog($1) as r', [bizA])))[0].r.products.length).toBeGreaterThan(0)
     await expect(newProduct(cashier, bizA, 'Nope', kg)).rejects.toThrow(/row-level security/)
   })
 

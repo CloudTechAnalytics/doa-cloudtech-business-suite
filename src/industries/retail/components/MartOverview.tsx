@@ -56,7 +56,7 @@ export function MartOverview() {
             {f && <Kpi title="Net sales" value={naira(f.netSales)} note={`${o.transactions} sale${o.transactions === 1 ? '' : 's'}, after discounts, tax and refunds`} />}
             {f && <Kpi title="Cost of goods sold" value={naira(f.cogs)} note="Units sold at the cost they left stock at" />}
             {f && <Kpi title="Gross profit" value={naira(f.grossProfit)} tone={f.grossProfit >= 0 ? 'good' : 'bad'} note={f.grossMarginPercent === null ? 'No sales yet' : `${f.grossMarginPercent}% margin`} />}
-            {f && <Kpi title="Operating profit (estimate)" value={naira(f.operatingProfitEstimate)} tone={f.operatingProfitEstimate >= 0 ? 'good' : 'bad'} note={`After expenses of ${naira(f.operatingExpenses)}; stock purchases are not expenses`} />}
+            {f && <Kpi title="Operating profit (estimate)" value={naira(f.operatingProfitEstimate)} tone={f.operatingProfitEstimate >= 0 ? 'good' : 'bad'} note={`After expenses of ${naira(f.operatingExpenses)} and stock lost of ${naira((f.stockWriteOffs ?? 0) - (f.countDifference ?? 0))}; stock purchases are not expenses`} />}
             <Kpi title="Transactions" value={String(o.transactions)} note={o.avgTransaction === null ? undefined : `Average ${naira(o.avgTransaction)}`} to="/app/sales" />
             <Kpi title="Units sold" value={qty(o.unitsSold)} />
             {f && <Kpi title="Stock value" value={naira(f.inventoryValue)} note="On hand at average cost" to="/app/retail/products" />}

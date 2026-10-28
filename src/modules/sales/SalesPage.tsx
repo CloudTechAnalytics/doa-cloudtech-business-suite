@@ -97,7 +97,7 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
   }, [catalog.products, search])
   const byId = (id: string) => catalog.products.find((p) => p.id === id)!
   const packOf = (l: CartLine) => (l.pack ? packs.find((k) => k.productId === l.productId && k.name === l.pack) : undefined)
-  const priceOf = (l: CartLine) => { const k = packOf(l); return k ? Math.round(byId(l.productId).sellingPrice * k.units * 100) / 100 : byId(l.productId).sellingPrice }
+  const priceOf = (l: CartLine) => { const k = packOf(l); return k ? (k.price ?? Math.round(byId(l.productId).sellingPrice * k.units * 100) / 100) : byId(l.productId).sellingPrice }
 
   const priced = useMemo(() => {
     try { return { ok: priceCart(cart.map((l) => ({ quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount })), taxRate), err: null } }

@@ -130,7 +130,7 @@ describe('demo mart follows the database rules', () => {
     expect(o.bestSellers[0].product).toBe('Indomie Noodles')
     const f = o.financial!
     expect(f.grossProfit).toBeCloseTo(f.netSales - f.cogs, 2)
-    expect(f.operatingProfitEstimate).toBeCloseTo(f.grossProfit - f.operatingExpenses, 2)
+    expect(f.operatingProfitEstimate).toBeCloseTo(f.grossProfit - f.operatingExpenses - (f.stockWriteOffs ?? 0) + (f.countDifference ?? 0), 2)
     expect(f.shiftVariance).toBe(-50)
     expect(f.supplierBalances).toBeGreaterThanOrEqual(0)
     expect(f.byCategory.map((c) => c.category)).toContain('Groceries')
@@ -141,5 +141,28 @@ describe('demo mart follows the database rules', () => {
     expect(mart.demoMartOverview(B, iso(-1), iso(0)).financial).toBeNull()
     expect(save({ name: 'Not allowed', barcode: '' }).error).toMatch(/permission/)
     as('owner@demo.test')
+  })
+})
+
+describe('a pack with a price of its own, in the demo as in the database', () => {
+  const name = 'Pack price probe'
+  const withPrice = (price: number | null) => save({ id: row(name)?.id ?? null, name, barcode: '', packs: [{ name: 'carton', units: 12, price }, { name: 'dozen', units: 12 }], price: 200 })
+  it('sells at the pack price, records the saving as a discount, and takes the units off the stock', () => {
+    as('owner@demo.test')
+    expect(withPrice(2000).error).toBeNull()
+    expect(mart.demoReceiveStock(B, { locationId: loc, reference: '', items: [{ productId: row(name).id, quantity: 100, unitCost: 100 }] }, key()).error).toBeNull()
+    as('cashier@demo.test')
+    const s = mart.demoMartSale(B, loc, null, [{ productId: row(name).id, quantity: 1, pack: 'carton', unitPrice: 2000 }], [{ method: 'cash', amount: 2000 }], key())
+    expect(s.error).toBeNull()
+    const item = trade.getTrade().saleItems.find((i) => i.saleId === s.result!.saleId)!
+    expect(item.discount).toBe(400); expect(row(name).onHand).toBe(88)
+    expect(mart.demoMartSale(B, loc, null, [{ productId: row(name).id, quantity: 1, pack: 'dozen', unitPrice: 2400 }], [{ method: 'cash', amount: 2400 }], key()).error).toBeNull()
+  })
+  it('does not let the till set the pack price, and refuses a pack price above its units one by one', () => {
+    expect(mart.demoMartSale(B, loc, null, [{ productId: row(name).id, quantity: 1, pack: 'carton', unitPrice: 1000 }], [{ method: 'cash', amount: 1000 }], key()).error).toMatch(/price of the carton has changed to 2000/)
+    as('owner@demo.test')
+    expect(withPrice(2500).error).toMatch(/cannot be more than its units sold one by one/)
+    expect(withPrice(null).error).toBeNull()
+    expect(row(name).packs.find((k) => k.name === 'carton')!.price).toBeNull()
   })
 })
