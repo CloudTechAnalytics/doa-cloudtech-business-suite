@@ -9,7 +9,7 @@ import { DetailPage } from '@/shared/components/detail-page'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { naira } from '@/shared/utilities/format'
-import { cashMovement, closeShift, loadCashMoves, loadShifts, openShift, reviewShift } from '../services/martApi'
+import { cashMovement, closeShift, deleteShift, loadCashMoves, loadShifts, openShift, reviewShift } from '../services/martApi'
 import type { ShiftSummary } from '../services/martApi'
 
 const TONE = { open: 'warning', closed: 'info', reviewed: 'success' } as const
@@ -29,7 +29,7 @@ export function RetailShiftsPage() {
 
   return (
     <>
-      <PageHeader title="Cashier shifts" description="Open a shift with the cash in the drawer, and close it with a count. The difference between counted and expected cash is kept for the manager to review."
+      <PageHeader title="Cashier shifts" description="A shift is one cashier's turn at the till. Open it with the cash already in the drawer, sell, and close it by counting the drawer. The system works out what should be there; any difference is kept for the manager to review."
         actions={sell ? <Button onClick={() => setOpening(true)}><Plus className="size-4" aria-hidden /> Open shift</Button> : undefined} />
       {shifts.error && <ErrorState message={shifts.error} />}
       {shifts.loading ? <Spinner /> : !shifts.data?.length ? <Card><EmptyState title="No shifts yet" description="Cashiers see their own shifts. Managers see everyone's." /></Card> : (
@@ -91,30 +91,45 @@ function ShiftDialog({ businessId, shift, manage, onClose, onChanged }: { busine
   const isOpen = shift.status === 'open'
   const projected = counted === '' ? null : Math.round((Number(counted) - shift.expectedCash) * 100) / 100
   const needsNote = shift.variance !== null && shift.variance !== 0
+  // A shift where nothing happened (no cash sales, refunds or cash in and out) was opened by mistake and can be deleted; anything else is a money record.
+  const idle = shift.cashSales === 0 && shift.cashRefunds === 0 && shift.movedIn === 0 && shift.movedOut === 0
 
   function addMove(e: FormEvent) {
     e.preventDefault()
     if (!(Number(amount) > 0)) return setProblem('Enter an amount above zero.')
     if (why.trim().length < 3) return setProblem('Say what the cash was for.')
+    if (dir === 'out' && Number(amount) > shift.expectedCash) return setProblem(`There is only ${naira(shift.expectedCash)} in the drawer, so ${naira(Number(amount))} cannot be taken out. Take out no more than what is there.`)
     setProblem(null)
     void runner.run((k) => cashMovement(businessId, shift.id, dir, Number(amount), why, k), 'Recorded.').then(() => { setAmount(''); setWhy('') })
   }
   return (
-    <DetailPage title={`Shift ${shift.number}`} onClose={onClose} wide>
+    <DetailPage title={`Shift ${shift.number}`} onClose={onClose} wide actions={manage && idle ? <DeleteShift businessId={businessId} shift={shift} onDeleted={async () => { onClose(); await onChanged() }} /> : undefined}>
       <div className="space-y-4 text-sm">
         <dl className="grid gap-2 sm:grid-cols-3">
           {[['Opening cash', shift.openingCash], ['Cash sales', shift.cashSales], ['Cash refunds', -shift.cashRefunds], ['Cash in', shift.movedIn], ['Cash out', -shift.movedOut]].map(([l, v]) => <div key={String(l)} className="rounded-md bg-surface p-2"><dt className="text-xs text-ink/60">{l}</dt><dd className="tabular font-semibold">{naira(Number(v))}</dd></div>)}
           <div className="rounded-md bg-amber/20 p-2"><dt className="text-xs text-ink/70">Cash expected in the drawer</dt><dd className="tabular font-semibold">{naira(shift.expectedCash)}</dd></div>
         </dl>
+        <details className="rounded-md border border-line bg-surface/60 p-3 text-xs text-ink/80">
+          <summary className="cursor-pointer text-sm font-semibold text-ink">How the cash is worked out</summary>
+          <div className="mt-2 space-y-2">
+            <p><b>Cash expected in the drawer</b> = opening cash + cash sales − cash refunds + cash in − cash out.</p>
+            <p><b>Cash sales</b> are only what customers paid in cash for the things they bought. The change handed back is never counted, and card, transfer and POS payments are not cash, so they are left out.</p>
+            <p><b>Cash in</b> is money you put into the drawer that is not a sale: for example change brought from the safe, or the owner topping up the float. <b>Cash out</b> is money you take from the drawer that is not a refund: for example a bank drop, paying a delivery person, or an errand. Each needs a reason, and both appear in this shift's record.</p>
+            <p><b>Cash out cannot be more than what is in the drawer.</b> If the drawer should hold {naira(shift.expectedCash)}, you can take out at most {naira(shift.expectedCash)}. This stops the expected cash from going below zero and a short drawer from being hidden by a large payout.</p>
+            <p><b>Closing:</b> count the real cash and type it in. The difference between what you counted and what was expected is recorded; a manager must write a note if it does not match. A shift cannot be edited after it is closed.</p>
+            <p><b>Deleting:</b> only a manager can delete a shift, and only one where nothing happened (opened by mistake, no cash sales, refunds or cash in and out). A shift with any cash activity is a money record: it is kept, closed and reviewed, never deleted.</p>
+          </div>
+        </details>
         {shift.otherMethods > 0 && <p className="text-xs text-ink/60">Card, transfer and other payments this shift: {naira(shift.otherMethods)}. These are not cash and are not counted in the drawer.</p>}
         <div>
           <h3 className="mb-1 font-semibold">Cash in and out</h3>
           {moves.data?.length ? <ul className="mb-2 divide-y divide-ink/10">{moves.data.map((m) => <li key={m.id} className="flex justify-between py-1"><span>{m.reason}</span><span className="tabular">{m.direction === 'in' ? '+' : '-'}{naira(m.amount)}</span></li>)}</ul> : <p className="mb-2 text-ink/60">None yet.</p>}
+          {isOpen && <p className="mb-1 text-xs text-ink/60">In the drawer now: <b className="tabular">{naira(shift.expectedCash)}</b>. Cash out can be at most this.</p>}
           {isOpen && (
             <form onSubmit={addMove} className="grid items-end gap-2 sm:grid-cols-[110px_130px_1fr_auto]">
-              <SelectField label="Type" value={dir} onChange={(e) => setDir(e.target.value as 'in' | 'out')}><option value="out">Cash out</option><option value="in">Cash in</option></SelectField>
+              <SelectField label="Type" value={dir} onChange={(e) => setDir(e.target.value as 'in' | 'out')}><option value="out">Take cash OUT</option><option value="in">Put cash IN</option></SelectField>
               <TextField label="Amount" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <TextField label="Reason" value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Change float, bank drop, errand" />
+              <TextField label="Reason" value={why} onChange={(e) => setWhy(e.target.value)} placeholder={dir === 'out' ? 'Bank drop, errand, supplier' : 'Float from the safe, top-up'} />
               <Button type="submit" variant="secondary" loading={runner.busy}>Add</Button>
             </form>
           )}
@@ -143,5 +158,31 @@ function ShiftDialog({ businessId, shift, manage, onClose, onChanged }: { busine
         <div className="flex justify-end"><Button variant="secondary" onClick={onClose}>Close</Button></div>
       </div>
     </DetailPage>
+  )
+}
+
+/** A manager's way to remove a shift that was opened by mistake. The reason is kept in the audit trail. */
+function DeleteShift({ businessId, shift, onDeleted }: { businessId: string; shift: ShiftSummary; onDeleted: () => Promise<void> }) {
+  const [asking, setAsking] = useState(false); const [reason, setReason] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null)
+  async function confirm() {
+    if (reason.trim().length < 3) return setError('Say why, in a few words.')
+    setBusy(true); setError(null); const err = await deleteShift(businessId, shift.id, reason); setBusy(false)
+    if (err) return setError(err)
+    setAsking(false); await onDeleted()
+  }
+  return (
+    <>
+      <Button variant="secondary" onClick={() => { setError(null); setAsking(true) }}>Delete shift</Button>
+      {asking && (
+        <Dialog title={`Delete shift ${shift.number}?`} onClose={() => setAsking(false)}>
+          <div className="space-y-3 text-sm">
+            <p>This shift has no cash sales, refunds or cash in and out, so it can be removed. This cannot be undone; the reason is kept in the audit trail.</p>
+            <TextField label="Why is it being deleted?" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Opened by mistake" autoFocus />
+            {error && <ErrorState title="Not deleted" message={error} />}
+            <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setAsking(false)}>Cancel</Button><Button loading={busy} onClick={() => void confirm()} className="bg-danger text-white hover:bg-danger/90">Delete</Button></div>
+          </div>
+        </Dialog>
+      )}
+    </>
   )
 }

@@ -20,7 +20,7 @@ export interface SaleDetail { sale: SaleDto; items: SaleItemDto[]; payments: Pay
 export interface PurchaseDto { id: string; number: string; supplierId: string; reference: string | null; status: string; paymentStatus: string; total: number; amountPaid: number; at: string }
 export interface PurchaseItemDto { id: string; productId: string; ordered: number; received: number; unitCost: number; lineTotal: number }
 export interface PurchaseDetail { purchase: PurchaseDto; items: PurchaseItemDto[]; payments: PaymentDto[] }
-export interface ReceiptData { business: { name: string; currency: string }; sale: { sale_number: string; sold_at: string; subtotal: number; discount_total: number; tax_total: number; grand_total: number; amount_paid: number; balance_due: number; status: string }; customer: { name: string; phone?: string | null } | null; items: { description: string; quantity: number; unit_price: number; discount: number; tax: number; total: number }[]; payments: { method: string; amount: number; status: string; type: string; at: string }[] }
+export interface ReceiptData { business: { name: string; currency: string; address?: string | null; phone?: string | null; footer?: string | null }; cashier?: string | null; tender?: { tendered: number; change: number } | null; sale: { sale_number: string; sold_at: string; subtotal: number; discount_total: number; tax_total: number; grand_total: number; amount_paid: number; balance_due: number; status: string }; customer: { name: string; phone?: string | null } | null; items: { description: string; quantity: number; unit_price: number; discount: number; tax: number; total: number }[]; payments: { method: string; amount: number; status: string; type: string; at: string }[] }
 
 const n = (v: unknown) => Number(v ?? 0)
 const msg = (e: { message: string } | null) => e?.message ?? null
@@ -215,7 +215,9 @@ export async function receiptData(b: string, saleId: string): Promise<ReceiptDat
     const sale = t.sales.find((x) => x.id === saleId)!
     const cust = t.customers.find((c) => c.id === sale.customerId)
     return {
-      business: { name: getDemoState().businesses.find((x) => x.id === b)?.name ?? 'Business', currency: 'NGN' },
+      business: { name: getDemoState().businesses.find((x) => x.id === b)?.name ?? 'Business', currency: 'NGN', address: getDemoState().businesses.find((x) => x.id === b)?.settings?.receipt?.address ?? null, phone: getDemoState().businesses.find((x) => x.id === b)?.settings?.receipt?.phone ?? null, footer: getDemoState().businesses.find((x) => x.id === b)?.settings?.receipt?.footer ?? null },
+      cashier: getDemoState().users.find((u) => u.id === sale.by)?.name ?? null,
+      tender: sale.tendered ? { tendered: sale.tendered, change: sale.change ?? 0 } : null,
       sale: { sale_number: sale.number, sold_at: sale.soldAt, subtotal: sale.subtotal, discount_total: sale.discountTotal, tax_total: sale.taxTotal, grand_total: sale.grandTotal, amount_paid: sale.amountPaid, balance_due: sale.balanceDue, status: sale.status },
       customer: cust ? { name: cust.name, phone: cust.phone } : null,
       items: d.items.map((i) => ({ description: i.description, quantity: i.quantity, unit_price: i.unitPrice, discount: i.discount, tax: i.tax, total: i.total })),
@@ -294,4 +296,10 @@ export async function daySummary(businessId: string, day: string): Promise<DaySu
     byCashier: arr<{ cashier: string; sales: number; total: number }>(x.by_cashier).map((c) => ({ cashier: c.cashier, sales: n(c.sales), total: n(c.total) })),
     topProducts: arr<{ name: string; quantity: number; total: number }>(x.top_products).map((p) => ({ name: p.name, quantity: n(p.quantity), total: n(p.total) })),
   }
+}
+
+/** Keeps the cash a customer handed over for a sale, so the receipt can show cash given and change. Best effort: the sale itself is already recorded. */
+export async function recordSaleTender(saleId: string, tendered: number, businessId: string): Promise<string | null> {
+  if (isDemoMode) return demo.demoRecordTender(businessId, saleId, tendered)
+  return msg((await db().rpc('record_sale_tender', { p_sale: saleId, p_tendered: tendered })).error)
 }

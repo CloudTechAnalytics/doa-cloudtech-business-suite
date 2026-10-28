@@ -14,7 +14,7 @@ import { demoUsageCheck, monthStart, registerUsageCounter } from '@/demo/demoUsa
 export interface DCustomer { id: string; businessId: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; createdAt: string; company?: string | null; contactPerson?: string | null; city?: string | null; address?: string | null; notes?: string | null }
 export interface DSupplier { id: string; businessId: string; name: string; phone: string | null; contactName?: string | null; email?: string | null; address?: string | null }
 export interface DPayment { by?: string | null; id: string; businessId: string; saleId: string | null; purchaseId: string | null; returnId: string | null; type: 'sale_receipt' | 'refund' | 'purchase_payment'; method: string; amount: number; status: 'pending' | 'successful' | 'reversed'; reference: string | null; at: string }
-export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null }
+export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null; /** Cash the customer handed over, and the change given back (kept with the sale; printed on the receipt). */ tendered?: number | null; change?: number | null }
 export interface DSaleItem { id: string; saleId: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; unitCost: number | null; movementId: string | null }
 export interface DReturnItem { id: string; returnId: string; saleItemId: string; quantity: number; refund: number; disposition?: 'restock' | 'discard' }
 export interface DReturn { id: string; saleId: string; number: string; reason: string; total: number; at?: string }
@@ -455,4 +455,20 @@ export function demoSalesDaySummary(biz: string, day: string): DDaySummary {
     byCashier: [...cashiers].map(([cashier, v]) => ({ cashier, sales: v.sales, total: back(v.total) })).sort((x, y) => y.total - x.total),
     topProducts: [...items].map(([name, v]) => ({ name, quantity: v.quantity, total: back(v.total) })).sort((x, y) => y.total - x.total).slice(0, 5),
   }
+}
+
+/** Mirrors record_sale_tender(): the cash a customer handed over for a sale, which must cover the cash part; the change is the difference. Once only. */
+export function demoRecordTender(biz: string, saleId: string, tendered: number): string | null {
+  return run(biz, 'sale_tender', 'tender-' + saleId + '-' + Math.random().toString(36).slice(2), 'sales', 'sales.create', ({ t }) => {
+    const sale = t.sales.find((s) => s.id === saleId && s.businessId === biz)
+    if (!sale) throw new Error('permission denied')
+    if (sale.by !== getDemoState().userId && !demoCanTrade(biz, 'sales.void')) throw new Error('permission denied')
+    if (!(tendered > 0) || Math.round(tendered * 100) / 100 !== tendered) throw new Error('the cash given must be above zero, with at most 2 decimals')
+    const cash = Math.round(t.payments.filter((p) => p.saleId === saleId && p.method === 'cash' && p.type === 'sale_receipt' && p.status === 'successful').reduce((a, p) => a + p.amount * 100, 0)) / 100
+    if (cash <= 0) throw new Error('this sale was not paid in cash')
+    if (tendered < cash) throw new Error(`the cash given (${tendered}) is less than the cash paid for the sale (${cash})`)
+    if (sale.tendered) throw new Error('the cash given was already recorded for this sale')
+    sale.tendered = tendered; sale.change = Math.round((tendered - cash) * 100) / 100
+    return null
+  }).error
 }

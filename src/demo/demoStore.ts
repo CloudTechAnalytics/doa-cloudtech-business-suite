@@ -15,7 +15,7 @@ import { INDUSTRY_TEMPLATES, compatibleModules, defaultModules } from '@/core/mo
  */
 
 export interface DemoUser { id: string; email: string; password: string; name: string; mustChange?: boolean }
-export interface DemoSettings { tax_rate_percent?: number; theme?: string; setup?: Record<string, string | number | boolean> }
+export interface DemoSettings { tax_rate_percent?: number; theme?: string; receipt?: { address?: string; phone?: string; footer?: string }; setup?: Record<string, string | number | boolean> }
 export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean; suspended?: boolean; createdAt?: string; startedWithApp?: string | null }
 export interface DemoAppEvent { businessId: string; module: string; action: 'start' | 'on' | 'off'; at: string; by: string | null }
 export interface DemoMember { id: string; businessId: string; userId: string | null; email: string; name: string; role: RoleName; status: 'active' | 'suspended' | 'revoked' | 'invited' }
@@ -211,6 +211,18 @@ export function demoSetTheme(businessId: string, theme: string): string | null {
   if (!b || !canManageStaff(demoRoleIn(businessId))) return 'permission denied'
   if (!THEMES.some((t) => t.key === theme)) return 'choose one of the colour themes'
   commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, settings: { ...x.settings, theme } } : x)) })
+  return null
+}
+
+/** Mirrors set_business_receipt(): settings managers only, up to 200 characters each; empty details are cleared. */
+export function demoSetReceipt(businessId: string, v: { address: string; phone: string; footer: string }): string | null {
+  const b = state.businesses.find((x) => x.id === businessId && !x.archived)
+  if (!b || !canManageStaff(demoRoleIn(businessId))) return 'permission denied'
+  if ([v.address, v.phone, v.footer].some((x) => x.length > 200)) return 'each receipt detail can be up to 200 characters'
+  const receipt = Object.fromEntries(Object.entries({ address: v.address.trim(), phone: v.phone.trim(), footer: v.footer.trim() }).filter(([, x]) => x))
+  const { receipt: _old, ...rest } = b.settings ?? {}
+  void _old
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, settings: Object.keys(receipt).length ? { ...rest, receipt } : rest } : x)) })
   return null
 }
 

@@ -375,6 +375,11 @@ export function demoCashMovement(biz: string, shiftId: string, direction: 'in' |
     if (direction !== 'in' && direction !== 'out') throw new Error('choose cash in or cash out')
     if (!(amount > 0) || r2(amount) !== amount) throw new Error('amount must be positive with at most 2 decimals')
     if (reason.trim().length < 3) throw new Error('a reason is required')
+    if (direction === 'out') {
+      const drawer = demoShiftSummaries(biz).find((x) => x.id === shiftId)?.expectedCash ?? 0
+      const money = (v: number) => '₦' + v.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      if (amount > drawer) throw new Error(`there is only ${money(drawer)} in the drawer, so ${money(amount)} cannot be taken out`)
+    }
     m.moves.push({ id: newId('cm'), shiftId, direction, amount, reason: reason.trim(), at: new Date().toISOString() })
     return { shiftId }
   })
@@ -393,6 +398,20 @@ export function demoCloseShift(biz: string, shiftId: string, counted: number, no
     Object.assign(s, { status: 'closed', counted, expected, variance: r2(counted - expected), notes: notes.trim() || null })
     return { shiftId, expectedCash: expected, variance: r2(counted - expected) }
   })
+}
+
+/** Mirrors mart_delete_shift(): a manager may delete a shift with no cash sales, refunds or cash in and out; anything else is a money record. */
+export function demoDeleteShift(biz: string, shiftId: string, reason: string): string | null {
+  return run(biz, 'mart_delete_shift', null, ['retail-shifts'], ['retail.manage'], ({ m }) => {
+    const s = m.shifts.find((x) => x.id === shiftId && x.businessId === biz)
+    if (!s) throw new Error('permission denied')
+    if (reason.trim().length < 3) throw new Error('a reason is required')
+    const sum = demoShiftSummaries(biz).find((x) => x.id === shiftId)
+    if (!sum || sum.cashSales !== 0 || sum.cashRefunds !== 0 || sum.movedIn !== 0 || sum.movedOut !== 0) throw new Error('this shift has cash sales or cash in and out, so it is a money record and cannot be deleted; close it and mark it reviewed instead')
+    m.shifts = m.shifts.filter((x) => x.id !== shiftId)
+    m.moves = m.moves.filter((x) => x.shiftId !== shiftId)
+    return null
+  }).error
 }
 
 export function demoReviewShift(biz: string, shiftId: string, note: string): string | null {

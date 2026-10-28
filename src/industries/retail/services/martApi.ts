@@ -145,6 +145,10 @@ export async function cashMovement(b: string, shiftId: string, direction: 'in' |
   if (isDemoMode) return mart.demoCashMovement(b, shiftId, direction, amount, reason, key).error
   return msg((await db().rpc('mart_cash_movement', { p_shift: shiftId, p_direction: direction, p_amount: amount, p_reason: reason, p_key: key })).error)
 }
+export async function deleteShift(b: string, shiftId: string, reason: string) {
+  if (isDemoMode) return mart.demoDeleteShift(b, shiftId, reason)
+  return msg((await db().rpc('mart_delete_shift', { p_shift: shiftId, p_reason: reason })).error)
+}
 export async function closeShift(b: string, shiftId: string, counted: number, notes: string, key: string) {
   if (isDemoMode) return mart.demoCloseShift(b, shiftId, counted, notes, key).error
   return msg((await db().rpc('mart_close_shift', { p_shift: shiftId, p_counted: counted, p_notes: notes || null, p_key: key })).error)

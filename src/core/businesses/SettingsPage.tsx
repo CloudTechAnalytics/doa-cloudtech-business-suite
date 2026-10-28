@@ -14,7 +14,8 @@ import { myTradePermissions } from '@/modules/sales/tradeApi'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { Button, Card, ErrorState, Notice, PageHeader, SelectField } from '@/shared/components'
-import { setBusinessTax, setBusinessTheme } from '@/core/businesses/businessActions'
+import { setBusinessReceipt, setBusinessTax, setBusinessTheme } from '@/core/businesses/businessActions'
+import type { ReceiptDetails } from '@/core/business-context/receiptDetails'
 import { THEMES, applyTheme, themeByKey } from '@/core/theme/themes'
 
 const BADGE: Record<ModuleStatus['availability'], string> = {
@@ -113,6 +114,8 @@ export function SettingsPage() {
 
       {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <SalesTax businessId={active.id} current={active.taxRate ?? 0} onSaved={refreshBusinesses} />}
 
+      {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <ReceiptSettings businessId={active.id} current={active.receipt ?? { address: '', phone: '', footer: '' }} onSaved={refreshBusinesses} />}
+
       <Card className="mb-4">
         <h2 className="mb-2 text-sm font-semibold">Modules</h2>
         <p className="mb-3 text-xs text-ink/60">Turning a module off never deletes its records; they stay readable and reappear if you turn it back on.</p>
@@ -158,6 +161,29 @@ export function SettingsPage() {
       </Card>
       {perms.data?.includes('audit.read') && <AuditPanel businessId={active.id} />}
     </>
+  )
+}
+
+/** What is printed on every receipt besides the sale itself: where the shop is, how to reach it, and a closing line. */
+function ReceiptSettings({ businessId, current, onSaved }: { businessId: string; current: ReceiptDetails; onSaved: () => Promise<void> }) {
+  const [v, setV] = useState(current); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const set = (k: keyof ReceiptDetails) => (e: { target: { value: string } }) => { setV({ ...v, [k]: e.target.value }); setMsg(null) }
+  async function save() {
+    setBusy(true); const err = await setBusinessReceipt(businessId, v); setBusy(false)
+    if (err) return setMsg({ ok: false, text: err })
+    await onSaved(); setMsg({ ok: true, text: 'Saved. New receipts show these details.' })
+  }
+  return (
+    <Card className="mb-4">
+      <h2 className="mb-1 text-sm font-semibold">Receipt details</h2>
+      <p className="mb-3 text-xs text-ink/60">Printed on every receipt under the shop name, and at the bottom. Leave a box empty to leave it off.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium text-ink/70 sm:col-span-2">Address<input value={v.address} onChange={set('address')} maxLength={200} placeholder="12 Market Road, Ikeja, Lagos" className="mt-1 h-10 w-full rounded-md border border-line bg-white px-3 text-sm font-normal text-ink" /></label>
+        <label className="text-xs font-medium text-ink/70">Phone<input value={v.phone} onChange={set('phone')} maxLength={200} placeholder="0803 123 4567" className="mt-1 h-10 w-full rounded-md border border-line bg-white px-3 text-sm font-normal text-ink" /></label>
+        <label className="text-xs font-medium text-ink/70">Closing line<input value={v.footer} onChange={set('footer')} maxLength={200} placeholder="Thank you. Goods sold are not returnable." className="mt-1 h-10 w-full rounded-md border border-line bg-white px-3 text-sm font-normal text-ink" /></label>
+      </div>
+      <div className="mt-3 flex items-center gap-3"><Button onClick={() => void save()} loading={busy}>Save</Button>{msg && <p role={msg.ok ? 'status' : 'alert'} className={`text-sm ${msg.ok ? 'text-ink/70' : 'text-danger'}`}>{msg.text}</p>}</div>
+    </Card>
   )
 }
 

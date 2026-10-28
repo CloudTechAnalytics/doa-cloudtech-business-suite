@@ -1,4 +1,4 @@
-import { demoArchiveBusiness, demoSetTax, demoSetTheme } from '@/demo/demoStore'
+import { demoArchiveBusiness, demoSetReceipt, demoSetTax, demoSetTheme } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 
@@ -20,5 +20,12 @@ export async function setBusinessTheme(businessId: string, theme: string): Promi
 export async function setBusinessTax(businessId: string, rate: number): Promise<string | null> {
   if (isDemoMode) return demoSetTax(businessId, rate)
   const { error } = await supabase!.rpc('set_business_tax', { p_business: businessId, p_rate: rate })
+  return error?.message ?? null
+}
+
+/** Saves what the business prints on its receipts (address, phone, closing line). Owners and admins only. Returns an error message or null. */
+export async function setBusinessReceipt(businessId: string, v: { address: string; phone: string; footer: string }): Promise<string | null> {
+  if (isDemoMode) return demoSetReceipt(businessId, v)
+  const { error } = await supabase!.rpc('set_business_receipt', { p_business: businessId, p_address: v.address, p_phone: v.phone, p_footer: v.footer })
   return error?.message ?? null
 }

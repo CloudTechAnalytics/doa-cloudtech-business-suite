@@ -17,6 +17,7 @@ import { changeDue, holdLabel, loadHeld, paidOf, paymentsOf, remainingOf, saveHe
 import type { HeldSale, PayRow } from '@/modules/sales/till'
 import { ReceiptDialog } from '@/modules/sales/Receipt'
 import { PictureViewer, ProductThumb } from '@/modules/inventory/ProductPicture'
+import { ScanButton, codeFrom } from '@/shared/components/BarcodeScanner'
 import { loadThumbs } from '@/modules/inventory/productPictures'
 import * as api from '@/modules/sales/tradeApi'
 import type { CustomerDto, SaleDetail } from '@/modules/sales/tradeApi'
@@ -127,11 +128,12 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
   const setLine = (key: string, patch: Partial<CartLine>) => setCart((c) => c.map((l) => (lineKey(l) === key ? { ...l, ...patch } : l)))
   const remove = (key: string) => setCart((c) => c.filter((l) => lineKey(l) !== key))
   /** A barcode scanner types the code and presses Enter: add the exact match and clear the box for the next scan. */
-  function scan() {
-    const t = search.trim().toLowerCase()
-    if (!t) return
-    const hit = catalog.products.find((p) => p.status === 'active' && (p.barcode?.toLowerCase() === t || p.sku?.toLowerCase() === t))
-    if (!hit) return setError(`No product has the code ${search.trim()}.`)
+  function scan(code?: string) {
+    const raw = (code ?? search).trim()
+    if (!raw) return
+    const tries = codeFrom(raw).map((x) => x.toLowerCase())
+    const hit = catalog.products.find((p) => p.status === 'active' && tries.some((t) => p.barcode?.toLowerCase() === t || p.sku?.toLowerCase() === t))
+    if (!hit) return setError(`No product has the code ${raw}. Add it under Products: scan the same code into the product's Barcode box.`)
     if (onHand(hit.id) <= 0) return setError(`${hit.name} is out of stock.`)
     setError(null); add(hit.id); setSearch('')
   }
@@ -150,6 +152,8 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
       pays, key.current())
     setBusy(false)
     if (r.error) return setError(r.error)
+    // The cash the customer handed over is kept with the sale so the receipt can show cash given and change. The sale is already recorded, so a failure here is not shown.
+    if (r.saleId && cashDue > 0 && Number(given) >= cashDue) await api.recordSaleTender(r.saleId, Math.round(Number(given) * 100) / 100, businessId).catch(() => null)
     key.renew(); setCart([]); setRows([{ method: 'cash', amount: '' }]); setGiven(''); setCustomerId('')
     await onSold(r.saleId!)
   }
@@ -161,6 +165,7 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
       <div>
         <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_200px]">
           <div className="relative">
+            <div className="absolute right-0 top-0"><ScanButton onScan={(c) => scan(c)} label="Scan" title="Scan a product" /></div>
             <Search className="pointer-events-none absolute left-3 top-9 size-4 text-ink/40" aria-hidden />
             <TextField label="Find a product" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scan() } }} placeholder="Name, SKU or barcode (scan, then Enter)" className="pl-9" />
           </div>
@@ -256,7 +261,7 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
             </div>
           ))}
           <button type="button" onClick={() => setRows((x) => [...x, { method: 'bank_transfer', amount: '' }])} className="text-xs font-semibold text-accent underline">Split between another way of paying</button>
-          {pays.some((p) => p.method === 'cash') && <TextField label="Cash given (₦)" type="number" min="0" step="0.01" value={given} onChange={(e) => setGiven(e.target.value)} hint={change > 0 ? `Change to give back: ${naira(change)}` : 'To work out the change (not recorded)'} />}
+          {pays.some((p) => p.method === 'cash') && <TextField label="Cash given (₦)" type="number" min="0" step="0.01" value={given} onChange={(e) => setGiven(e.target.value)} hint={change > 0 ? `Change to give back: ${naira(change)}` : 'To work out the change; it is kept with the sale and printed on the receipt'} />}
           {balance > 0 && <p className="text-xs text-warning">{rows.length > 1 || paying > 0 ? 'Still to pay' : 'On credit'}: {naira(balance)}</p>}
         </div>
         {error && <ErrorState title="Sale not posted" message={error} />}

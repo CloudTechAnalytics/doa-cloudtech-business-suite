@@ -17,6 +17,7 @@ import { UndoMovementDialog } from '@/modules/inventory/UndoMovementDialog'
 import { loadThumbs, setProductImage } from '@/modules/inventory/productPictures'
 import type { ProductPicture } from '@/modules/inventory/productPictures'
 import { isDemoMode } from '@/shared/utilities/env'
+import { ScanButton, codeFrom } from '@/shared/components/BarcodeScanner'
 import type { MartLotRow, MartProductInput, MartProductRow } from '../services/martApi'
 import { parseCsv, toCsv } from '../csv'
 import { openRow } from '@/shared/utilities/rows'
@@ -168,7 +169,14 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
   const [picture, setPicture] = useState<ProductPicture | null | undefined>(undefined)
   const [priceNow, setPriceNow] = useState(product ? String(product.price) : '')
   const [nameNow, setNameNow] = useState(product?.name ?? '')
-  async function toggleArchive() {
+  const [barcode, setBarcode] = useState(product?.barcode ?? '')
+  const [confirmArchive, setConfirmArchive] = useState<null | (() => void)>(null)
+  function toggleArchive() {
+    if (!product) return
+    if (product.active) return setConfirmArchive(() => () => void archiveNow())
+    void archiveNow()
+  }
+  async function archiveNow() {
     if (!product) return
     const err = await inv.setProductStatus(businessId, product.id, product.active ? 'archived' : 'active')
     if (err) return setErrors({ name: err })
@@ -191,22 +199,25 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
       price: Math.round(Number(s('price')) * 100) / 100, wholesale: s('wholesale') === '' ? null : Math.round(Number(s('wholesale')) * 100) / 100, reorder: s('reorder') === '' ? null : Number(s('reorder')),
       supplierId: s('supplier') || null, trackExpiry: f.get('expiry') === 'on', active: product ? f.get('active') === 'on' : true, packs: packs.map((k) => ({ name: k.name.trim(), units: Number(k.units), price: k.price.trim() === '' ? null : Math.round(Number(k.price) * 100) / 100 })),
     }
-    await runner.run(async (k) => {
+    const save = () => runner.run(async (k) => {
       const err = await saveProduct(businessId, input, k)
       if (err || picture === undefined) return err
       const id = product?.id ?? (await loadProducts(businessId)).find((p) => p.name.trim().toLowerCase() === input.name.trim().toLowerCase())?.id
       return id ? setProductImage(businessId, id, picture) : 'The product was saved, but its picture could not be attached. Open it and add the picture again.'
     }, 'Saved.')
+    // Unticking Active archives the product: ask first.
+    if (product && product.active && f.get('active') !== 'on') return setConfirmArchive(() => () => void save())
+    await save()
   }
   return (
-    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} actions={product ? <div className="flex gap-2"><Button variant="secondary" onClick={() => void toggleArchive()}>{product.active ? 'Archive' : 'Restore'}</Button><DeleteButton onArchive={() => inv.setProductStatus(businessId, product.id, 'archived')} businessId={businessId} kind="product" id={product.id} label={product.name} noun="product" onDeleted={onSaved} /></div> : undefined} wide>
+    <DetailPage title={product ? `Edit ${product.name}` : 'Add a product'} onClose={onClose} view={!!product} modal={!product} actions={product ? <div className="flex gap-2"><Button variant="secondary" onClick={() => toggleArchive()}>{product.active ? 'Archive' : 'Restore'}</Button><DeleteButton onArchive={() => inv.setProductStatus(businessId, product.id, 'archived')} businessId={businessId} kind="product" id={product.id} label={product.name} noun="product" onDeleted={onSaved} /></div> : undefined} wide>
       <form onSubmit={submit} noValidate className="space-y-4">
         <PictureField name={nameNow} current={thumb} picture={picture} onChange={setPicture} />
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2"><TextField label="Name" name="name" defaultValue={product?.name} onChange={(e) => setNameNow(e.target.value)} error={errors.name} autoFocus maxLength={200} /></div>
           <SelectField label="Category" name="category" defaultValue={product?.categoryId ?? ''}><option value="">None</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</SelectField>
           <TextField label="SKU (optional)" name="sku" defaultValue={product?.sku ?? ''} />
-          <TextField label="Barcode (optional)" name="barcode" defaultValue={product?.barcode ?? ''} hint="A scanner types this into the till." />
+          <div><TextField label="Barcode or QR code (optional)" name="barcode" value={barcode} onChange={(e) => setBarcode(e.target.value)} hint="Scan the code printed on the product itself, and the till finds it when that item is scanned. A USB or Bluetooth scanner types into this box." /><div className="mt-1"><ScanButton label="Scan with camera" title="Scan the product's own code" onScan={(c) => setBarcode(codeFrom(c)[0])} /></div></div>
           <TextField label="Brand (optional)" name="brand" defaultValue={product?.brand ?? ''} />
           <TextField label="Selling price" name="price" type="number" min="0" step="0.01" defaultValue={product?.price ?? ''} onChange={(e) => setPriceNow(e.target.value)} error={errors.price} hint="For one unit. A pack sells for this price times its units, unless you give the pack its own price below." />
           <TextField label="Cost price" name="cost" type="number" min="0" step="0.01" defaultValue={product?.costPrice ?? ''} error={errors.cost} hint="Per unit; receiving stock sets the real average." />
@@ -235,6 +246,15 @@ function ProductDialog({ businessId, product, thumb, categories, suppliers, onCl
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="expiry" defaultChecked={product?.trackExpiry} /> Track batch and expiry date <span className="text-ink/60">(stock is then sold oldest expiry first)</span></label>
         {product && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={product.active} /> Active <span className="text-ink/60">(archived products cannot be sold)</span></label>}
         {runner.error && <ErrorState title="Not saved" message={runner.error} />}
+        {confirmArchive && (
+          <Dialog title={`Archive ${product?.name ?? 'this product'}?`} onClose={() => setConfirmArchive(null)}>
+            <div className="space-y-3 text-sm">
+              <p>It will disappear from the till and the product lists, and it cannot be sold while archived.</p>
+              <p className="text-ink/70">Its sales, stock and history stay in your records. You can bring it back any time: Products, Show, Archived, open it and press Restore.</p>
+              <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setConfirmArchive(null)}>Cancel</Button><Button type="button" onClick={() => { const go = confirmArchive; setConfirmArchive(null); go() }}>Yes, archive it</Button></div>
+            </div>
+          </Dialog>
+        )}
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy}>{product ? 'Save' : 'Add product'}</Button></div>
       </form>
     </DetailPage>

@@ -166,3 +166,39 @@ describe('a pack with a price of its own, in the demo as in the database', () =>
     expect(row(name).packs.find((k) => k.name === 'carton')!.price).toBeNull()
   })
 })
+
+describe('shifts, cash given and receipts in the demo, as in the database', () => {
+  it('lets cash out be at most what is in the drawer, in words a person understands', () => {
+    as('owner@demo.test')
+    expect(mart.demoOpenShift(B, 1000, key()).error).toBeNull()
+    const shift = mart.demoShiftSummaries(B).find((s) => s.status === 'open' && s.openingCash === 1000)!
+    expect(mart.demoCashMovement(B, shift.id, 'out', 1500, 'Bank drop', key()).error).toMatch(/there is only ₦1,000.00 in the drawer, so ₦1,500.00 cannot be taken out/)
+    expect(mart.demoCashMovement(B, shift.id, 'out', 400, 'Bank drop', key()).error).toBeNull()
+    expect(mart.demoShiftSummaries(B).find((s) => s.id === shift.id)!.expectedCash).toBe(600)
+    expect(mart.demoCloseShift(B, shift.id, 600, '', key()).error).toBeNull()
+  })
+  it('deletes a shift where nothing happened, with a reason, and keeps one that has cash activity', () => {
+    as('owner@demo.test')
+    expect(mart.demoOpenShift(B, 250, key()).error).toBeNull()
+    const idle = mart.demoShiftSummaries(B).find((s) => s.status === 'open' && s.openingCash === 250)!
+    expect(mart.demoDeleteShift(B, idle.id, 'x')).toMatch(/reason is required/)
+    expect(mart.demoDeleteShift(B, idle.id, 'Opened by mistake')).toBeNull()
+    expect(mart.demoShiftSummaries(B).some((s) => s.id === idle.id)).toBe(false)
+    expect(mart.demoOpenShift(B, 300, key()).error).toBeNull()
+    const busy = mart.demoShiftSummaries(B).find((s) => s.status === 'open' && s.openingCash === 300)!
+    expect(mart.demoCashMovement(B, busy.id, 'in', 50, 'Float', key()).error).toBeNull()
+    expect(mart.demoDeleteShift(B, busy.id, 'Opened by mistake')).toMatch(/money record/)
+    expect(mart.demoCloseShift(B, busy.id, 350, '', key()).error).toBeNull()
+  })
+  it('keeps the cash given for a sale, works out the change, and refuses too little, a second record and a card sale', () => {
+    as('owner@demo.test')
+    const p = row('Pack price probe').id
+    const sale = (method: string, amount: number) => mart.demoMartSale(B, loc, null, [{ productId: p, quantity: 1 }], [{ method, amount }], key()).result!.saleId
+    const s1 = sale('cash', 200)
+    expect(trade.demoRecordTender(B, s1, 150)).toMatch(/less than the cash paid/)
+    expect(trade.demoRecordTender(B, s1, 500)).toBeNull()
+    expect(trade.getTrade().sales.find((s) => s.id === s1)).toMatchObject({ tendered: 500, change: 300 })
+    expect(trade.demoRecordTender(B, s1, 600)).toMatch(/already recorded/)
+    expect(trade.demoRecordTender(B, sale('card', 200), 500)).toMatch(/not paid in cash/)
+  })
+})
