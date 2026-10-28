@@ -1,4 +1,4 @@
-import { demoArchiveBusiness, demoSetReceipt, demoSetTax, demoSetTheme } from '@/demo/demoStore'
+import { demoArchiveBusiness, demoSetReceipt, demoSetTax, demoSetTheme, demoSetUnlistedAllowed } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 
@@ -27,5 +27,12 @@ export async function setBusinessTax(businessId: string, rate: number): Promise<
 export async function setBusinessReceipt(businessId: string, v: { address: string; phone: string; footer: string }): Promise<string | null> {
   if (isDemoMode) return demoSetReceipt(businessId, v)
   const { error } = await supabase!.rpc('set_business_receipt', { p_business: businessId, p_address: v.address, p_phone: v.phone, p_footer: v.footer })
+  return error?.message ?? null
+}
+
+/** Lets cashiers sell items typed at the till that are not in the product list (owners and managers always may). Owners and admins only. Returns an error message or null. */
+export async function setUnlistedAllowed(businessId: string, allow: boolean): Promise<string | null> {
+  if (isDemoMode) return demoSetUnlistedAllowed(businessId, allow)
+  const { error } = await supabase!.rpc('set_unlisted_items_allowed', { p_business: businessId, p_allow: allow })
   return error?.message ?? null
 }

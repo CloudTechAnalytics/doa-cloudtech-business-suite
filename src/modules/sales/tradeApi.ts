@@ -13,7 +13,7 @@ import { supabase } from '@/shared/utilities/supabase'
 
 export interface CustomerDto { id: string; name: string; phone: string | null; creditLimit: number; outstanding: number }
 export interface SupplierDto { id: string; name: string; phone: string | null; contactName: string | null; email: string | null; address: string | null }
-export interface SaleDto { id: string; number: string; soldAt: string; customerId: string | null; status: string; paymentStatus: string; grandTotal: number; amountPaid: number; balanceDue: number; returnedTotal: number; refundDue: number }
+export interface SaleDto { id: string; number: string; soldAt: string; customerId: string | null; status: string; paymentStatus: string; grandTotal: number; amountPaid: number; balanceDue: number; returnedTotal: number; refundDue: number; /** The sale has a line typed at the till that is not in the product list. */ hasUnlisted?: boolean }
 export interface SaleItemDto { id: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; returnedQty: number }
 export interface PaymentDto { id: string; type: string; method: string; amount: number; status: string; reference: string | null; at: string }
 export interface SaleDetail { sale: SaleDto; items: SaleItemDto[]; payments: PaymentDto[] }
@@ -114,8 +114,8 @@ export async function updateSupplier(businessId: string, id: string, v: { name: 
 }
 
 // ------------------------------------------------------------------------------------ sales
-const saleFromDemo = (s: demo.DSale): SaleDto => ({ id: s.id, number: s.number, soldAt: s.soldAt, customerId: s.customerId, status: s.status, paymentStatus: s.paymentStatus, grandTotal: s.grandTotal, amountPaid: s.amountPaid, balanceDue: s.balanceDue, returnedTotal: s.returnedTotal, refundDue: s.refundDue })
-const saleFromRow = (s: Record<string, unknown>): SaleDto => ({ id: String(s.id), number: String(s.sale_number), soldAt: String(s.sold_at), customerId: (s.customer_id as string | null) ?? null, status: String(s.status), paymentStatus: String(s.payment_status), grandTotal: n(s.grand_total), amountPaid: n(s.amount_paid), balanceDue: n(s.balance_due), returnedTotal: n(s.returned_total), refundDue: n(s.refund_due) })
+const saleFromDemo = (s: demo.DSale): SaleDto => ({ id: s.id, number: s.number, soldAt: s.soldAt, customerId: s.customerId, status: s.status, paymentStatus: s.paymentStatus, grandTotal: s.grandTotal, amountPaid: s.amountPaid, balanceDue: s.balanceDue, returnedTotal: s.returnedTotal, refundDue: s.refundDue, hasUnlisted: s.hasUnlisted === true })
+const saleFromRow = (s: Record<string, unknown>): SaleDto => ({ id: String(s.id), number: String(s.sale_number), soldAt: String(s.sold_at), customerId: (s.customer_id as string | null) ?? null, status: String(s.status), paymentStatus: String(s.payment_status), grandTotal: n(s.grand_total), amountPaid: n(s.amount_paid), balanceDue: n(s.balance_due), returnedTotal: n(s.returned_total), refundDue: n(s.refund_due), hasUnlisted: s.has_unlisted === true })
 
 /** Sales, newest first. With a date range (YYYY-MM-DD, both ends included) up to 1000 of that period; without one, the latest 100. */
 export async function listSales(businessId: string, range?: { from?: string; to?: string }): Promise<SaleDto[]> {
@@ -156,7 +156,7 @@ export async function saleDetail(_businessId: string, saleId: string): Promise<S
   }
 }
 
-export interface CartLineInput { productId: string; quantity: number; unitPrice: number; discount: number; pack?: string | null }
+export interface CartLineInput { productId: string; quantity: number; unitPrice: number; discount: number; pack?: string | null; /** A line typed at the till, not in the product list. */ customName?: string }
 export interface PackDto { productId: string; name: string; units: number; /** The pack's own price, when it has one (cheaper than its units one by one). */ price: number | null }
 
 /** Pack sizes (carton, dozen) for products sold by the pack. Empty for businesses that do not use them. */
@@ -172,16 +172,16 @@ export interface TillPayment { method: string; amount: number; status?: 'pending
 export async function postSale(b: string, locationId: string, customerId: string | null, lines: CartLineInput[], payments: TillPayment[], key: string): Promise<{ saleId?: string; error?: string }> {
   const packed = lines.some((l) => l.pack)
   if (isDemoMode && packed) {
-    const r = martDemo.demoMartSale(b, locationId, customerId, lines.map((l) => ({ productId: l.productId, quantity: l.quantity, pack: l.pack ?? null, unitPrice: l.unitPrice, discount: l.discount })), payments, key)
+    const r = martDemo.demoMartSale(b, locationId, customerId, lines.map((l) => ({ productId: l.productId, quantity: l.quantity, pack: l.pack ?? null, unitPrice: l.unitPrice, discount: l.discount, customName: l.customName })), payments, key)
     return r.error ? { error: r.error } : { saleId: r.result!.saleId }
   }
   if (isDemoMode) {
-    const r = demo.demoPostSale(b, locationId, customerId, lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })), payments, key)
+    const r = demo.demoPostSale(b, locationId, customerId, lines.map((l) => (l.customName !== undefined ? { productId: '', quantity: l.quantity, customName: l.customName, customPrice: l.unitPrice, discount: l.discount } : { productId: l.productId, quantity: l.quantity, unitPrice: l.unitPrice, discount: l.discount })), payments, key)
     return r.error ? { error: r.error } : { saleId: r.result!.saleId }
   }
   const { data, error } = await db().rpc(packed ? 'mart_post_sale' : 'post_sale', {
     p_business: b, p_location: locationId, p_customer: customerId, p_key: key,
-    p_items: lines.map((l) => ({ product_id: l.productId, quantity: l.quantity, unit_price: l.unitPrice, discount_amount: l.discount, ...(packed ? { pack: l.pack ?? null } : {}) })),
+    p_items: lines.map((l) => (l.customName !== undefined ? { custom_name: l.customName, quantity: l.quantity, unit_price: l.unitPrice, discount_amount: l.discount } : { product_id: l.productId, quantity: l.quantity, unit_price: l.unitPrice, discount_amount: l.discount, ...(packed ? { pack: l.pack ?? null } : {}) })),
     p_payments: payments.map((p) => ({ method: p.method, amount: p.amount, status: p.status ?? 'successful', reference: p.reference ?? null })),
   })
   return error ? { error: error.message } : { saleId: (data as { sale_id: string }).sale_id }
@@ -302,4 +302,13 @@ export async function daySummary(businessId: string, day: string): Promise<DaySu
 export async function recordSaleTender(saleId: string, tendered: number, businessId: string): Promise<string | null> {
   if (isDemoMode) return demo.demoRecordTender(businessId, saleId, tendered)
   return msg((await db().rpc('record_sale_tender', { p_sale: saleId, p_tendered: tendered })).error)
+}
+
+/** May this person type in an item that is not in the product list, and which product do such lines sit on (so they can be recognised in a sale). */
+export async function tillOptions(businessId: string): Promise<{ allowed: boolean; productId: string | null }> {
+  if (isDemoMode) return { allowed: demo.demoUnlistedAllowed(businessId), productId: demo.demoUnlistedProductId(businessId) }
+  const r = await db().rpc('till_options', { p_business: businessId })
+  if (r.error) return { allowed: false, productId: null }
+  const x = r.data as { allowed?: boolean; product_id?: string | null }
+  return { allowed: x.allowed === true, productId: x.product_id ?? null }
 }

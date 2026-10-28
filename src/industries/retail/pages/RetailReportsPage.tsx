@@ -57,6 +57,7 @@ export function RetailReportsPage() {
                 <Figure title="Cost of goods sold" value={naira(f.cogs)} />
                 <Figure title="Gross profit" value={naira(f.grossProfit)} tone={f.grossProfit >= 0 ? 'good' : 'bad'} note={f.grossMarginPercent === null ? undefined : `${f.grossMarginPercent}% margin`} />
                 <Figure title="Operating profit (estimate)" value={naira(f.operatingProfitEstimate)} tone={f.operatingProfitEstimate >= 0 ? 'good' : 'bad'} note={`After expenses of ${naira(f.operatingExpenses)} and stock lost of ${naira((f.stockWriteOffs ?? 0) - (f.countDifference ?? 0))}`} />
+                {(f.unlistedCount ?? 0) > 0 && <Figure title="Sold without being in the product list" value={naira(f.unlistedSales ?? 0)} note={`${f.unlistedCount} sale${f.unlistedCount === 1 ? '' : 's'}: items typed at the till. Add them to Products to track stock and profit.`} />}
                 <Figure title="Stock lost" value={naira((f.stockWriteOffs ?? 0) - (f.countDifference ?? 0))} note={`Written off ${naira(f.stockWriteOffs ?? 0)}; counts ${(f.countDifference ?? 0) < 0 ? 'found short' : 'found extra'} ${naira(Math.abs(f.countDifference ?? 0))}`} />
                 <Figure title="Stock value (now)" value={naira(f.inventoryValue)} note="On hand at average cost" />
                 <Figure title="Owed to suppliers (now)" value={naira(f.supplierBalances)} />

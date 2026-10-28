@@ -15,7 +15,7 @@ import { INDUSTRY_TEMPLATES, compatibleModules, defaultModules } from '@/core/mo
  */
 
 export interface DemoUser { id: string; email: string; password: string; name: string; mustChange?: boolean }
-export interface DemoSettings { tax_rate_percent?: number; theme?: string; receipt?: { address?: string; phone?: string; footer?: string }; setup?: Record<string, string | number | boolean> }
+export interface DemoSettings { tax_rate_percent?: number; allow_unlisted_items?: boolean; theme?: string; receipt?: { address?: string; phone?: string; footer?: string }; setup?: Record<string, string | number | boolean> }
 export interface DemoBusiness { id: string; name: string; industry: IndustryCode; settings?: DemoSettings; archived?: boolean; suspended?: boolean; createdAt?: string; startedWithApp?: string | null }
 export interface DemoAppEvent { businessId: string; module: string; action: 'start' | 'on' | 'off'; at: string; by: string | null }
 export interface DemoMember { id: string; businessId: string; userId: string | null; email: string; name: string; role: RoleName; status: 'active' | 'suspended' | 'revoked' | 'invited' }
@@ -223,6 +223,14 @@ export function demoSetReceipt(businessId: string, v: { address: string; phone: 
   const { receipt: _old, ...rest } = b.settings ?? {}
   void _old
   commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, settings: Object.keys(receipt).length ? { ...rest, receipt } : rest } : x)) })
+  return null
+}
+
+/** Mirrors set_unlisted_items_allowed(): settings managers only. */
+export function demoSetUnlistedAllowed(businessId: string, allow: boolean): string | null {
+  const b = state.businesses.find((x) => x.id === businessId && !x.archived)
+  if (!b || !canManageStaff(demoRoleIn(businessId))) return 'permission denied'
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, settings: { ...x.settings, allow_unlisted_items: allow } } : x)) })
   return null
 }
 

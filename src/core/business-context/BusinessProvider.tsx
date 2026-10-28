@@ -23,6 +23,8 @@ export interface BusinessSummary {
   taxRate?: number
   /** The address, phone and closing line printed on receipts. */
   receipt?: ReceiptDetails
+  /** Whether cashiers may sell items typed at the till that are not in the product list. */
+  allowUnlisted?: boolean
 }
 
 /** A business the person belongs to but may not use right now: their access was suspended or removed by the owner. */
@@ -82,7 +84,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     if (error) setError(error.message)
     else {
       setError(null)
-      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode, isOwner: b.owner_user_id === userId, theme: (b.settings as { theme?: string } | null)?.theme ?? null, taxRate: taxRateOf(b.settings as { tax_rate_percent?: unknown } | null), receipt: receiptOf(b.settings as { receipt?: unknown } | null) })))
+      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode, isOwner: b.owner_user_id === userId, theme: (b.settings as { theme?: string } | null)?.theme ?? null, taxRate: taxRateOf(b.settings as { tax_rate_percent?: unknown } | null), receipt: receiptOf(b.settings as { receipt?: unknown } | null), allowUnlisted: (b.settings as { allow_unlisted_items?: unknown } | null)?.allow_unlisted_items === true })))
     }
     setLoading(false)
     setLoadedFor(userId)
@@ -108,7 +110,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const businesses: BusinessSummary[] = isDemoMode
     ? demo.members
         .filter((m) => m.userId === userId && m.status === 'active')
-        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner', theme: b.settings?.theme ?? null, taxRate: taxRateOf(b.settings), receipt: receiptOf(b.settings) })))
+        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner', theme: b.settings?.theme ?? null, taxRate: taxRateOf(b.settings), receipt: receiptOf(b.settings), allowUnlisted: b.settings?.allow_unlisted_items === true })))
     : fetched
   const blocked: BlockedAccess[] = isDemoMode ? demoBlockedMemberships() : fetchedBlocked
   const loading = isDemoMode ? false : fetchLoading || (!!userId && loadedFor !== userId)

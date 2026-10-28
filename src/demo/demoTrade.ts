@@ -14,7 +14,7 @@ import { demoUsageCheck, monthStart, registerUsageCounter } from '@/demo/demoUsa
 export interface DCustomer { id: string; businessId: string; name: string; phone: string | null; email: string | null; source: string | null; category: string | null; creditLimit: number; createdAt: string; company?: string | null; contactPerson?: string | null; city?: string | null; address?: string | null; notes?: string | null }
 export interface DSupplier { id: string; businessId: string; name: string; phone: string | null; contactName?: string | null; email?: string | null; address?: string | null }
 export interface DPayment { by?: string | null; id: string; businessId: string; saleId: string | null; purchaseId: string | null; returnId: string | null; type: 'sale_receipt' | 'refund' | 'purchase_payment'; method: string; amount: number; status: 'pending' | 'successful' | 'reversed'; reference: string | null; at: string }
-export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null; /** Cash the customer handed over, and the change given back (kept with the sale; printed on the receipt). */ tendered?: number | null; change?: number | null }
+export interface DSale { by?: string | null; id: string; businessId: string; number: string; locationId: string; customerId: string | null; status: 'posted' | 'refunded' | 'voided'; paymentStatus: 'unpaid' | 'partially_paid' | 'paid'; subtotal: number; discountTotal: number; taxTotal: number; grandTotal: number; amountPaid: number; returnedTotal: number; balanceDue: number; refundDue: number; soldAt: string; voidReason: string | null; /** Cash the customer handed over, and the change given back (kept with the sale; printed on the receipt). */ tendered?: number | null; change?: number | null; /** The sale has a line typed at the till that is not in the product list. */ hasUnlisted?: boolean }
 export interface DSaleItem { id: string; saleId: string; productId: string; description: string; quantity: number; unitPrice: number; discount: number; tax: number; total: number; unitCost: number | null; movementId: string | null }
 export interface DReturnItem { id: string; returnId: string; saleItemId: string; quantity: number; refund: number; disposition?: 'restock' | 'discard' }
 export interface DReturn { id: string; saleId: string; number: string; reason: string; total: number; at?: string }
@@ -214,7 +214,21 @@ export function demoCreateSupplier(biz: string, name: string, phone: string): st
 /** Lets an industry refuse a sale line (the pharmacy refuses restricted medicines outside a dispensing). */
 export const saleGuard = { check: (_biz: string, _productId: string, _quantity: number, _name: string): void => {} }
 
-export interface SaleLineInput { productId: string; quantity: number; unitPrice?: number; discount?: number; /** A saving the server works out itself (a pack sold at its own price): added to the discount without needing the discount permission. */ systemDiscount?: number }
+export interface SaleLineInput { productId: string; quantity: number; unitPrice?: number; discount?: number; /** A line typed at the till, not in the product list: its name, and the price the cashier typed. */ customName?: string; customPrice?: number; /** A saving the server works out itself (a pack sold at its own price): added to the discount without needing the discount permission. */ systemDiscount?: number }
+/** Mirrors unlisted_items_allowed(): owners, admins and managers in a shop or business-apps business, and cashiers only when the owner has allowed it. */
+export function demoUnlistedAllowed(biz: string): boolean {
+  const b = getDemoState().businesses.find((x) => x.id === biz)
+  if (!b || !['retail', 'general'].includes(b.industry) || !demoCanTrade(biz, 'sales.create')) return false
+  return demoCanTrade(biz, 'retail.manage') || b.settings?.allow_unlisted_items === true
+}
+/** The hidden placeholder product that typed lines sit on (mirrors _unlisted_product()). */
+export function demoUnlistedProductId(biz: string): string | null { return getInv().products.find((p) => p.businessId === biz && p.sku === 'UNLISTED')?.id ?? null }
+function unlistedProduct(inv: Inv, biz: string) {
+  const found = inv.products.find((p) => p.businessId === biz && p.sku === 'UNLISTED'); if (found) return found
+  const p = { id: newId('p'), businessId: biz, sku: 'UNLISTED', barcode: null, name: 'Unlisted item', unit: 'each', sellingPrice: 0, defaultCost: null, reorderLevel: null, status: 'archived' as const, kind: 'goods' as const, tracksStock: false, categoryId: null }
+  inv.products.push(p); return p
+}
+
 export interface PaymentInput { method: string; amount: number; status?: 'pending' | 'successful'; reference?: string }
 
 export function demoPostSale(biz: string, locationId: string, customerId: string | null, lines: SaleLineInput[], payments: PaymentInput[], key: string) {
@@ -225,6 +239,13 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
     const full = demoUsageCheck(biz, 'sales_per_month')
     if (full) throw new Error(full)
     const prods = lines.map((l, i) => {
+      if (l.customName !== undefined) {
+        if (!demoUnlistedAllowed(biz)) throw new Error('selling an item that is not in the product list is not allowed here')
+        if (!l.customName.trim() || l.customName.trim().length > 80) throw new Error('the item name can be at most 80 characters')
+        if (!(l.quantity > 0)) throw new Error('quantity must be greater than zero')
+        if (!(l.customPrice !== undefined && l.customPrice > 0) || Math.round(l.customPrice * 100) / 100 !== l.customPrice) throw new Error(`enter the price of ${l.customName.trim()}, above zero with at most 2 decimals`)
+        return unlistedProduct(inv, biz)
+      }
       const p = inv.products.find((x) => x.id === l.productId && x.businessId === biz && x.status === 'active')
       if (!p) throw new Error(`invalid product on line ${i + 1}`)
       if (!(l.quantity > 0)) throw new Error('quantity must be greater than zero')
@@ -236,16 +257,16 @@ export function demoPostSale(biz: string, locationId: string, customerId: string
     let priced
     try {
       const rate = getDemoState().businesses.find((b) => b.id === biz)?.settings?.tax_rate_percent ?? 0
-      priced = priceCart(lines.map((l, i) => ({ quantity: l.quantity, unitPrice: prods[i].sellingPrice, discount: (l.discount ?? 0) + (l.systemDiscount ?? 0) })), rate)
+      priced = priceCart(lines.map((l, i) => ({ quantity: l.quantity, unitPrice: l.customName !== undefined ? l.customPrice! : prods[i].sellingPrice, discount: (l.discount ?? 0) + (l.systemDiscount ?? 0) })), rate)
     } catch { throw new Error('invalid discount') }
 
-    const sale: DSale = { by: getDemoState().userId, id: newId('sal'), businessId: biz, number: nextNumber(t, biz, 'sale', 'SAL'), locationId, customerId, status: 'posted', paymentStatus: 'unpaid', subtotal: priced.subtotal, discountTotal: priced.discountTotal, taxTotal: priced.taxTotal, grandTotal: priced.grandTotal, amountPaid: 0, returnedTotal: 0, balanceDue: priced.grandTotal, refundDue: 0, soldAt: new Date().toISOString(), voidReason: null }
+    const sale: DSale = { by: getDemoState().userId, id: newId('sal'), businessId: biz, number: nextNumber(t, biz, 'sale', 'SAL'), locationId, customerId, status: 'posted', paymentStatus: 'unpaid', subtotal: priced.subtotal, discountTotal: priced.discountTotal, taxTotal: priced.taxTotal, grandTotal: priced.grandTotal, amountPaid: 0, returnedTotal: 0, balanceDue: priced.grandTotal, refundDue: 0, soldAt: new Date().toISOString(), voidReason: null, hasUnlisted: lines.some((x) => x.customName !== undefined) }
     t.sales.push(sale)
     const group = newId('g')
     lines.forEach((l, i) => {
       // A service has no stock: the sale is recorded, nothing moves.
       const m = prods[i].tracksStock === false ? null : postMovement(inv, prods[i], locationId, 'sale', -l.quantity, null, null, group)
-      t.saleItems.push({ id: newId('si'), saleId: sale.id, productId: prods[i].id, description: prods[i].name, quantity: l.quantity, unitPrice: prods[i].sellingPrice, discount: priced.lines[i].discount, tax: priced.lines[i].tax, total: priced.lines[i].total, unitCost: m?.unitCost ?? null, movementId: m?.id ?? null })
+      t.saleItems.push({ id: newId('si'), saleId: sale.id, productId: prods[i].id, description: l.customName !== undefined ? l.customName.trim() : prods[i].name, quantity: l.quantity, unitPrice: l.customName !== undefined ? l.customPrice! : prods[i].sellingPrice, discount: priced.lines[i].discount, tax: priced.lines[i].tax, total: priced.lines[i].total, unitCost: m?.unitCost ?? null, movementId: m?.id ?? null })
     })
     for (const p of payments) addPayment(t, biz, { saleId: sale.id, type: 'sale_receipt', method: p.method, amount: p.amount, status: p.status ?? 'successful', reference: p.reference })
     if (sale.balanceDue > 0) {

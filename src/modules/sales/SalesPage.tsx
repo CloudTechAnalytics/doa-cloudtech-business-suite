@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { UsageNotice } from '@/core/subscriptions/UsageViews'
-import { Download, Minus, Pause, Play, Plus, Receipt as ReceiptIcon, Search, Trash2, X, ZoomIn } from 'lucide-react'
+import { Download, Minus, Pause, Play, PenLine, Plus, Receipt as ReceiptIcon, Search, Trash2, X, ZoomIn } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -11,6 +11,7 @@ import { useIdempotencyKey } from '@/shared/hooks/useIdempotencyKey'
 import { dateTime, label, naira, qty } from '@/shared/utilities/format'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { DetailPage } from '@/shared/components/detail-page'
+import { Dialog } from '@/shared/components/dialog'
 import { priceCart } from '@/modules/sales/pricing'
 import { SalesToday } from '@/modules/sales/SalesToday'
 import { changeDue, holdLabel, loadHeld, paidOf, paymentsOf, remainingOf, saveHeld } from '@/modules/sales/till'
@@ -19,6 +20,7 @@ import { ReceiptDialog } from '@/modules/sales/Receipt'
 import { PictureViewer, ProductThumb } from '@/modules/inventory/ProductPicture'
 import { ScanButton, codeFrom } from '@/shared/components/BarcodeScanner'
 import { loadThumbs } from '@/modules/inventory/productPictures'
+import { createProduct } from '@/modules/inventory/inventoryApi'
 import * as api from '@/modules/sales/tradeApi'
 import type { CustomerDto, SaleDetail } from '@/modules/sales/tradeApi'
 
@@ -36,6 +38,7 @@ export function SalesPage() {
   const businessId = active?.id ?? ''
   const industry = active?.industry ?? 'retail'
   const catalog = useAsync(() => api.loadCatalog(businessId, industry), [businessId, industry])
+  const options = useAsync(() => api.tillOptions(businessId).catch(() => ({ allowed: false, productId: null as string | null })), [businessId])
   const thumbs = useAsync(() => (industry === 'retail' ? loadThumbs(businessId) : Promise.resolve({} as Record<string, string>)), [businessId, industry])
   const customers = useAsync(() => api.listCustomers(businessId).catch(() => [] as CustomerDto[]), [businessId])
   const sales = useAsync(() => api.listSales(businessId), [businessId])
@@ -58,10 +61,10 @@ export function SalesPage() {
       </div>
       {catalog.error && <ErrorState message={catalog.error} />}
       {tab === 'New sale' && (catalog.data ? (
-        <Pos businessId={businessId} thumbs={thumbs.data ?? {}} catalog={catalog.data} packs={packs.data ?? []} customers={customers.data ?? []} canDiscount={can('sales.discount')} canCreate={can('sales.create')}
+        <Pos businessId={businessId} quickItem={options.data?.allowed === true} thumbs={thumbs.data ?? {}} catalog={catalog.data} packs={packs.data ?? []} customers={customers.data ?? []} canDiscount={can('sales.discount')} canCreate={can('sales.create')}
           onSold={async (id) => { await reloadAll(); setReceipt(id) }} />
       ) : <Spinner />)}
-      {tab === 'History' && <History businessId={businessId} customers={customers.data ?? []} can={can} onChanged={reloadAll} onReceipt={setReceipt} refreshKey={sales.data} />}
+      {tab === 'History' && <History unlistedId={options.data?.productId ?? null} businessId={businessId} customers={customers.data ?? []} can={can} onChanged={reloadAll} onReceipt={setReceipt} refreshKey={sales.data} />}
       {tab === 'Today' && <SalesToday businessId={businessId} />}
       {receipt && <ReceiptDialog businessId={businessId} saleId={receipt} onClose={() => setReceipt(null)} />}
     </>
@@ -69,14 +72,15 @@ export function SalesPage() {
 }
 
 // ------------------------------------------------------------------------------------- POS
-interface CartLine { productId: string; quantity: number; discount: number; pack: string | null }
+interface CartLine { productId: string; quantity: number; discount: number; pack: string | null; /** A line typed at the till that is not in the product list: its name and price. */ custom?: { name: string; price: number } }
 const lineKey = (l: { productId: string; pack: string | null }) => `${l.productId}|${l.pack ?? ''}`
 
-function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCreate, onSold }: {
-  businessId: string; thumbs: Record<string, string>; catalog: api.InventoryData; packs: api.PackDto[]; customers: CustomerDto[]; canDiscount: boolean; canCreate: boolean; onSold: (saleId: string) => Promise<void>
+function Pos({ businessId, quickItem, thumbs, catalog, packs, customers, canDiscount, canCreate, onSold }: {
+  businessId: string; quickItem: boolean; thumbs: Record<string, string>; catalog: api.InventoryData; packs: api.PackDto[]; customers: CustomerDto[]; canDiscount: boolean; canCreate: boolean; onSold: (saleId: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [bigger, setBigger] = useState<{ id: string; name: string } | null>(null)
+  const [typing, setTyping] = useState(false)
   const [cart, setCart] = useState<CartLine[]>([])
   const [customerId, setCustomerId] = useState('')
   const [locationId, setLocationId] = useState(catalog.locations[0]?.id ?? '')
@@ -97,8 +101,9 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
     return catalog.products.filter((p) => p.status === 'active' && (!t || [p.name, p.sku, p.barcode].some((v) => v?.toLowerCase().includes(t))))
   }, [catalog.products, search])
   const byId = (id: string) => catalog.products.find((p) => p.id === id)!
+  const info = (l: CartLine) => (l.custom ? { name: l.custom.name, unit: 'each' } : byId(l.productId))
   const packOf = (l: CartLine) => (l.pack ? packs.find((k) => k.productId === l.productId && k.name === l.pack) : undefined)
-  const priceOf = (l: CartLine) => { const k = packOf(l); return k ? (k.price ?? Math.round(byId(l.productId).sellingPrice * k.units * 100) / 100) : byId(l.productId).sellingPrice }
+  const priceOf = (l: CartLine) => { if (l.custom) return l.custom.price; const k = packOf(l); return k ? (k.price ?? Math.round(byId(l.productId).sellingPrice * k.units * 100) / 100) : byId(l.productId).sellingPrice }
 
   const priced = useMemo(() => {
     try { return { ok: priceCart(cart.map((l) => ({ quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount })), taxRate), err: null } }
@@ -116,14 +121,15 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
   const keepHeld = (next: HeldSale[]) => { setHeld(next); saveHeld(businessId, next) }
   function hold() {
     if (!cart.length) return
-    keepHeld([{ id: `${Date.now()}`, label: holdLabel(cart.length, new Date(), customers.find((c) => c.id === customerId)?.name), at: new Date().toISOString(), customerId, cart: cart.map(({ productId, quantity, discount, pack }) => ({ productId, quantity, discount, pack })) }, ...held])
+    keepHeld([{ id: `${Date.now()}`, label: holdLabel(cart.length, new Date(), customers.find((c) => c.id === customerId)?.name), at: new Date().toISOString(), customerId, cart: cart.map(({ productId, quantity, discount, pack, custom }) => ({ productId, quantity, discount, pack, ...(custom ? { custom } : {}) })) }, ...held])
     setCart([]); setCustomerId(''); setRows([{ method: 'cash', amount: '' }]); setGiven(''); setError(null)
   }
   function resume(h: HeldSale) {
     if (cart.length) return setError('Hold or clear the current sale before resuming another.')
-    setError(null); setCart(h.cart.filter((l) => catalog.products.some((p) => p.id === l.productId))); setCustomerId(h.customerId); keepHeld(held.filter((x) => x.id !== h.id))
+    setError(null); setCart(h.cart.filter((l) => l.custom || catalog.products.some((p) => p.id === l.productId))); setCustomerId(h.customerId); keepHeld(held.filter((x) => x.id !== h.id))
   }
 
+  const addTyped = (name: string, price: number, quantity: number) => setCart((c) => [...c, { productId: `typed:${Date.now()}-${c.length}`, quantity, discount: 0, pack: null, custom: { name, price } }])
   const add = (id: string) => setCart((c) => (c.some((l) => lineKey(l) === `${id}|`) ? c.map((l) => (lineKey(l) === `${id}|` ? { ...l, quantity: l.quantity + 1 } : l)) : [...c, { productId: id, quantity: 1, discount: 0, pack: null }]))
   const setLine = (key: string, patch: Partial<CartLine>) => setCart((c) => c.map((l) => (lineKey(l) === key ? { ...l, ...patch } : l)))
   const remove = (key: string) => setCart((c) => c.filter((l) => lineKey(l) !== key))
@@ -148,7 +154,7 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
     if (balance > 0 && !customerId) return setError('Select a customer to sell on credit, or take the full payment.')
     setBusy(true)
     const r = await api.postSale(businessId, locationId, customerId || null,
-      cart.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount, pack: l.pack })),
+      cart.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount, pack: l.pack, ...(l.custom ? { customName: l.custom.name } : {}) })),
       pays, key.current())
     setBusy(false)
     if (r.error) return setError(r.error)
@@ -165,7 +171,7 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
       <div>
         <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_200px]">
           <div className="relative">
-            <div className="absolute right-0 top-0"><ScanButton onScan={(c) => scan(c)} label="Scan" title="Scan a product" /></div>
+            <div className="absolute right-0 top-0 flex gap-2">{quickItem && <Button type="button" variant="secondary" onClick={() => setTyping(true)}><PenLine className="size-4" aria-hidden /> Quick item</Button>}<ScanButton onScan={(c) => scan(c)} label="Scan" title="Scan a product" /></div>
             <Search className="pointer-events-none absolute left-3 top-9 size-4 text-ink/40" aria-hidden />
             <TextField label="Find a product" value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scan() } }} placeholder="Name, SKU or barcode (scan, then Enter)" className="pl-9" />
           </div>
@@ -175,6 +181,7 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
             </SelectField>
           )}
         </div>
+        {typing && <QuickItemDialog onClose={() => setTyping(false)} onAdd={(n, p, q) => { addTyped(n, p, q); setTyping(false) }} />}
         {bigger && <PictureViewer productId={bigger.id} name={bigger.name} onClose={() => setBigger(null)} />}
         {products.length === 0 ? <EmptyState title="No products found" description={catalog.products.length ? 'Try another search.' : 'Add products in Inventory first.'} /> : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -208,12 +215,12 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
         {cart.length === 0 ? <p className="py-6 text-center text-sm text-ink/60">Tap a product to add it.</p> : (
           <ul className="divide-y divide-ink/10">
             {cart.map((l, i) => {
-              const p = byId(l.productId)
+              const p = info(l)
               const line = priced.ok?.lines[i]
               return (
                 <li key={lineKey(l)} className="py-2 text-sm">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-medium">{p.name}</span>
+                    <span className="font-medium">{p.name}{l.custom && <Badge tone="warning">Not in product list</Badge>}</span>
                     <button type="button" onClick={() => remove(lineKey(l))} aria-label={`Remove ${p.name}`} className="text-ink/50 hover:text-danger"><X className="size-4" /></button>
                   </div>
                   <div className="mt-1 flex items-center gap-2">
@@ -275,8 +282,8 @@ function Pos({ businessId, thumbs, catalog, packs, customers, canDiscount, canCr
 // --------------------------------------------------------------------------------- history
 const SALE_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = { posted: 'neutral', refunded: 'warning', voided: 'danger', paid: 'success', partially_paid: 'warning', unpaid: 'danger' }
 
-function History({ businessId, customers, can, onChanged, onReceipt, refreshKey }: {
-  businessId: string; customers: CustomerDto[]; can: (p: string) => boolean; onChanged: () => Promise<void>; onReceipt: (id: string) => void; refreshKey: unknown
+function History({ unlistedId, businessId, customers, can, onChanged, onReceipt, refreshKey }: {
+  unlistedId: string | null; businessId: string; customers: CustomerDto[]; can: (p: string) => boolean; onChanged: () => Promise<void>; onReceipt: (id: string) => void; refreshKey: unknown
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [q, setQ] = useState(''); const [show, setShow] = useState(''); const [from, setFrom] = useState(''); const [to, setTo] = useState('')
@@ -305,23 +312,24 @@ function History({ businessId, customers, can, onChanged, onReceipt, refreshKey 
                   <td className="p-3">{customer(s.customerId)}</td>
                   <td className="p-3 text-right tabular">{naira(s.grandTotal)}</td>
                   <td className="p-3 text-right tabular">{naira(s.balanceDue)}</td>
-                  <td className="p-3"><span className="flex flex-wrap gap-1">{s.status !== 'posted' && <Badge tone={SALE_TONE[s.status]}>{label(s.status)}</Badge>}<Badge tone={SALE_TONE[s.paymentStatus]}>{label(s.paymentStatus)}</Badge></span></td>
+                  <td className="p-3"><span className="flex flex-wrap gap-1">{s.hasUnlisted && <Badge tone="warning">Not in product list</Badge>}{s.status !== 'posted' && <Badge tone={SALE_TONE[s.status]}>{label(s.status)}</Badge>}<Badge tone={SALE_TONE[s.paymentStatus]}>{label(s.paymentStatus)}</Badge></span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </Card>
       )}
-      {open && <SaleDialog businessId={businessId} saleId={open} can={can} onClose={() => setOpen(null)} onChanged={onChanged} onReceipt={onReceipt} />}
+      {open && <SaleDialog unlistedId={unlistedId} businessId={businessId} saleId={open} can={can} onClose={() => setOpen(null)} onChanged={onChanged} onReceipt={onReceipt} />}
     </>
   )
 }
 
-function SaleDialog({ businessId, saleId, can, onClose, onChanged, onReceipt }: {
-  businessId: string; saleId: string; can: (p: string) => boolean; onClose: () => void; onChanged: () => Promise<void>; onReceipt: (id: string) => void
+function SaleDialog({ unlistedId, businessId, saleId, can, onClose, onChanged, onReceipt }: {
+  unlistedId: string | null; businessId: string; saleId: string; can: (p: string) => boolean; onClose: () => void; onChanged: () => Promise<void>; onReceipt: (id: string) => void
 }) {
   const { data, error: loadError, refresh } = useAsync<SaleDetail>(() => api.saleDetail(businessId, saleId), [businessId, saleId])
   const [mode, setMode] = useState<'pay' | 'return' | 'void' | null>(null)
+  const [adding, setAdding] = useState<{ name: string; price: number } | null>(null); const [added, setAdded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const key = useIdempotencyKey()
 
@@ -338,6 +346,8 @@ function SaleDialog({ businessId, saleId, can, onClose, onChanged, onReceipt }: 
   return (
     <DetailPage title={sale.number} onClose={onClose} wide>
       {error && <ErrorState message={error} />}
+      {added && <Notice>{added}</Notice>}
+      {adding && <AddTypedProduct businessId={businessId} item={adding} onClose={() => setAdding(null)} onAdded={(m) => { setAdding(null); setAdded(m) }} />}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <Badge tone={SALE_TONE[sale.status]}>{label(sale.status)}</Badge><Badge tone={SALE_TONE[sale.paymentStatus]}>{label(sale.paymentStatus)}</Badge>
         <span className="text-ink/60">{dateTime(sale.soldAt)}</span>
@@ -347,7 +357,7 @@ function SaleDialog({ businessId, saleId, can, onClose, onChanged, onReceipt }: 
         <thead className="text-left text-xs font-semibold text-ink/70"><tr><th className="py-1">Item</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Total</th></tr></thead>
         <tbody className="divide-y divide-ink/10">
           {items.map((i) => (
-            <tr key={i.id}><td className="py-1.5">{i.description}{i.returnedQty > 0 && <span className="ml-2 text-xs text-warning">{qty(i.returnedQty)} returned</span>}</td><td className="py-1.5 text-right tabular">{qty(i.quantity)}</td><td className="py-1.5 text-right tabular">{naira(i.total)}</td></tr>
+            <tr key={i.id}><td className="py-1.5">{i.description}{unlistedId && i.productId === unlistedId && <> <Badge tone="warning">Not in product list</Badge>{can('inventory.adjust') && <button type="button" onClick={() => setAdding({ name: i.description, price: i.unitPrice })} className="ml-2 text-xs font-semibold underline">Add to products</button>}</>}{i.returnedQty > 0 && <span className="ml-2 text-xs text-warning">{qty(i.returnedQty)} returned</span>}</td><td className="py-1.5 text-right tabular">{qty(i.quantity)}</td><td className="py-1.5 text-right tabular">{naira(i.total)}</td></tr>
           ))}
         </tbody>
       </table>
@@ -451,5 +461,52 @@ function ReturnForm({ detail, onSubmit }: { detail: SaleDetail; onSubmit: (lines
       {err && <ErrorState message={err} />}
       <Button type="submit">Post return</Button>
     </form>
+  )
+}
+
+/** Type in an item that is not in the product list: its name, price and how many. It is added to the sale only; nothing is added to Products. */
+function QuickItemDialog({ onClose, onAdd }: { onClose: () => void; onAdd: (name: string, price: number, quantity: number) => void }) {
+  const [problem, setProblem] = useState<string | null>(null)
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const f = new FormData(e.currentTarget); const name = String(f.get('name') ?? '').trim(); const price = Number(f.get('price')); const quantity = Number(f.get('quantity') || 1)
+    if (!name) return setProblem('Type what is being sold.')
+    if (name.length > 80) return setProblem('The name can be at most 80 characters.')
+    if (!(price > 0) || Math.round(price * 100) / 100 !== price) return setProblem('Enter the price for one, above zero, with at most 2 decimals.')
+    if (!(quantity > 0)) return setProblem('Enter how many.')
+    onAdd(name, price, quantity)
+  }
+  return (
+    <Dialog title="Quick item" onClose={onClose}>
+      <form onSubmit={submit} noValidate className="space-y-3">
+        <Notice>For something that is not in Products yet. It takes nothing off the stock, and the sale is marked so the owner can see it.</Notice>
+        <TextField label="What is being sold" name="name" placeholder="e.g. Garri (2 cups)" autoFocus maxLength={80} />
+        <div className="grid grid-cols-2 gap-3"><TextField label="Price for one (₦)" name="price" type="number" min="0" step="0.01" /><TextField label="How many" name="quantity" type="number" min="0" step="any" defaultValue="1" /></div>
+        {problem && <p role="alert" className="text-sm text-danger">{problem}</p>}
+        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit">Add to sale</Button></div>
+      </form>
+    </Dialog>
+  )
+}
+
+/** Turns an item that was typed at the till into a real product, with the same name and price, so next time it is a normal product. */
+function AddTypedProduct({ businessId, item, onClose, onAdded }: { businessId: string; item: { name: string; price: number }; onClose: () => void; onAdded: (message: string) => void }) {
+  const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null)
+  async function add() {
+    setBusy(true); setError(null)
+    const err = await createProduct(businessId, { name: item.name, sku: '', barcode: '', unit: 'each', sellingPrice: item.price, defaultCost: null, reorderLevel: null, tracksStock: true })
+    setBusy(false)
+    if (err) return setError(/duplicate|unique|23505/i.test(err) ? 'A product with this name already exists.' : err)
+    onAdded(`${item.name} was added to Products at ${naira(item.price)}. Receive stock for it under Products to start tracking it.`)
+  }
+  return (
+    <Dialog title="Add to products" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <p>Add <b>{item.name}</b> to your products at <b className="tabular">{naira(item.price)}</b>, so it can be sold from the list, with stock, next time.</p>
+        <p className="text-ink/60">This sale stays as it was. The new product starts with no stock: receive some under Products.</p>
+        {error && <ErrorState title="Not added" message={error} />}
+        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button loading={busy} onClick={() => void add()}>Add product</Button></div>
+      </div>
+    </Dialog>
   )
 }

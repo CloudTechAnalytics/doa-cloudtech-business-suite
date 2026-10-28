@@ -14,7 +14,7 @@ import { myTradePermissions } from '@/modules/sales/tradeApi'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import { Button, Card, ErrorState, Notice, PageHeader, SelectField } from '@/shared/components'
-import { setBusinessReceipt, setBusinessTax, setBusinessTheme } from '@/core/businesses/businessActions'
+import { setBusinessReceipt, setBusinessTax, setBusinessTheme, setUnlistedAllowed } from '@/core/businesses/businessActions'
 import type { ReceiptDetails } from '@/core/business-context/receiptDetails'
 import { THEMES, applyTheme, themeByKey } from '@/core/theme/themes'
 
@@ -114,6 +114,8 @@ export function SettingsPage() {
 
       {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <SalesTax businessId={active.id} current={active.taxRate ?? 0} onSaved={reloadBusinesses} />}
 
+      {['retail', 'general'].includes(active.industry) && statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <UnlistedSetting businessId={active.id} current={active.allowUnlisted === true} onSaved={reloadBusinesses} />}
+
       {statuses.some((s) => s.code === 'sales' && s.enabled) && (isDemoMode ? canManageStaff(active.role ?? null) : perms.data?.includes('settings.manage')) && <ReceiptSettings businessId={active.id} current={active.receipt ?? { address: '', phone: '', footer: '' }} onSaved={reloadBusinesses} />}
 
       <Card className="mb-4">
@@ -161,6 +163,24 @@ export function SettingsPage() {
       </Card>
       {perms.data?.includes('audit.read') && <AuditPanel businessId={active.id} />}
     </>
+  )
+}
+
+/** Whether cashiers may sell something that is not in the product list, by typing its name and price at the till. Owners and managers always may. */
+function UnlistedSetting({ businessId, current, onSaved }: { businessId: string; current: boolean; onSaved: () => Promise<void> }) {
+  const [on, setOn] = useState(current); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  async function change(next: boolean) {
+    setOn(next); setBusy(true); const err = await setUnlistedAllowed(businessId, next); setBusy(false)
+    if (err) { setOn(!next); return setMsg({ ok: false, text: err }) }
+    await onSaved(); setMsg({ ok: true, text: next ? 'Saved: cashiers can now type in items that are not in the product list.' : 'Saved: only owners and managers can type in items that are not in the product list.' })
+  }
+  return (
+    <Card className="mb-4">
+      <h2 className="mb-1 text-sm font-semibold">Items that are not in the product list</h2>
+      <p className="mb-3 text-xs text-ink/60">At the till, a <b>Quick item</b> button lets someone type an item's name, price and quantity when it has not been added to Products yet. It takes nothing off the stock and has no cost, so it makes profit look better than it is. Owners and managers can always use it; every sale made this way is marked, and the reports show how much was sold this way.</p>
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={on} disabled={busy} onChange={(e) => void change(e.target.checked)} /><span><b>Let cashiers sell items that are not in the product list</b><span className="block text-xs text-ink/60">Off by default. Turn it on only for a cashier you trust to type the right price.</span></span></label>
+      {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-2 text-sm ${msg.ok ? 'text-ink/70' : 'text-danger'}`}>{msg.text}</p>}
+    </Card>
   )
 }
 

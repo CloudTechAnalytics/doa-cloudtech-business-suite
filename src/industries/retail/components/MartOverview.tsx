@@ -57,6 +57,7 @@ export function MartOverview() {
             {f && <Kpi title="Cost of goods sold" value={naira(f.cogs)} note="Units sold at the cost they left stock at" />}
             {f && <Kpi title="Gross profit" value={naira(f.grossProfit)} tone={f.grossProfit >= 0 ? 'good' : 'bad'} note={f.grossMarginPercent === null ? 'No sales yet' : `${f.grossMarginPercent}% margin`} />}
             {f && <Kpi title="Operating profit (estimate)" value={naira(f.operatingProfitEstimate)} tone={f.operatingProfitEstimate >= 0 ? 'good' : 'bad'} note={`After expenses of ${naira(f.operatingExpenses)} and stock lost of ${naira((f.stockWriteOffs ?? 0) - (f.countDifference ?? 0))}; stock purchases are not expenses`} />}
+            {f && (f.unlistedCount ?? 0) > 0 && <Kpi title="Typed items sold" value={naira(f.unlistedSales ?? 0)} note={`${f.unlistedCount} sale${f.unlistedCount === 1 ? '' : 's'} with items not in the product list`} tone="bad" />}
             <Kpi title="Transactions" value={String(o.transactions)} note={o.avgTransaction === null ? undefined : `Average ${naira(o.avgTransaction)}`} to="/app/sales" />
             <Kpi title="Units sold" value={qty(o.unitsSold)} />
             {f && <Kpi title="Stock value" value={naira(f.inventoryValue)} note="On hand at average cost" to="/app/retail/products" />}

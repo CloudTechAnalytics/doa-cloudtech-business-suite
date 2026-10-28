@@ -30,7 +30,7 @@ export function receiptText(r: { business: string; number: string; at: string; c
 }
 
 // ------------------------------------------------------------------ held sales
-export interface HeldLine { productId: string; quantity: number; discount: number; pack: string | null }
+export interface HeldLine { productId: string; quantity: number; discount: number; pack: string | null; /** A line typed at the till that is not in the product list. */ custom?: { name: string; price: number } }
 export interface HeldSale { id: string; label: string; at: string; customerId: string; cart: HeldLine[] }
 const KEY = (businessId: string) => `doa.pos.held.${businessId}`
 

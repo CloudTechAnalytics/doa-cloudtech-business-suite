@@ -176,7 +176,7 @@ export async function loadOverview(b: string, from: string, to: string): Promise
     slowMovers: list<{ product: string; on_hand: number; value: number }>(x.slow_movers).map((d) => ({ product: d.product, onHand: n(d.on_hand), value: n(d.value) })),
     financial: f ? {
       netSales: n(f.net_sales), discounts: n(f.discounts), refunds: n(f.refunds), cogs: n(f.cogs), grossProfit: n(f.gross_profit), grossMarginPercent: f.gross_margin_percent === null ? null : n(f.gross_margin_percent),
-      operatingExpenses: n(f.operating_expenses), stockWriteOffs: n(f.stock_write_offs), countDifference: n(f.count_difference), operatingProfitEstimate: n(f.operating_profit_estimate), inventoryValue: n(f.inventory_value), supplierBalances: n(f.supplier_balances), customerBalances: n(f.customer_balances), shiftVariance: n(f.shift_variance),
+      operatingExpenses: n(f.operating_expenses), unlistedSales: n(f.unlisted_sales), unlistedCount: n(f.unlisted_count), stockWriteOffs: n(f.stock_write_offs), countDifference: n(f.count_difference), operatingProfitEstimate: n(f.operating_profit_estimate), inventoryValue: n(f.inventory_value), supplierBalances: n(f.supplier_balances), customerBalances: n(f.customer_balances), shiftVariance: n(f.shift_variance),
       byCategory: list<{ category: string; units: number; revenue: number }>(f.by_category).map((d) => ({ category: d.category, units: n(d.units), revenue: n(d.revenue) })),
       byCashier: list<{ cashier: string; sales: number; net_sales: number }>(f.by_cashier).map((d) => ({ cashier: d.cashier, sales: n(d.sales), netSales: n(d.net_sales) })),
       paymentMethods: list<{ method: string; amount: number }>(f.payment_methods).map((d) => ({ method: d.method, amount: n(d.amount) })),

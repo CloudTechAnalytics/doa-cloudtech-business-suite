@@ -213,9 +213,10 @@ export function demoCreateMartPurchase(biz: string, supplierId: string, items: {
   } catch (e) { return { error: (e as Error).message as string | null } }
 }
 
-export function demoMartSale(biz: string, locationId: string, customerId: string | null, items: { productId: string; quantity: number; pack?: string | null; unitPrice?: number; discount?: number }[], payments: { method: string; amount: number }[], key: string) {
+export function demoMartSale(biz: string, locationId: string, customerId: string | null, items: { productId: string; quantity: number; pack?: string | null; unitPrice?: number; discount?: number; customName?: string }[], payments: { method: string; amount: number }[], key: string) {
   try {
     const lines = items.map((it) => {
+      if (it.customName !== undefined) return { productId: '', quantity: it.quantity, customName: it.customName, customPrice: it.unitPrice, discount: it.discount ?? 0 }
       const f = packFactor(state, it.productId, it.pack)
       const pk = it.pack ? state.packs.find((x) => x.productId === it.productId && x.name.trim().toLowerCase() === it.pack!.trim().toLowerCase()) : undefined
       const price = pk?.price ?? null
@@ -462,7 +463,7 @@ export interface MartOverview {
   daily: { day: string; netSales: number; sales: number }[]; bestSellers: { product: string; units: number; revenue: number }[]
   recentSales: { number: string; at: string; total: number; status: string }[]; recentMovements: { product: string; type: string; quantity: number; at: string }[]; slowMovers: { product: string; onHand: number; value: number }[]
   financial: null | {
-    netSales: number; discounts: number; refunds: number; cogs: number; grossProfit: number; grossMarginPercent: number | null; operatingExpenses: number; stockWriteOffs?: number; countDifference?: number; operatingProfitEstimate: number; inventoryValue: number
+    netSales: number; discounts: number; refunds: number; cogs: number; grossProfit: number; grossMarginPercent: number | null; operatingExpenses: number; stockWriteOffs?: number; countDifference?: number; unlistedSales?: number; unlistedCount?: number; operatingProfitEstimate: number; inventoryValue: number
     supplierBalances: number; customerBalances: number; shiftVariance: number; byCategory: { category: string; units: number; revenue: number }[]; byCashier: { cashier: string; sales: number; netSales: number }[]; paymentMethods: { method: string; amount: number }[]
   }
 }
@@ -509,11 +510,15 @@ export function demoMartOverview(biz: string, from: string, to: string): MartOve
     const exps = getFinance().expenses.filter((e) => e.businessId === biz && e.status === 'posted' && e.date >= from && e.date <= to).reduce((a, e) => a + c100(e.amount), 0)
     const writeOffs = state.losses.filter((l) => l.businessId === biz && l.status === 'posted' && inRange(l.createdAt)).reduce((a, l) => a + c100(l.loss), 0)
     const countDiff = inv.movements.filter((x) => x.businessId === biz && x.type === 'count_adjustment' && inRange(x.at)).reduce((a, x) => a + Math.round(x.delta * (x.unitCost ?? 0) * 100), 0)
+    const unlId = getInv().products.find((p) => p.businessId === biz && p.sku === 'UNLISTED')?.id
+    const unlLines = t.saleItems.filter((i) => i.productId === unlId && t.sales.some((s) => s.id === i.saleId && s.businessId === biz && s.status !== 'voided' && inRange(s.soldAt)))
+    const unlistedSales = unlLines.reduce((a, i) => a + c100(i.total - i.tax), 0)
+    const unlistedCount = new Set(unlLines.map((i) => i.saleId)).size
     const owedByUs = t.purchases.filter((p) => p.businessId === biz && p.status !== 'cancelled').reduce((a, p) => a + Math.max(c100(p.total) - c100(p.amountPaid) - c100(creditHook.credit(p.id)), 0), 0)
     const owedToUs = t.sales.filter((s) => s.businessId === biz && s.status !== 'voided' && s.balanceDue > 0).reduce((a, s) => a + c100(s.balanceDue), 0)
     out.financial = {
       netSales: salesNet / 100, discounts: sales.reduce((a, s) => a + c100(s.discountTotal), 0) / 100, refunds: sales.reduce((a, s) => a + c100(s.returnedTotal), 0) / 100, cogs: cogs / 100, grossProfit: (salesNet - cogs) / 100,
-      grossMarginPercent: salesNet > 0 ? Math.round(((salesNet - cogs) * 1000) / salesNet) / 10 : null, operatingExpenses: exps / 100, stockWriteOffs: writeOffs / 100, countDifference: countDiff / 100, operatingProfitEstimate: (salesNet - cogs - exps - writeOffs + countDiff) / 100,
+      grossMarginPercent: salesNet > 0 ? Math.round(((salesNet - cogs) * 1000) / salesNet) / 10 : null, operatingExpenses: exps / 100, unlistedSales: unlistedSales / 100, unlistedCount, stockWriteOffs: writeOffs / 100, countDifference: countDiff / 100, operatingProfitEstimate: (salesNet - cogs - exps - writeOffs + countDiff) / 100,
       inventoryValue: r2(live.reduce((a, p) => a + p.stockValue, 0)), supplierBalances: owedByUs / 100, customerBalances: owedToUs / 100,
       shiftVariance: r2(state.shifts.filter((s) => s.businessId === biz && s.status !== 'open' && s.closedAt && inRange(s.closedAt)).reduce((a, s) => a + (s.variance ?? 0), 0)),
       byCategory: [...byCat].sort((a, b) => b[1].revenue - a[1].revenue).map(([category, v]) => ({ category, units: v.units, revenue: v.revenue / 100 })),

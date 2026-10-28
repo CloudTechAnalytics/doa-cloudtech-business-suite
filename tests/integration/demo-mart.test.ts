@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as mart from '@/demo/demoMart'
 import { getInv } from '@/demo/demoInventory'
-import { demoInvite, demoSignIn, demoSignOut, demoSignUp } from '@/demo/demoStore'
+import { demoInvite, demoSetUnlistedAllowed, demoSignIn, demoSignOut, demoSignUp } from '@/demo/demoStore'
 import * as trade from '@/demo/demoTrade'
 
 const B = 'b-retail'
@@ -201,5 +201,43 @@ describe('shifts, cash given and receipts in the demo, as in the database', () =
     expect(trade.getTrade().sales.find((s) => s.id === s1)).toMatchObject({ tendered: 500, change: 300 })
     expect(trade.demoRecordTender(B, s1, 600)).toMatch(/already recorded/)
     expect(trade.demoRecordTender(B, sale('card', 200), 500)).toMatch(/not paid in cash/)
+  })
+})
+
+describe('items typed at the till in the demo, as in the database', () => {
+  const typed = (name: string, price: number, quantity = 1) => ({ productId: '', quantity, customName: name, customPrice: price })
+  const sell = (lines: ReturnType<typeof typed>[], paid: number) => trade.demoPostSale(B, loc, null, lines, [{ method: 'cash', amount: paid }], key())
+  it('lets an owner type in an item, prints the name that was typed, takes nothing off the stock and marks the sale', () => {
+    as('owner@demo.test')
+    const moves = getInv().movements.length
+    const r = sell([typed('Garri (2 cups)', 400, 3)], 1200)
+    expect(r.error).toBeNull()
+    const sale = trade.getTrade().sales.find((s) => s.id === r.result!.saleId)!
+    expect(sale).toMatchObject({ grandTotal: 1200, hasUnlisted: true })
+    expect(trade.getTrade().saleItems.find((i) => i.saleId === sale.id)).toMatchObject({ description: 'Garri (2 cups)', unitPrice: 400, quantity: 3, total: 1200 })
+    expect(getInv().movements.length).toBe(moves)
+    expect(trade.demoUnlistedProductId(B)).toBeTruthy()
+  })
+  it('keeps a cashier out until the owner allows it, and only an owner or admin can change that', () => {
+    as('cashier@demo.test')
+    expect(trade.demoUnlistedAllowed(B)).toBe(false)
+    expect(sell([typed('Garri (2 cups)', 400)], 400).error).toMatch(/not allowed here/)
+    expect(demoSetUnlistedAllowed(B, true)).toMatch(/permission denied/)
+    as('owner@demo.test'); expect(demoSetUnlistedAllowed(B, true)).toBeNull()
+    as('cashier@demo.test'); expect(trade.demoUnlistedAllowed(B)).toBe(true)
+    expect(sell([typed('Garri (2 cups)', 400)], 400).error).toBeNull()
+    as('owner@demo.test'); expect(demoSetUnlistedAllowed(B, false)).toBeNull()
+    as('cashier@demo.test'); expect(sell([typed('Garri (2 cups)', 400)], 400).error).toMatch(/not allowed here/)
+  })
+  it('needs a name, a price above zero with at most two decimals, and a name that is not too long', () => {
+    as('owner@demo.test')
+    expect(sell([{ productId: '', quantity: 1, customName: 'No price' }], 0).error).toMatch(/enter the price of No price/)
+    for (const price of [0, -5, 10.555]) expect(sell([typed('Odd', price)], 1).error).toMatch(/enter the price of Odd/)
+    expect(sell([typed('x'.repeat(81), 10)], 10).error).toMatch(/at most 80 characters/)
+  })
+  it('is totalled in the reports as sold without being in the product list', () => {
+    as('owner@demo.test')
+    const f = mart.demoMartOverview(B, iso(-1), iso(0)).financial!
+    expect(f.unlistedCount).toBeGreaterThanOrEqual(2); expect(f.unlistedSales).toBeGreaterThanOrEqual(1600)
   })
 })
