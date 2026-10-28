@@ -78,6 +78,7 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
   const [rows, setRows] = useState<PayRow[]>([{ method: 'cash', amount: '' }])
   const [given, setGiven] = useState('')
   // Sales set aside while the customer fetches something: kept on this device only.
+  const taxRate = useBusiness().active?.taxRate ?? 0
   const [held, setHeld] = useState<HeldSale[]>(() => loadHeld(businessId))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -95,10 +96,10 @@ function Pos({ businessId, catalog, packs, customers, canDiscount, canCreate, on
   const priceOf = (l: CartLine) => { const k = packOf(l); return k ? Math.round(byId(l.productId).sellingPrice * k.units * 100) / 100 : byId(l.productId).sellingPrice }
 
   const priced = useMemo(() => {
-    try { return { ok: priceCart(cart.map((l) => ({ quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount }))), err: null } }
+    try { return { ok: priceCart(cart.map((l) => ({ quantity: l.quantity, unitPrice: priceOf(l), discount: l.discount })), taxRate), err: null } }
     catch (e) { return { ok: null, err: (e as Error).message } }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart, catalog.products, packs])
+  }, [cart, catalog.products, packs, taxRate])
 
   const total = priced.ok?.grandTotal ?? 0
   const pays = paymentsOf(rows, total)

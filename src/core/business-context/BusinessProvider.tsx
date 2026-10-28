@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { taxRateOf } from './taxRate'
 import type { ReactNode } from 'react'
 import type { IndustryCode, RoleName } from '@/shared/types/domain'
 import { demoBlockedMemberships, demoRoleIn, useDemoState } from '@/demo/demoStore'
@@ -15,6 +16,8 @@ export interface BusinessSummary {
   isOwner?: boolean
   /** The colour theme the owner chose for this business (a key from src/core/theme/themes.ts), if any. */
   theme?: string | null
+  /** The sales tax the owner set (percent). The till uses it to show the same total the server will charge. */
+  taxRate?: number
 }
 
 /** A business the person belongs to but may not use right now: their access was suspended or removed by the owner. */
@@ -71,7 +74,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     if (error) setError(error.message)
     else {
       setError(null)
-      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode, isOwner: b.owner_user_id === userId, theme: (b.settings as { theme?: string } | null)?.theme ?? null })))
+      setBusinesses(data.map((b) => ({ id: b.id, name: b.name, industry: b.primary_industry_code as IndustryCode, isOwner: b.owner_user_id === userId, theme: (b.settings as { theme?: string } | null)?.theme ?? null, taxRate: taxRateOf(b.settings as { tax_rate_percent?: unknown } | null) })))
     }
     setLoading(false)
     setLoadedFor(userId)
@@ -96,7 +99,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const businesses: BusinessSummary[] = isDemoMode
     ? demo.members
         .filter((m) => m.userId === userId && m.status === 'active')
-        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner', theme: b.settings?.theme ?? null })))
+        .flatMap((m) => demo.businesses.filter((b) => b.id === m.businessId && !b.archived && !b.suspended).map((b) => ({ ...b, role: demoRoleIn(b.id), isOwner: demoRoleIn(b.id) === 'owner', theme: b.settings?.theme ?? null, taxRate: taxRateOf(b.settings) })))
     : fetched
   const blocked: BlockedAccess[] = isDemoMode ? demoBlockedMemberships() : fetchedBlocked
   const loading = isDemoMode ? false : fetchLoading || (!!userId && loadedFor !== userId)

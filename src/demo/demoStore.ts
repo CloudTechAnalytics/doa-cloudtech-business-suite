@@ -214,6 +214,15 @@ export function demoSetTheme(businessId: string, theme: string): string | null {
   return null
 }
 
+/** Mirrors set_business_tax(): settings managers only, 0 to 100. */
+export function demoSetTax(businessId: string, rate: number): string | null {
+  const b = state.businesses.find((x) => x.id === businessId && !x.archived)
+  if (!b || !canManageStaff(demoRoleIn(businessId))) return 'permission denied'
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100) return 'the tax rate must be between 0 and 100'
+  commit({ ...state, businesses: state.businesses.map((x) => (x.id === businessId ? { ...x, settings: { ...x.settings, tax_rate_percent: Math.round(rate * 100) / 100 } } : x)) })
+  return null
+}
+
 export function demoRoleIn(businessId: string): RoleName | null {
   const m = state.members.find((x) => x.businessId === businessId && x.userId === state.userId && x.status === 'active')
   return m?.role ?? null

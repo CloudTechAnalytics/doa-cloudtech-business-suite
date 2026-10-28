@@ -1,4 +1,4 @@
-import { demoArchiveBusiness, demoSetTheme } from '@/demo/demoStore'
+import { demoArchiveBusiness, demoSetTax, demoSetTheme } from '@/demo/demoStore'
 import { isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 
@@ -13,5 +13,12 @@ export async function archiveBusiness(businessId: string, confirmName: string): 
 export async function setBusinessTheme(businessId: string, theme: string): Promise<string | null> {
   if (isDemoMode) return demoSetTheme(businessId, theme)
   const { error } = await supabase!.rpc('set_business_theme', { p_business: businessId, p_theme: theme })
+  return error?.message ?? null
+}
+
+/** Saves the sales tax rate (percent) for a business. Owners and admins only; it applies to sales made from now on. Returns an error message or null. */
+export async function setBusinessTax(businessId: string, rate: number): Promise<string | null> {
+  if (isDemoMode) return demoSetTax(businessId, rate)
+  const { error } = await supabase!.rpc('set_business_tax', { p_business: businessId, p_rate: rate })
   return error?.message ?? null
 }
