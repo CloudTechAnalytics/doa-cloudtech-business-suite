@@ -34,7 +34,8 @@ describe('industry templates drive different module sets', () => {
     expect(r).toContain('customers')
     expect(r).not.toContain('farm-batches')
     expect(f).toContain('farm-batches')
-    expect(f).not.toContain('suppliers')
+    expect(f).toContain('suppliers') // supplier bills need suppliers and purchase orders, so a farm has them
+    expect(f).not.toContain('expenses')
     expect(bk).toContain('bakery-recipes')
     expect(bk).not.toContain('farm-batches')
     for (const set of [r, f, bk]) expect(set).toEqual(expect.arrayContaining(['dashboard', 'staff', 'settings']))

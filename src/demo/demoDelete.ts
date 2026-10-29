@@ -14,9 +14,14 @@ import { demoAllowed, demoCanTrade, getTrade, mutateTrade } from '@/demo/demoTra
  * message that points to archiving. Who may delete a record is who may change it. Expenses are never deleted (they are voided), and a
  * stock loss only after it was voided.
  */
-export type DeleteKind = 'customer' | 'supplier' | 'product' | 'category' | 'location' | 'lead' | 'loss' | 'worker' | 'equipment' | 'task'
+export type DeleteKind = 'customer' | 'supplier' | 'product' | 'category' | 'location' | 'lead' | 'loss' | 'worker' | 'equipment' | 'task' | 'farm_note' | 'farm_unit' | 'farm_batch'
 
-const refuse = (label: string, kind: DeleteKind) => `"${label}" cannot be deleted because it is used by other records. ${kind === 'loss' ? 'Keep it voided.' : 'Archive it instead.'}`
+const REFUSE_HINT: Partial<Record<DeleteKind, string>> = {
+  loss: 'Keep it voided.',
+  farm_unit: 'A flock, fish stock or crop was kept in it: delete those first, or archive it.',
+  farm_batch: 'It has feeding, harvests, treatments, expenses, tasks or notes recorded against it (deleted ones are kept for the log). Close it instead.',
+}
+const refuse = (label: string, kind: DeleteKind) => `"${label}" cannot be deleted because it is used by other records. ${REFUSE_HINT[kind] ?? 'Archive it instead.'}`
 const denied = 'permission denied'
 
 export function demoDeleteRecord(biz: string, kind: DeleteKind, id: string): string | null {
@@ -109,6 +114,29 @@ export function demoDeleteRecord(biz: string, kind: DeleteKind, id: string): str
       const t = ops.tasks.find((x) => x.id === id && x.businessId === biz); if (!t) return denied
       if (!demoCanTrade(biz, 'farm.manage')) return denied
       mutateOps((s) => ({ ...s, tasks: s.tasks.filter((x) => x.id !== id) }))
+      return null
+    }
+    case 'farm_note': {
+      const a = getFarm().activities.find((x) => x.id === id && x.businessId === biz); if (!a) return denied
+      if (!demoCanTrade(biz, 'farm.manage') && !demoCanTrade(biz, 'farm.record')) return denied
+      mutateFarm((s) => ({ ...s, activities: s.activities.filter((x) => x.id !== id) }))
+      return null
+    }
+    case 'farm_unit': {
+      const f = getFarm(); const u = f.units.find((x) => x.id === id && x.businessId === biz); if (!u) return denied
+      if (!demoCanTrade(biz, 'farm.manage')) return denied
+      if (f.batches.some((b) => b.unitId === id) || f.activities.some((a) => a.unitId === id)) return refuse(u.name, kind)
+      mutateFarm((s) => ({ ...s, units: s.units.filter((x) => x.id !== id) }))
+      return null
+    }
+    case 'farm_batch': {
+      const f = getFarm(); const b = f.batches.find((x) => x.id === id && x.businessId === biz); if (!b) return denied
+      if (!demoCanTrade(biz, 'farm.manage')) return denied
+      if (f.events.some((e) => e.batchId === id && e.type !== 'opening')) return `"${b.code}" has records against it, so it cannot be deleted. Close it instead`
+      const used = f.feeds.some((x) => x.batchId === id) || f.harvests.some((x) => x.batchId === id) || f.health.some((x) => x.batchId === id) || f.activities.some((x) => x.batchId === id)
+        || getFinance().expenses.some((e) => e.batchId === id) || ops.tasks.some((t) => t.batchId === id)
+      if (used) return refuse(b.code, kind)
+      mutateFarm((s) => ({ ...s, batches: s.batches.filter((x) => x.id !== id), events: s.events.filter((e) => e.batchId !== id) }))
       return null
     }
   }

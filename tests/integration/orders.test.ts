@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { ensureDemoFarm } from '@/demo/demoFarm'
 import { getInv } from '@/demo/demoInventory'
 import * as o from '@/demo/demoOrders'
-import { demoEnableModule, demoInvite, demoSignIn, demoSignOut } from '@/demo/demoStore'
+import { demoDisableModule, demoEnableModule, demoInvite, demoSignIn, demoSignOut } from '@/demo/demoStore'
 import * as trade from '@/demo/demoTrade'
 import { asUser, createDb, createUser, rows } from '../helpers/harness'
 import type { Db } from '../helpers/harness'
@@ -268,7 +268,8 @@ describe('demo mirrors purchase requests, bills and sales orders', () => {
     expect(o.demoDecideRequest(B, own, true, '', dkey())).toMatch(/another approver/)
     as('owner@demo.test')
     expect(o.demoDecideRequest(B, own, true, '', dkey())).toBeNull()
-    expect(o.demoOrderRequest(B, id, alpha, dkey()).error).toMatch(/permission denied/) // Purchases is not on for a farm by default
+    expect(demoDisableModule(B, 'purchases')).toBeNull()
+    expect(o.demoOrderRequest(B, id, alpha, dkey()).error).toMatch(/permission denied/) // ordering needs Purchases on
     expect(demoEnableModule(B, 'purchases')).toBeNull()
     const k = dkey()
     const a = o.demoOrderRequest(B, id, alpha, k); const b = o.demoOrderRequest(B, id, alpha, k)

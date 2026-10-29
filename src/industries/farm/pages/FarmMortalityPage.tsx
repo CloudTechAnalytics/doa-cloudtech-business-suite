@@ -1,5 +1,7 @@
-import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader } from '@/shared/components'
-import { useFormRunner } from '@/shared/hooks/useFormRunner'
+import { useState } from 'react'
+import { Card, EmptyState, PageHeader } from '@/shared/components'
+import { ConfirmDelete } from '@/shared/components/ConfirmDelete'
+import { ShowDeleted, deleteKey } from '@/shared/components/ShowDeleted'
 import { dateTime } from '@/shared/utilities/format'
 import { FarmGate, ReadOnlyNotice } from '../components/farmUi'
 import { DeathsForm } from '../components/recordForms'
@@ -9,15 +11,16 @@ import { mortalityRate } from '../types'
 
 export function FarmMortalityPage() {
   const farm = useFarm()
-  const runner = useFormRunner(farm.refresh)
+  const [showDeleted, setShowDeleted] = useState(false)
   const can = farm.can('farm.record')
 
   return (
     <>
-      <PageHeader title="Deaths" description="Deaths lower a batch's count. The death rate is deaths (after corrections) out of all the animals that entered the batch." />
+      <PageHeader title="Deaths" description="Deaths lower a batch's count. The death rate is deaths out of all the animals that entered the batch. Deleting a wrong entry puts the animals back in the count." />
       <FarmGate farm={farm}>
         {(data) => {
           const deaths = data.events.filter((e) => e.type === 'mortality')
+          const rows = deaths.filter((e) => showDeleted || !e.reversed)
           return (
             <>
               <div className="mb-4 grid gap-3 sm:grid-cols-3">
@@ -27,24 +30,23 @@ export function FarmMortalityPage() {
               </div>
               <ReadOnlyNotice show={!can} />
               {can && <DeathsForm farm={farm} />}
-              {runner.error && <ErrorState message={runner.error} />}
-              {runner.ok && <Notice>{runner.ok}</Notice>}
-              {deaths.length === 0 ? <EmptyState title="No deaths recorded" /> : (
+              {rows.length === 0 ? <EmptyState title="No deaths recorded" /> : (
                 <Card className="p-0">
                   <ul className="divide-y divide-ink/10 text-sm">
-                    {deaths.slice(0, 50).map((e) => (
-                      <li key={e.id} className="flex flex-wrap items-center gap-2 p-3">
+                    {rows.slice(0, 50).map((e) => (
+                      <li key={e.id} className={`flex flex-wrap items-center gap-2 p-3 ${e.reversed ? 'opacity-50' : ''}`}>
                         <b>{farm.batchCode(e.batchId)}</b><span className="tabular text-danger">{e.quantity}</span><span className="text-ink/70">{e.reason}</span>
-                        {e.reversed && <Badge tone="warning">Corrected</Badge>}
+                        {e.reversed && <span className="text-xs">Deleted</span>}
                         <span className="ml-auto text-xs text-ink/50">{dateTime(e.on)}</span>
                         {farm.can('farm.manage') && !e.reversed && (
-                          <Button variant="ghost" onClick={async () => { const why = window.prompt('Reason for correcting this entry?'); if (why) await runner.run((k) => reverseEvent(farm.businessId, e.id, why, k), 'Correction posted.') }}>Correct</Button>
+                          <ConfirmDelete compact withReason noun="death record" label={`${-e.quantity} died in ${farm.batchCode(e.batchId)}`} warning="The animals are counted in the batch again." onConfirm={(why) => reverseEvent(farm.businessId, e.id, why, deleteKey())} onDeleted={farm.refresh} />
                         )}
                       </li>
                     ))}
                   </ul>
                 </Card>
               )}
+              <ShowDeleted count={deaths.filter((e) => e.reversed).length} show={showDeleted} onChange={setShowDeleted} />
             </>
           )
         }}

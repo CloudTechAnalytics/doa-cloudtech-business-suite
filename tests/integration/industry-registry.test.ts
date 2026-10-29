@@ -144,7 +144,7 @@ describe('the contract rejects invalid industry definitions', () => {
     expect(problems({ requiredModules: ['inventory-x'] })).toMatch(/unknown module/)
     expect(problems({ optionalModules: [...farm.optionalModules, 'inventory'] })).toMatch(/cannot be both default and optional/)
     expect(problems({ defaultModules: [...farm.defaultModules, 'dashboard'] })).toMatch(/core module "dashboard" is always on/)
-    expect(problems({ requiredModules: ['purchases'] })).toMatch(/must also be a default module/)
+    expect(problems({ requiredModules: ['expenses'] })).toMatch(/must also be a default module/)
   })
 
   it('rejects routes and navigation that point at modules the industry does not own or enable', () => {

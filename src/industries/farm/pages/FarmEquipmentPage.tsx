@@ -134,19 +134,19 @@ function HistoryDialog({ businessId, asset, records, manage, onClose, onChanged 
   const [reason, setReason] = useState('')
   return (
     <Dialog title={`${asset.name}: history`} onClose={onClose} wide>
-      {records.length === 0 ? <p className="text-sm text-ink/60">No maintenance recorded yet.</p> : (
+      {records.filter((r) => r.status !== 'voided').length === 0 ? <p className="text-sm text-ink/60">No maintenance recorded yet.</p> : (
         <ul className="divide-y divide-ink/10 text-sm">
-          {records.map((r) => (
+          {records.filter((r) => r.status !== 'voided').map((r) => (
             <li data-row-link onClick={openRow} key={r.id} className={`py-2 ${r.status === 'voided' ? 'text-ink/45' : ''}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span><span className={r.status === 'voided' ? 'line-through' : 'font-medium'}>{r.description}</span> <Badge>{label(r.kind)}</Badge><span className="ml-2 text-xs text-ink/60">{r.on}</span></span>
-                <span className="flex items-center gap-2"><b className="tabular">{naira(r.cost)}</b>{manage && r.status === 'posted' && <Button variant="ghost" onClick={() => setVoiding(r.id)}>Void</Button>}</span>
+                <span className="flex items-center gap-2"><b className="tabular">{naira(r.cost)}</b>{manage && r.status === 'posted' && <Button variant="ghost" onClick={() => setVoiding(r.id)}>Delete</Button>}</span>
               </div>
               {r.status === 'voided' && <p className="text-xs">Voided: {r.voidReason}</p>}
               {voiding === r.id && (
-                <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); void runner.run((k) => voidMaintenance(businessId, r.id, reason, k), 'Voided.', () => { setVoiding(null); setReason('') }) }}>
-                  <div className="w-64"><TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></div>
-                  <Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Void record</Button>
+                <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); void runner.run((k) => voidMaintenance(businessId, r.id, reason, k), 'Deleted.', () => { setVoiding(null); setReason('') }) }}>
+                  <div className="w-64"><TextField label="Why delete it? (kept in the log)" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></div>
+                  <Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Delete</Button>
                   <Button type="button" variant="secondary" onClick={() => setVoiding(null)}>Back</Button>
                 </form>
               )}
@@ -154,7 +154,7 @@ function HistoryDialog({ businessId, asset, records, manage, onClose, onChanged 
           ))}
         </ul>
       )}
-      {runner.error && <ErrorState title="Not voided" message={runner.error} />}
+      {runner.error && <ErrorState title="Not deleted" message={runner.error} />}
     </Dialog>
   )
 }

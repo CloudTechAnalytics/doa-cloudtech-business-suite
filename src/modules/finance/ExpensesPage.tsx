@@ -24,7 +24,7 @@ const TABS = [['expenses', 'Expenses'], ['budgets', 'Budgets'], ['report', 'Repo
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-/** Money paid out: feed, labour, medication, repairs and so on. Voided, never deleted. Shared by Expenses and Farm Expenses. */
+/** Money paid out: feed, labour, medication, repairs and so on. Deleting one takes it out of the totals; the entry is kept in the log. Shared by Expenses and Farm Expenses. */
 export function ExpensesPage() {
   const { active } = useBusiness()
   const businessId = active?.id ?? ''
@@ -38,7 +38,7 @@ export function ExpensesPage() {
   const [open, setOpen] = useState<string | null>(null)
   const [category, setCategory] = useState('')
   const [search, setSearch] = useState('')
-  const [method, setMethod] = useState(''); const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [status, setStatus] = useState<'all' | 'posted' | 'voided'>('all')
+  const [method, setMethod] = useState(''); const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [status, setStatus] = useState<'all' | 'posted' | 'voided'>('posted')
   const [copyOf, setCopyOf] = useState<ExpenseDto | null>(null)
   const [params, setParams] = useSearchParams()
   const tab = TABS.find(([k, l]) => k === (params.get('tab') ?? '').toLowerCase() || l.toLowerCase() === (params.get('tab') ?? '').toLowerCase())?.[0] ?? 'expenses'
@@ -57,7 +57,7 @@ export function ExpensesPage() {
     <>
       <PageHeader
         title={isFarm ? 'Farm expenses' : 'Expenses'}
-        description="Money paid out. Each entry shows in the cashbook and lowers the operating surplus. A wrong entry is voided with a reason, never deleted."
+        description="Money paid out. Each entry shows in Cash & Bank and lowers the profit. Delete a wrong entry: it stops counting, and a note of it is kept."
         actions={canRecord ? <Button onClick={() => { setCopyOf(null); setAdding(true) }}><Plus className="size-4" aria-hidden /> Record expense</Button> : undefined}
       />
       <UsageNotice keys={['expenses_per_month']} />
@@ -81,7 +81,7 @@ export function ExpensesPage() {
             <div className="w-40"><SelectField label="Paid by" value={method} onChange={(e) => setMethod(e.target.value)}><option value="">Any way</option>{PAY_METHODS.map((m) => <option key={m} value={m}>{label(m)}</option>)}</SelectField></div>
             <div className="w-36"><TextField label="From" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></div>
             <div className="w-36"><TextField label="To" type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></div>
-            <div className="w-32"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="all">All</option><option value="posted">Posted</option><option value="voided">Voided</option></SelectField></div>
+            <div className="w-32"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="posted">Current</option><option value="voided">Deleted</option><option value="all">All</option></SelectField></div>
             <div className="ml-auto flex items-center gap-3"><p className="text-sm text-ink/70">Total shown: <b className="tabular text-ink">{naira(total)}</b></p>{list.length > 0 && <Button variant="secondary" onClick={() => downloadCsv('expenses.csv', expensesExport(list, (id) => name(id, suppliers.data)))}><Download className="size-4" aria-hidden /> Export</Button>}</div>
           </div>
           {byCat.size > 0 && (
@@ -103,12 +103,12 @@ export function ExpensesPage() {
                       <td className="p-3">
                         <span className={e.status === 'voided' ? 'line-through' : 'font-medium'}>{e.description}</span>
                         <div className="text-xs text-ink/60">{e.number} · {e.date}{name(e.supplierId, suppliers.data) ? ` · ${name(e.supplierId, suppliers.data)}` : ''}{name(e.batchId, batches.data?.map((b) => ({ id: b.id, name: b.label })) ?? null) ? ` · ${name(e.batchId, batches.data?.map((b) => ({ id: b.id, name: b.label })) ?? null)}` : ''}</div>
-                        {e.status === 'voided' && <div className="text-xs">Voided: {e.voidReason}</div>}
+                        {e.status === 'voided' && <div className="text-xs">Deleted: {e.voidReason}</div>}
                       </td>
                       <td className="p-3"><Badge>{label(e.category)}</Badge></td>
                       <td className="p-3">{label(e.method)}</td>
                       <td className="tabular p-3 text-right">{naira(e.amount)}</td>
-                      {canRecord && <td className="p-3 text-right">{e.status === 'posted' && e.source === 'manual' && <Button variant="ghost" onClick={() => setVoiding(e)}>Void</Button>}</td>}
+                      {canRecord && <td className="p-3 text-right">{e.status === 'posted' && e.source === 'manual' && <Button variant="ghost" onClick={() => setVoiding(e)}>Delete</Button>}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -131,14 +131,14 @@ function ExpenseDetail({ e, supplier, batch, onClose, onRepeat }: { e: ExpenseDt
     <DetailPage title={`${e.number}: ${e.description}`} onClose={onClose}>
       <dl className="grid gap-4 text-sm sm:grid-cols-2">
         <div><dt className="text-xs text-ink/60">Amount</dt><dd className="tabular text-lg font-semibold">{naira(e.amount)}</dd></div>
-        <div><dt className="text-xs text-ink/60">Status</dt><dd><Badge tone={e.status === 'voided' ? 'danger' : 'success'}>{e.status === 'voided' ? 'Voided' : 'Posted'}</Badge></dd></div>
+        <div><dt className="text-xs text-ink/60">Status</dt><dd><Badge tone={e.status === 'voided' ? 'danger' : 'success'}>{e.status === 'voided' ? 'Deleted' : 'Current'}</Badge></dd></div>
         <div><dt className="text-xs text-ink/60">Date</dt><dd>{e.date}</dd></div>
         <div><dt className="text-xs text-ink/60">Category</dt><dd>{label(e.category)}</dd></div>
         <div><dt className="text-xs text-ink/60">Paid by</dt><dd>{label(e.method)}</dd></div>
         <div><dt className="text-xs text-ink/60">Recorded from</dt><dd>{e.source === 'manual' ? 'Entered by hand' : label(e.source)}</dd></div>
         {supplier && <div><dt className="text-xs text-ink/60">Supplier</dt><dd>{supplier}</dd></div>}
         {batch && <div><dt className="text-xs text-ink/60">Batch</dt><dd>{batch}</dd></div>}
-        {e.status === 'voided' && <div className="sm:col-span-2"><dt className="text-xs text-ink/60">Why it was voided</dt><dd>{e.voidReason}</dd></div>}
+        {e.status === 'voided' && <div className="sm:col-span-2"><dt className="text-xs text-ink/60">Why it was deleted</dt><dd>{e.voidReason}</dd></div>}
       </dl>
       <p className="mt-4 text-xs text-ink/60">Expenses are never deleted, because they are money records. To correct a mistake, void the entry with a reason: it stays on record but is left out of every total.</p>
       <div className="mt-5 flex justify-end gap-2">{onRepeat && e.source === 'manual' && <Button variant="secondary" onClick={() => onRepeat(e)}><Copy className="size-4" aria-hidden /> Record again</Button>}<Button variant="secondary" onClick={onClose}>Back to expenses</Button></div>
@@ -193,12 +193,12 @@ function VoidDialog({ businessId, expense, onClose, onSaved }: { businessId: str
   const runner = useFormRunner(onSaved)
   const [reason, setReason] = useState('')
   return (
-    <Dialog title={`Void ${expense.number}`} onClose={onClose}>
-      <form onSubmit={(e) => { e.preventDefault(); void runner.run((k) => voidExpense(businessId, expense.id, reason, k), 'Expense voided.') }} className="space-y-4">
-        <p className="text-sm text-ink/80">{expense.description}: <b>{naira(expense.amount)}</b>. It stays on record, marked as voided, and no longer counts as money paid out.</p>
+    <Dialog title={`Delete ${expense.number}?`} onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); void runner.run((k) => voidExpense(businessId, expense.id, reason, k), 'Expense deleted.') }} className="space-y-4">
+        <p className="text-sm text-ink/80">{expense.description}: <b>{naira(expense.amount)}</b>. It stops counting as money paid out. A note of it is kept in the log.</p>
         <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
-        {runner.error && <ErrorState title="Not voided" message={runner.error} />}
-        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Void expense</Button></div>
+        {runner.error && <ErrorState title="Not deleted" message={runner.error} />}
+        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Delete expense</Button></div>
       </form>
     </Dialog>
   )

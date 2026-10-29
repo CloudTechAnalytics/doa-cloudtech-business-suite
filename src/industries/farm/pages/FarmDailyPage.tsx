@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, TextField } from '@/shared/components'
 import { label } from '@/shared/utilities/format'
 import { FarmGate, ReadOnlyNotice, today } from '../components/farmUi'
+import { DeleteEntry, farmTimeline } from '../components/BatchPage'
 import { DeathsForm, FeedForm, HarvestForm } from '../components/recordForms'
 import { useFarm } from '../hooks/useFarm'
 import { addActivity } from '../services/farmApi'
@@ -32,12 +33,7 @@ export function FarmDailyPage() {
       <PageHeader title="Record today" description="What happened on the farm? Choose one, fill in the short form, and it is saved. Everything recorded for the day is listed below." />
       <FarmGate farm={farm}>
         {(data, catalog) => {
-          const entries = [
-            ...data.events.filter((e) => e.on === day && e.type !== 'opening').map((e) => ({ id: `e${e.id}`, kind: e.type === 'mortality' ? 'Died' : label(e.type), tone: e.quantity < 0 ? ('danger' as const) : ('success' as const), text: `${farm.batchCode(e.batchId)}: ${e.quantity > 0 ? '+' : ''}${e.quantity}${e.reason ? ` (${e.reason})` : ''}` })),
-            ...data.feeds.filter((f) => f.on === day && f.status === 'posted').map((f) => ({ id: `f${f.id}`, kind: 'Fed', tone: 'info' as const, text: `${farm.batchCode(f.batchId)}: ${f.quantity} ${farm.productUnit(f.productId)} ${farm.productName(f.productId)}` })),
-            ...data.harvests.filter((h) => h.date === day && h.status === 'posted').map((h) => ({ id: `h${h.id}`, kind: 'Collected', tone: 'success' as const, text: `${farm.batchCode(h.batchId)}: ${h.quantity} ${farm.productUnit(h.productId)} ${farm.productName(h.productId)}` })),
-            ...data.activities.filter((a) => a.on === day).map((a) => ({ id: `a${a.id}`, kind: label(a.type), tone: 'neutral' as const, text: `${a.batchId ? farm.batchCode(a.batchId) : farm.unitName(a.unitId)}: ${a.notes}` })),
-          ]
+          const entries = farmTimeline(data, [], { product: farm.productName, unit: farm.productUnit }, { day })
           return (
             <>
               <ReadOnlyNotice show={!can} />
@@ -67,7 +63,12 @@ export function FarmDailyPage() {
               {entries.length === 0 ? <EmptyState title="Nothing recorded for this day" description="Feeding, deaths, harvests and notes appear here." /> : (
                 <Card className="p-0">
                   <ul className="divide-y divide-ink/10 text-sm">
-                    {entries.map((x) => <li key={x.id} className="flex flex-wrap items-center gap-2 p-3"><Badge tone={x.tone}>{x.kind}</Badge>{x.text}</li>)}
+                    {entries.map((x) => (
+                      <li key={x.id} className="flex flex-wrap items-center gap-2 p-3">
+                        <Badge tone={x.tone}>{x.kind}</Badge><b>{x.batchId ? farm.batchCode(x.batchId) : farm.unitName(x.unitId ?? null)}</b><span>{x.text}</span>
+                        <span className="ml-auto"><DeleteEntry farm={farm} entry={x} onDeleted={farm.refresh} /></span>
+                      </li>
+                    ))}
                   </ul>
                 </Card>
               )}

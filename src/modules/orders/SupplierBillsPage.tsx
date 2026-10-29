@@ -1,13 +1,15 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { PayDialog } from '@/modules/finance/OwedPages'
 import { myFinancePermissions } from '@/modules/finance/financeApi'
-import { listPurchases, payPurchase } from '@/modules/sales/tradeApi'
-import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
+import { listPurchases, listSuppliers, payPurchase } from '@/modules/sales/tradeApi'
+import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
 import { DetailPage } from '@/shared/components/detail-page'
+import { ShowDeleted } from '@/shared/components/ShowDeleted'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
@@ -23,23 +25,26 @@ export function SupplierBillsPage() {
   const businessId = active?.id ?? ''
   const bills = useAsync(() => listBills(businessId), [businessId])
   const purchases = useAsync(() => listPurchases(businessId).catch(() => []), [businessId])
+  const suppliers = useAsync(() => listSuppliers(businessId).catch(() => []), [businessId])
   const perms = useAsync(() => myFinancePermissions(businessId), [businessId])
   const [adding, setAdding] = useState(false)
   const [voiding, setVoiding] = useState<BillDto | null>(null)
   const [paying, setPaying] = useState<BillDto | null>(null)
+  const [showDeleted, setShowDeleted] = useState(false)
   if (!active) return null
   const canManage = perms.data?.includes('purchases.pay') ?? false
-  const list = bills.data ?? []
+  const all = bills.data ?? []
+  const list = all.filter((b) => showDeleted || b.status !== 'voided')
   const open = list.filter((b) => b.status === 'open')
   const owed = round(open.reduce((a, b) => a + Math.max(b.purchaseTotal - b.purchasePaid, 0) * (b.amount / (b.purchaseTotal || 1)), 0))
   const overdue = open.filter((b) => b.overdue).length
 
   return (
     <>
-      <PageHeader title="Supplier bills" description="The invoices suppliers send for your purchase orders. Bills for an order can never add up to more than the order."
-        actions={canManage ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> Record bill</Button> : undefined} />
+      <PageHeader title="Supplier bills" description="The invoices suppliers send you. Each bill belongs to a purchase order, and each order to a supplier: add the supplier, then the order, then the bill."
+        actions={<div className="flex flex-wrap gap-2"><Link to="/app/suppliers" className="inline-flex min-h-9 items-center rounded-md border border-line bg-white px-3.5 text-sm font-medium hover:bg-surface">Suppliers</Link><Link to="/app/purchases" className="inline-flex min-h-9 items-center rounded-md border border-line bg-white px-3.5 text-sm font-medium hover:bg-surface">Purchase orders</Link>{canManage && <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> Record bill</Button>}</div>} />
       {bills.error && <ErrorState message={bills.error} />}
-      {bills.loading ? <Spinner /> : list.length === 0 ? <Card><EmptyState title="No supplier bills yet" description="Record a supplier's invoice against a purchase order to track its due date." /></Card> : (
+      {bills.loading ? <Spinner /> : list.length === 0 ? <Card><EmptyState title="No supplier bills yet" description="Record a supplier's invoice against a purchase order to track when it is due." /></Card> : (
         <>
           <div className="mb-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-canvas px-2.5 py-1">Open bills <b>{open.length}</b></span>
@@ -52,12 +57,12 @@ export function SupplierBillsPage() {
               <tbody className="divide-y divide-ink/10">
                 {list.map((b) => (
                   <tr key={b.id} className={b.status === 'voided' ? 'text-ink/45' : ''}>
-                    <td className="p-3"><span className={b.status === 'voided' ? 'line-through' : 'font-medium'}>{b.number}</span><div className="text-xs text-ink/60">{b.billDate}</div>{b.status === 'voided' && <div className="text-xs">Voided: {b.voidReason}</div>}</td>
+                    <td className="p-3"><span className={b.status === 'voided' ? 'line-through' : 'font-medium'}>{b.number}</span><div className="text-xs text-ink/60">{b.billDate}</div>{b.status === 'voided' && <div className="text-xs">Deleted: {b.voidReason}</div>}</td>
                     <td className="p-3">{b.supplierName}<div className="text-xs text-ink/60">{b.purchaseNumber}</div></td>
                     <td className="p-3 whitespace-nowrap">{b.dueDate}{b.overdue && <> <Badge tone="danger">Overdue</Badge></>}</td>
                     <td className="tabular p-3 text-right">{naira(b.amount)}</td>
                     <td className="p-3">{b.status === 'voided' ? '–' : <Badge tone={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partially_paid' ? 'warning' : 'neutral'}>{label(b.paymentStatus)}</Badge>}</td>
-                    {canManage && <td className="whitespace-nowrap p-3 text-right">{b.status === 'open' && <>{b.paymentStatus !== 'paid' && <Button variant="secondary" onClick={() => setPaying(b)}>Pay</Button>} <Button variant="ghost" onClick={() => setVoiding(b)}>Void</Button></>}</td>}
+                    {canManage && <td className="whitespace-nowrap p-3 text-right">{b.status === 'open' && <>{b.paymentStatus !== 'paid' && <Button variant="secondary" onClick={() => setPaying(b)}>Pay</Button>} <Button variant="ghost" onClick={() => setVoiding(b)}>Delete</Button></>}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -65,7 +70,8 @@ export function SupplierBillsPage() {
           </Card>
         </>
       )}
-      {adding && <BillDialog businessId={businessId} purchases={purchases.data ?? []} bills={list} onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await bills.refresh() }} />}
+      <ShowDeleted count={all.filter((b) => b.status === 'voided').length} show={showDeleted} onChange={setShowDeleted} />
+      {adding && <BillDialog businessId={businessId} purchases={purchases.data ?? []} supplierName={(id) => suppliers.data?.find((x) => x.id === id)?.name ?? 'Supplier'} bills={all} onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await bills.refresh() }} />}
       {voiding && <VoidBill businessId={businessId} bill={voiding} onClose={() => setVoiding(null)} onSaved={async () => { setVoiding(null); await bills.refresh() }} />}
       {paying && <PayDialog title="Pay supplier" due={round(paying.purchaseTotal - paying.purchasePaid)} subject={`${paying.purchaseNumber} · ${paying.supplierName} (bill ${paying.number})`} onClose={() => setPaying(null)}
         onPay={(method, amount, key) => payPurchase(businessId, paying.purchaseId, method, amount, paying.number, key)} onSaved={async () => { setPaying(null); await bills.refresh() }} />}
@@ -73,7 +79,7 @@ export function SupplierBillsPage() {
   )
 }
 
-function BillDialog({ businessId, purchases, bills, onClose, onSaved }: { businessId: string; purchases: { id: string; number: string; supplierId: string; total: number; status: string }[]; bills: BillDto[]; onClose: () => void; onSaved: () => Promise<void> }) {
+function BillDialog({ businessId, purchases, supplierName, bills, onClose, onSaved }: { businessId: string; purchases: { id: string; number: string; supplierId: string; total: number; status: string }[]; supplierName: (id: string) => string; bills: BillDto[]; onClose: () => void; onSaved: () => Promise<void> }) {
   const runner = useFormRunner(onSaved)
   const [purchaseId, setPurchaseId] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -97,8 +103,9 @@ function BillDialog({ businessId, purchases, bills, onClose, onSaved }: { busine
   return (
     <DetailPage modal title="Record a supplier bill" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
+        {choices.length === 0 && <Notice>There is no purchase order to bill yet. First <Link to="/app/suppliers" className="font-semibold underline">add the supplier</Link>, then <Link to="/app/purchases" className="font-semibold underline">create a purchase order</Link> for what you bought from them. The bill is recorded against that order.</Notice>}
         <SelectField label="Purchase order" value={purchaseId} onChange={(e) => setPurchaseId(e.target.value)} error={errors.purchase} hint={chosen ? `Not yet billed: ${naira(room)}` : 'Only orders with an unbilled amount are listed.'}>
-          <option value="">Select…</option>{choices.map((p) => <option key={p.id} value={p.id}>{p.number} · {naira(p.total)}</option>)}
+          <option value="">Select…</option>{choices.map((p) => <option key={p.id} value={p.id}>{p.number} · {supplierName(p.supplierId)} · {naira(p.total)}</option>)}
         </SelectField>
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField label="Supplier's bill number" name="number" error={errors.number} maxLength={60} />
@@ -117,12 +124,12 @@ function VoidBill({ businessId, bill, onClose, onSaved }: { businessId: string; 
   const runner = useFormRunner(onSaved)
   const [reason, setReason] = useState('')
   return (
-    <Dialog title={`Void bill ${bill.number}`} onClose={onClose}>
-      <form onSubmit={(e) => { e.preventDefault(); void runner.run((k) => voidBill(businessId, bill.id, reason, k), 'Bill voided.') }} className="space-y-4">
-        <p className="text-sm text-ink/80">Voiding a bill does not undo any payment already made on the purchase order.</p>
+    <Dialog title={`Delete bill ${bill.number}?`} onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); void runner.run((k) => voidBill(businessId, bill.id, reason, k), 'Bill deleted.') }} className="space-y-4">
+        <p className="text-sm text-ink/80">The bill stops counting. Any payment already made on the purchase order stays: it was paid. A note of the bill is kept in the log.</p>
         <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
-        {runner.error && <ErrorState title="Not voided" message={runner.error} />}
-        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Void bill</Button></div>
+        {runner.error && <ErrorState title="Not deleted" message={runner.error} />}
+        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" loading={runner.busy} disabled={reason.trim().length < 3} className="bg-danger text-white hover:bg-danger/90">Delete bill</Button></div>
       </form>
     </Dialog>
   )

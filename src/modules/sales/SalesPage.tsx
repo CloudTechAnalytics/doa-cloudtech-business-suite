@@ -289,13 +289,13 @@ function History({ unlistedId, businessId, customers, can, onChanged, onReceipt,
   const [q, setQ] = useState(''); const [show, setShow] = useState(''); const [from, setFrom] = useState(''); const [to, setTo] = useState('')
   const list = useAsync(() => api.listSales(businessId, from || to ? { from: from || undefined, to: to || undefined } : undefined), [businessId, from, to, refreshKey])
   const customer = (id: string | null) => customers.find((c) => c.id === id)?.name ?? 'Walk-in'
-  const rows = (list.data ?? []).filter((s) => (!show || (show === 'owing' ? s.balanceDue > 0 && s.status !== 'voided' : s.status === show))
+  const rows = (list.data ?? []).filter((s) => ((!show && s.status !== 'voided') || (show === 'owing' ? s.balanceDue > 0 && s.status !== 'voided' : s.status === show))
     && (!q.trim() || [s.number, customer(s.customerId)].some((v) => v.toLowerCase().includes(q.trim().toLowerCase()))))
   return (
     <>
       <div className="mb-3 flex flex-wrap items-end gap-3">
         <div className="w-60"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Sale number or customer" /></div>
-        <div className="w-40"><SelectField label="Show" value={show} onChange={(e) => setShow(e.target.value)}><option value="">All sales</option><option value="owing">Owing money</option><option value="refunded">Refunded</option><option value="voided">Voided</option></SelectField></div>
+        <div className="w-40"><SelectField label="Show" value={show} onChange={(e) => setShow(e.target.value)}><option value="">All sales</option><option value="owing">Owing money</option><option value="refunded">Refunded</option><option value="voided">Deleted</option></SelectField></div>
         <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="w-40"><TextField label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         <Button variant="secondary" disabled={!rows.length} onClick={() => downloadCsv('sales.csv', [['Sale', 'Date', 'Customer', 'Total', 'Paid', 'Balance', 'Status', 'Payment'], ...rows.map((s) => [s.number, s.soldAt, customer(s.customerId), s.grandTotal, s.amountPaid, s.balanceDue, s.status, s.paymentStatus])])}><Download className="size-4" aria-hidden /> Export</Button>
@@ -390,12 +390,12 @@ function SaleDialog({ unlistedId, businessId, saleId, can, onClose, onChanged, o
         <div className="flex flex-wrap gap-2 border-t border-ink/10 pt-3">
           {sale.balanceDue > 0 && can('sales.create') && <Button variant="secondary" onClick={() => setMode(mode === 'pay' ? null : 'pay')}>Add payment</Button>}
           {sale.status === 'posted' && can('sales.refund') && <Button variant="secondary" onClick={() => setMode(mode === 'return' ? null : 'return')}>Return items</Button>}
-          {sale.status === 'posted' && can('sales.void') && <Button variant="ghost" onClick={() => setMode(mode === 'void' ? null : 'void')}>Void sale</Button>}
+          {sale.status === 'posted' && can('sales.void') && <Button variant="ghost" onClick={() => setMode(mode === 'void' ? null : 'void')}>Delete sale</Button>}
         </div>
       )}
       {mode === 'pay' && <PayForm max={sale.balanceDue} onSubmit={(m, a, ref) => act((k) => api.addPayment(businessId, saleId, { method: m, amount: a, reference: ref }, k))} />}
       {mode === 'return' && <ReturnForm detail={data} onSubmit={(lines, reason, refund) => act((k) => api.returnSale(businessId, saleId, lines, reason, refund, k))} />}
-      {mode === 'void' && <ReasonForm label="Reason for voiding" cta="Void sale" onSubmit={(r) => act((k) => api.voidSale(businessId, saleId, r, k))} />}
+      {mode === 'void' && <ReasonForm label="Why delete this sale? (kept in the log)" cta="Delete sale" onSubmit={(r) => act((k) => api.voidSale(businessId, saleId, r, k))} />}
     </DetailPage>
   )
 }
