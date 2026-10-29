@@ -46,14 +46,10 @@ export function BrandMark({ className }: { className?: string }) {
   )
 }
 
-/** The product's full name, shown under the wordmark on the public site: DOA, CloudTech Business Suite. */
-export const PRODUCT_DESCRIPTOR = 'CloudTech Business Suite'
-
-export function BrandLockup({ light = false, className, descriptor = false }: { light?: boolean; className?: string; descriptor?: boolean }) {
+export function BrandLockup({ light = false, className }: { light?: boolean; className?: string }) {
   return (
-    <div className={clsx('group flex', descriptor ? 'flex-col items-start gap-1' : 'items-center', className)}>
+    <div className={clsx('group flex items-center', className)}>
       <Wordmark light={light} className="h-6 transition-transform duration-300 group-hover:scale-105" />
-      {descriptor && <span className={clsx('text-[10px] font-medium italic leading-none tracking-wide sm:text-[11px]', light ? 'text-white/70' : 'text-ink/60')}>{PRODUCT_DESCRIPTOR}</span>}
     </div>
   )
 }
