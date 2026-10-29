@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useBusiness } from '@/core/business-context/BusinessProvider'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, TextField } from '@/shared/components'
 import { DetailPage } from '@/shared/components/detail-page'
@@ -47,7 +47,7 @@ export function FarmCropsPage() {
                   </table>
                 </Card>
               )}
-              <Notice>To harvest a crop, use <Link className="font-semibold underline" to="/app/farm/harvests">Harvests &amp; Eggs</Link>. To close a finished cycle, use <Link className="font-semibold underline" to="/app/farm/batches">Flocks &amp; Batches</Link>.</Notice>
+              <Notice>Open a crop to record its harvest, add notes, see its history and close it when it is finished.</Notice>
               {adding && <StartCycle businessId={businessId} fields={fields} onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await farm.refresh() }} />}
             </>
           )
@@ -58,12 +58,13 @@ export function FarmCropsPage() {
 }
 
 function Row({ c, data, farm, cost }: { c: FarmBatch; data: FarmData; farm: ReturnType<typeof useFarm>; cost: number }) {
+  const navigate = useNavigate()
   const harvested = sumByUnit(data.harvests.filter((h) => h.batchId === c.id && h.status === 'posted').map((h) => ({ quantity: h.quantity, unit: farm.productUnit(h.productId) })))
   const due = c.plannedEnd
   const late = c.status === 'active' && due !== null && due < today()
   const age = daysBetween(c.startDate, c.status === 'active' ? today() : (c.plannedEnd ?? today()))
   return (
-    <tr>
+    <tr className="cursor-pointer hover:bg-surface/60" onClick={() => navigate(`/app/farm/batches?open=${c.id}`)}>
       <td className="p-3"><b>{c.species}</b>{c.variety ? ` · ${c.variety}` : ''}<div className="text-xs text-ink/60">{c.code} · {farm.unitName(c.unitId)}</div></td>
       <td className="p-3 whitespace-nowrap">{c.startDate}<div className="text-xs text-ink/60">{c.status === 'active' ? `${age} days ago` : ''}</div></td>
       <td className="p-3 whitespace-nowrap">{due ?? 'Not set'}{late && <> <Badge tone="warning">Overdue</Badge></>}</td>

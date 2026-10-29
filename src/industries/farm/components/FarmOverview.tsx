@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, Egg, NotebookPen, Skull, Utensils } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Badge, Card, EmptyState } from '@/shared/components'
 import { DataTable } from '@/shared/tables/DataTable'
 import { dateTime } from '@/shared/utilities/format'
@@ -53,6 +53,7 @@ function GettingStarted({ steps }: { steps: ReturnType<typeof setupSteps> }) {
 
 export function FarmOverview() {
   const farm = useFarm()
+  const navigate = useNavigate()
   return (
     <>
       <FarmGate farm={farm}>
@@ -77,7 +78,7 @@ export function FarmOverview() {
                 <EmptyState title="Nothing running yet" description="Start a flock, fish stock or crop to begin recording." action={<Link className="underline" to="/app/farm/batches">Start one</Link>} />
               ) : (
                 <DataTable<FarmBatch>
-                  rows={active} total={active.length} page={0} pageSize={active.length} onPage={() => {}} rowKey={(b) => b.id} emptyTitle="Nothing running"
+                  rows={active} total={active.length} page={0} pageSize={active.length} onPage={() => {}} rowKey={(b) => b.id} onRowClick={(b) => navigate(`/app/farm/batches?open=${b.id}`)} emptyTitle="Nothing running"
                   columns={[
                     { key: 'code', header: 'Batch', render: (b) => <><b>{b.code}</b><div className="text-xs text-ink/60">{b.species} · {farm.unitName(b.unitId)}</div></> },
                     { key: 'pop', header: 'Count now', align: 'right', render: (b) => <>{b.population.toLocaleString()} <CountBasis basis={b.basis} /></> },

@@ -1,28 +1,31 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { FormEvent } from 'react'
-import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, TextField } from '@/shared/components'
-import { DetailPage } from '@/shared/components/detail-page'
+import { Badge, Button, Card, ErrorState, PageHeader, SelectField, TextField } from '@/shared/components'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { DataTable } from '@/shared/tables/DataTable'
-import { dateTime, label } from '@/shared/utilities/format'
+import { label } from '@/shared/utilities/format'
+import { BatchPage } from '../components/BatchPage'
 import { CountBasis, FarmGate, today } from '../components/farmUi'
 import { useFarm } from '../hooks/useFarm'
-import { adjustPopulation, closeBatch, reverseEvent, startBatch } from '../services/farmApi'
+import { startBatch } from '../services/farmApi'
 import { mortalityRate } from '../types'
 import type { FarmBatch, FarmData, Production } from '../types'
 
 export function FarmBatchesPage() {
   const farm = useFarm()
   const [adding, setAdding] = useState(false)
-  const [open, setOpen] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  const open = params.get('open')
+  const setOpen = (id: string | null) => setParams(id ? { open: id } : {}, { replace: !id })
   const [status, setStatus] = useState<'active' | 'closed' | ''>('active')
 
   return (
     <>
-      <PageHeader title="Farm batches" description="Each batch is a flock, fish stock or crop cycle. Its numbers come from a ledger: corrections are new entries, never edits."
-        actions={farm.can('farm.manage') ? <Button onClick={() => setAdding((a) => !a)}>{adding ? 'Close form' : 'Start a batch'}</Button> : undefined} />
+      <PageHeader title="Flocks & batches" description="Each flock, fish stock, herd or crop. Open one to see its figures and history, and to record feeding, deaths and harvests for it."
+        actions={farm.can('farm.manage') ? <Button onClick={() => setAdding((a) => !a)}>{adding ? 'Close form' : 'Start a flock or batch'}</Button> : undefined} />
       <FarmGate farm={farm}>
-        {(data) => {
+        {(data, catalog) => {
           const rows = data.batches.filter((b) => !status || b.status === status)
           return (
             <>
@@ -37,13 +40,13 @@ export function FarmBatchesPage() {
                 emptyTitle="No batches" emptyHint={farm.can('farm.manage') ? 'Start your first batch above.' : 'A manager starts batches.'}
                 columns={[
                   { key: 'code', header: 'Batch', render: (b) => <><b>{b.code}</b><div className="text-xs text-ink/60">{b.species}{b.variety ? ` · ${b.variety}` : ''} · {farm.unitName(b.unitId)}</div></> },
-                  { key: 'pop', header: 'Animals now', align: 'right', render: (b) => <>{b.population.toLocaleString()} <CountBasis basis={b.basis} /></> },
+                  { key: 'pop', header: 'Count now', align: 'right', render: (b) => <>{b.population.toLocaleString()} <CountBasis basis={b.basis} /></> },
                   { key: 'open', header: 'Opening', align: 'right', render: (b) => b.opening.toLocaleString() },
-                  { key: 'mort', header: 'Mortality', align: 'right', render: (b) => `${mortalityRate(b).toFixed(1)}%` },
+                  { key: 'mort', header: 'Died', align: 'right', render: (b) => `${mortalityRate(b).toFixed(1)}%` },
                   { key: 'status', header: 'Status', render: (b) => <Badge tone={b.status === 'active' ? 'success' : 'neutral'}>{label(b.status)}</Badge> },
                 ]}
               />
-              {open && <BatchDialog farm={farm} data={data} id={open} onClose={() => setOpen(null)} />}
+              {open && <BatchPage farm={farm} data={data} catalog={catalog} id={open} onClose={() => setOpen(null)} />}
             </>
           )
         }}
@@ -100,76 +103,5 @@ function StartBatch({ farm, units, onDone }: { farm: ReturnType<typeof useFarm>;
         </div>
       </form>
     </Card>
-  )
-}
-
-function BatchDialog({ farm, data, id, onClose }: { farm: ReturnType<typeof useFarm>; data: FarmData; id: string; onClose: () => void }) {
-  const batch = data.batches.find((b) => b.id === id)!
-  const events = data.events.filter((e) => e.batchId === id)
-  const [mode, setMode] = useState<'adjust' | 'close' | null>(null)
-  const runner = useFormRunner(async () => { setMode(null); await farm.refresh() })
-  const manage = farm.can('farm.manage') && batch.status === 'active'
-
-  async function reverse(eventId: string) {
-    const reason = window.prompt('Reason for correcting this entry?')
-    if (reason) await runner.run((k) => reverseEvent(farm.businessId, eventId, reason, k), 'Correction posted.')
-  }
-
-  return (
-    <DetailPage title={`${batch.code} · ${batch.species}`} onClose={onClose} wide>
-      {runner.error && <ErrorState message={runner.error} />}
-      {runner.ok && <Notice>{runner.ok}</Notice>}
-      <dl className="mb-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-        <div><dt className="text-xs text-ink/60">Animals now</dt><dd className="tabular font-semibold">{batch.population.toLocaleString()} <CountBasis basis={batch.basis} /></dd></div>
-        <div><dt className="text-xs text-ink/60">Mortality</dt><dd className="tabular">{batch.mortality.toLocaleString()} ({mortalityRate(batch).toFixed(1)}%)</dd></div>
-        <div><dt className="text-xs text-ink/60">Feed given</dt><dd className="tabular">{batch.feed.toLocaleString()}</dd></div>
-        <div><dt className="text-xs text-ink/60">Produce harvested</dt><dd className="tabular">{batch.harvest.toLocaleString()}</dd></div>
-      </dl>
-      <h3 className="mb-1 text-sm font-semibold">Population ledger</h3>
-      {events.length === 0 ? <EmptyState title="No entries" /> : (
-        <ul className="mb-4 divide-y divide-ink/10 text-sm">
-          {events.map((e) => (
-            <li key={e.id} className="flex flex-wrap items-center gap-2 py-1.5">
-              <Badge tone={e.quantity > 0 ? 'success' : 'danger'}>{label(e.type)}</Badge>
-              <span className="tabular font-medium">{e.quantity > 0 ? '+' : ''}{e.quantity.toLocaleString()}</span>
-              <span className="text-ink/70">{e.reason}</span>
-              {e.reversed && <span className="text-xs text-ink/50">(corrected)</span>}
-              <span className="ml-auto text-xs text-ink/50">{dateTime(e.on)}</span>
-              {manage && !e.reversed && ['mortality', 'removal', 'cull', 'adjustment'].includes(e.type) && <Button variant="ghost" onClick={() => void reverse(e.id)}>Correct</Button>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {manage && (
-        <div className="flex flex-wrap gap-2 border-t border-ink/10 pt-3">
-          <Button variant="secondary" onClick={() => setMode(mode === 'adjust' ? null : 'adjust')}>Cull or adjust count</Button>
-          <Button variant="ghost" onClick={() => setMode(mode === 'close' ? null : 'close')}>Close batch</Button>
-        </div>
-      )}
-      {mode === 'adjust' && (
-        <form className="mt-3 grid gap-3 sm:grid-cols-4" noValidate onSubmit={async (e) => {
-          e.preventDefault(); const f = new FormData(e.currentTarget)
-          const qty = Number(f.get('qty')); const type = String(f.get('type')) as 'cull' | 'removal' | 'adjustment'
-          if (!qty || (type !== 'adjustment' && qty < 0)) return
-          await runner.run((k) => adjustPopulation(farm.businessId, id, type, qty, String(f.get('reason') ?? ''), today(), k), 'Count updated.')
-        }}>
-          <SelectField label="Type" name="type"><option value="cull">Cull</option><option value="removal">Sold or removed</option><option value="adjustment">Recount (+/−)</option></SelectField>
-          <TextField label="Quantity" name="qty" type="number" step="any" hint="Use a negative number only for a recount." />
-          <TextField label="Reason" name="reason" />
-          <div className="flex items-end"><Button type="submit" loading={runner.busy}>Post</Button></div>
-        </form>
-      )}
-      {mode === 'close' && (
-        <form className="mt-3 space-y-3" noValidate onSubmit={async (e) => {
-          e.preventDefault(); const f = new FormData(e.currentTarget)
-          await runner.run((k) => closeBatch(farm.businessId, id, String(f.get('reason') ?? ''), f.get('writeoff') === 'on', k), 'Batch closed.')
-        }}>
-          <Notice>Closing locks the batch. Any animals still counted must be written off, which is recorded in the ledger.</Notice>
-          <TextField label="Reason for closing" name="reason" />
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="writeoff" /> Write off the {batch.population.toLocaleString()} animals still counted</label>
-          <Button type="submit" loading={runner.busy}>Close batch</Button>
-        </form>
-      )}
-    </DetailPage>
   )
 }

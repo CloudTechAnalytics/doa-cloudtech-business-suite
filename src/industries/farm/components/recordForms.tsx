@@ -8,15 +8,20 @@ import type { FarmContext } from '../hooks/useFarm'
 import { recordFeeding, recordHarvest, recordMortality } from '../services/farmApi'
 
 type Catalog = NonNullable<FarmContext['catalog']>
-interface FormProps { farm: FarmContext; catalog: Catalog; /** Called after a record is saved (the farm data is already refreshed). */ onSaved?: () => void }
+interface FormProps { farm: FarmContext; catalog: Catalog; /** Called after a record is saved (the farm data is already refreshed). */ onSaved?: () => void; /** Records against this batch only (on its own page), instead of offering a choice. */ batchId?: string }
 
 /** Shown in place of a record form when there is nothing to record against yet. */
 function NoBatches({ farm }: { farm: FarmContext }) {
   return <Notice>There is no active flock, pond or crop to record against yet. {farm.can('farm.manage') ? <Link to="/app/farm/batches" className="underline">Start one first</Link> : 'Ask a manager to start one.'}</Notice>
 }
 
+/** The batch a record is for: fixed when the form sits on a batch's own page, otherwise a choice. */
+function WhichBatch({ farm, batchId, error }: { farm: FarmContext; batchId?: string; error?: string }) {
+  return batchId ? <input type="hidden" name="batch" value={batchId} /> : <BatchSelect batches={farm.activeBatches} error={error} />
+}
+
 /** Feed given to a batch. The feed is taken from stock once, when it is recorded. */
-export function FeedForm({ farm, catalog, onSaved }: FormProps) {
+export function FeedForm({ farm, catalog, onSaved, batchId }: FormProps) {
   const runner = useFormRunner(farm.refresh)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [product, setProduct] = useState('')
@@ -39,7 +44,7 @@ export function FeedForm({ farm, catalog, onSaved }: FormProps) {
   return (
     <Card className="mb-4">
       <form onSubmit={submit} noValidate className="grid gap-3 sm:grid-cols-3">
-        <BatchSelect batches={farm.activeBatches} error={errors.batch} />
+        <WhichBatch farm={farm} batchId={batchId} error={errors.batch} />
         <SelectField label="Feed" value={product} onChange={(e) => setProduct(e.target.value)} error={errors.product} hint={product ? `In stock: ${onHand.toLocaleString()} ${unit}` : 'Feed comes from your stock.'}>
           <option value="">Select…</option>{catalog.products.filter((p) => p.status === 'active').map((p) => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
         </SelectField>
@@ -58,7 +63,7 @@ export function FeedForm({ farm, catalog, onSaved }: FormProps) {
 }
 
 /** Deaths in a batch, which lower its count. */
-export function DeathsForm({ farm, onSaved }: Omit<FormProps, 'catalog'>) {
+export function DeathsForm({ farm, onSaved, batchId }: Omit<FormProps, 'catalog'>) {
   const runner = useFormRunner(farm.refresh)
   const [errors, setErrors] = useState<Record<string, string>>({})
   if (!farm.activeBatches.length) return <NoBatches farm={farm} />
@@ -76,7 +81,7 @@ export function DeathsForm({ farm, onSaved }: Omit<FormProps, 'catalog'>) {
   return (
     <Card className="mb-4">
       <form onSubmit={submit} noValidate className="grid gap-3 sm:grid-cols-4">
-        <BatchSelect batches={farm.activeBatches} error={errors.batch} />
+        <WhichBatch farm={farm} batchId={batchId} error={errors.batch} />
         <TextField label="Number that died" name="qty" type="number" min="1" step="any" error={errors.qty} />
         <TextField label="Cause" name="cause" error={errors.cause} placeholder="Disease, heat, predator…" />
         <TextField label="Date" name="date" type="date" defaultValue={today()} max={today()} />
@@ -91,7 +96,7 @@ export function DeathsForm({ farm, onSaved }: Omit<FormProps, 'catalog'>) {
 }
 
 /** Eggs, fish, crops or other produce collected from a batch. It goes into stock, ready to sell. */
-export function HarvestForm({ farm, catalog, onSaved }: FormProps) {
+export function HarvestForm({ farm, catalog, onSaved, batchId }: FormProps) {
   const runner = useFormRunner(farm.refresh)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [product, setProduct] = useState('')
@@ -112,7 +117,7 @@ export function HarvestForm({ farm, catalog, onSaved }: FormProps) {
   return (
     <Card className="mb-4">
       <form onSubmit={submit} noValidate className="grid gap-3 sm:grid-cols-3">
-        <BatchSelect batches={farm.activeBatches} error={errors.batch} />
+        <WhichBatch farm={farm} batchId={batchId} error={errors.batch} />
         <SelectField label="What was collected" value={product} onChange={(e) => setProduct(e.target.value)} error={errors.product} hint="Items such as eggs or catfish are added under What you sell.">
           <option value="">Select…</option>{catalog.products.filter((p) => p.status === 'active').map((p) => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
         </SelectField>
