@@ -18,7 +18,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
   return (
     <div className="flex min-h-screen flex-col items-center bg-white px-4 pb-10 pt-16 sm:pt-24">
       <div className="w-full max-w-[350px] rounded-xl border border-line border-t-4 border-t-amber bg-white px-6 pb-7 pt-6 shadow-raised">
-        <Link to="/" aria-label="DOA home" className="mb-5 flex justify-center"><BrandLockup /></Link>
+        <Link to="/" aria-label="DOA home" className="mb-5 flex justify-center"><BrandLockup descriptor className="items-center" /></Link>
         <div className="rounded-lg border border-amber/40 bg-amber/10 px-4 py-4 text-center text-[13px] leading-relaxed text-ink">
           {isDemoMode ? (
             <>
