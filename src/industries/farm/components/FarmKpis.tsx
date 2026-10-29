@@ -15,10 +15,10 @@ export function FarmKpis({ farm }: { farm: FarmContext }) {
         const harvest = data.harvests.filter((h) => h.status === 'posted' && withinDays(h.date, 7)).map((h) => ({ quantity: h.quantity, unit: farm.productUnit(h.productId) }))
         return (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Live animals" value={animals.toLocaleString()} note={`${active.length} active batch${active.length === 1 ? '' : 'es'}`} />
-            <Stat label="Mortality (active batches)" value={`${(entered ? (deaths / entered) * 100 : 0).toFixed(1)}%`} note="Deaths ÷ animals entered, net of corrections" />
-            <Stat label="Feed used (7 days)" value={sumByUnit(feed)} note="Posted feeding records" />
-            <Stat label="Harvested (7 days)" value={sumByUnit(harvest)} note="Posted harvest records" />
+            <Stat label="Animals now" value={animals.toLocaleString()} note={`In ${active.length} flock${active.length === 1 ? '' : 's'} or batch${active.length === 1 ? '' : 'es'}`} />
+            <Stat label="Death rate" value={`${(entered ? (deaths / entered) * 100 : 0).toFixed(1)}%`} note="Of all animals that entered the running batches" />
+            <Stat label="Feed used (7 days)" value={sumByUnit(feed)} note="Feeding recorded this week" />
+            <Stat label="Collected (7 days)" value={sumByUnit(harvest)} note="Eggs and harvests this week" />
           </div>
         )
       }}

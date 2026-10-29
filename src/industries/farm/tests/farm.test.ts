@@ -23,6 +23,6 @@ describe('farm industry', () => {
   })
 
   it('offers its day-to-day workflows from the Record menu', () => {
-    expect(farm.workflows.map((w) => w.id)).toEqual(['record-mortality', 'record-feeding', 'record-harvest'])
+    expect(farm.workflows.map((w) => w.id)).toEqual(['record-feeding', 'record-mortality', 'record-harvest'])
   })
 })

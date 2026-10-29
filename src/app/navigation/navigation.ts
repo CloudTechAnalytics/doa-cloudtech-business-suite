@@ -58,7 +58,7 @@ export function buildApps(industry: IndustryCode, usable: ReadonlySet<ModuleCode
   const pure = getIndustry(industry).navigation.filter((sec) => !hasShared(sec.modules)).length
   let own = 0 // sections with no shared module get their own colours in turn (a lone one keeps the industry colour)
   const industryApps: (AppDef | null)[] = getIndustry(industry).navigation.map((section, i) => {
-    const modules = pick(section.modules)
+    const modules = pick(section.modules.filter((c) => { const twin = section.sameAs?.[c]; return !twin || !usable.has(twin) }))
     if (!modules.length) return null
     const color = hasShared(section.modules) ? sectionColor(section.modules, 0) : pure === 1 ? (INDUSTRY_COLORS[industry] ?? '#1971c2') : OWN_PALETTE[own++ % OWN_PALETTE.length]
     return { id: `${industry}-${i}`, label: section.label, color, icon: modules[0].icon, modules }

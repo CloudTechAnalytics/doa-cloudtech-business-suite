@@ -36,7 +36,7 @@ export function FarmCropsPage() {
           return (
             <>
               {cycles.length === 0 ? (
-                <Card><EmptyState title="No crop cycles yet" description={fields.length ? 'Start a cycle when you plant a field.' : 'Add a field under Production Units (production: crops), then start a cycle.'} /></Card>
+                <Card><EmptyState title="No crop cycles yet" description={fields.length ? 'Start a cycle when you plant a field.' : 'Add a field under Pens, Ponds & Fields (choose Crops), then start a cycle.'} /></Card>
               ) : (
                 <Card className="overflow-x-auto p-0">
                   <table className="w-full text-sm">
@@ -47,7 +47,7 @@ export function FarmCropsPage() {
                   </table>
                 </Card>
               )}
-              <Notice>To harvest a crop, use <Link className="font-semibold underline" to="/app/farm/harvests">Harvests</Link>. To close a finished cycle, use <Link className="font-semibold underline" to="/app/farm/batches">Farm Batches</Link>.</Notice>
+              <Notice>To harvest a crop, use <Link className="font-semibold underline" to="/app/farm/harvests">Harvests &amp; Eggs</Link>. To close a finished cycle, use <Link className="font-semibold underline" to="/app/farm/batches">Flocks &amp; Batches</Link>.</Notice>
               {adding && <StartCycle businessId={businessId} fields={fields} onClose={() => setAdding(false)} onSaved={async () => { setAdding(false); await farm.refresh() }} />}
             </>
           )
@@ -94,7 +94,7 @@ function StartCycle({ businessId, fields, onClose, onSaved }: { businessId: stri
   return (
     <DetailPage modal title="Start a crop cycle" onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
-        {fields.length === 0 && <Notice>Add a field first: Production Units, production &quot;Crops&quot;.</Notice>}
+        {fields.length === 0 && <Notice>Add a field first: Pens, Ponds &amp; Fields, choose &quot;Crops&quot;.</Notice>}
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField label="Field" name="field" defaultValue="" error={errors.field}><option value="" disabled>Select…</option>{fields.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</SelectField>
           <TextField label="Cycle code" name="code" error={errors.code} placeholder="e.g. C-2026-01" maxLength={40} />

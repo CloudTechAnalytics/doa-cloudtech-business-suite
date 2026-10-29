@@ -1,60 +1,35 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, TextField } from '@/shared/components'
+import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader } from '@/shared/components'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { dateTime } from '@/shared/utilities/format'
-import { BatchSelect, FarmGate, ReadOnlyNotice, today } from '../components/farmUi'
+import { FarmGate, ReadOnlyNotice } from '../components/farmUi'
+import { DeathsForm } from '../components/recordForms'
 import { useFarm } from '../hooks/useFarm'
-import { recordMortality, reverseEvent } from '../services/farmApi'
+import { reverseEvent } from '../services/farmApi'
 import { mortalityRate } from '../types'
 
 export function FarmMortalityPage() {
   const farm = useFarm()
   const runner = useFormRunner(farm.refresh)
-  const [errors, setErrors] = useState<Record<string, string>>({})
   const can = farm.can('farm.record')
 
   return (
     <>
-      <PageHeader title="Mortality" description="Deaths reduce the batch's animal count. Rate = deaths (net of corrections) ÷ animals that entered the batch." />
+      <PageHeader title="Deaths" description="Deaths lower a batch's count. The death rate is deaths (after corrections) out of all the animals that entered the batch." />
       <FarmGate farm={farm}>
         {(data) => {
           const deaths = data.events.filter((e) => e.type === 'mortality')
-          async function submit(e: FormEvent<HTMLFormElement>) {
-            e.preventDefault()
-            const form = e.currentTarget; const f = new FormData(form); const s = (k: string) => String(f.get(k) ?? '')
-            const next: Record<string, string> = {}
-            if (!s('batch')) next.batch = 'Choose a batch.'
-            if (!(Number(s('qty')) > 0)) next.qty = 'Enter how many died.'
-            if (s('cause').trim().length < 3) next.cause = 'Give a cause (at least 3 characters).'
-            setErrors(next)
-            if (Object.keys(next).length) return
-            await runner.run((k) => recordMortality(farm.businessId, s('batch'), Number(s('qty')), s('cause'), s('date'), k), 'Mortality recorded.', () => form.reset())
-          }
           return (
             <>
               <div className="mb-4 grid gap-3 sm:grid-cols-3">
                 {farm.activeBatches.map((b) => (
-                  <Card key={b.id}><p className="text-xs uppercase tracking-wide text-ink/60">{b.code}</p><p className="tabular mt-1 text-xl font-semibold">{mortalityRate(b).toFixed(1)}%</p><p className="text-xs text-ink/60">{b.mortality.toLocaleString()} of {b.entering.toLocaleString()} entered</p></Card>
+                  <Card key={b.id}><p className="text-xs uppercase tracking-wide text-ink/60">{b.code}</p><p className="tabular mt-1 text-xl font-semibold">{mortalityRate(b).toFixed(1)}%</p><p className="text-xs text-ink/60">{b.mortality.toLocaleString()} died of {b.entering.toLocaleString()} entered</p></Card>
                 ))}
               </div>
               <ReadOnlyNotice show={!can} />
-              {can && (
-                <Card className="mb-4">
-                  <form onSubmit={submit} noValidate className="grid gap-3 sm:grid-cols-4">
-                    <BatchSelect batches={farm.activeBatches} error={errors.batch} />
-                    <TextField label="Number that died" name="qty" type="number" min="1" step="any" error={errors.qty} />
-                    <TextField label="Cause" name="cause" error={errors.cause} placeholder="Disease, heat, predator…" />
-                    <TextField label="Date" name="date" type="date" defaultValue={today()} max={today()} />
-                    <div className="space-y-2 sm:col-span-4">
-                      {runner.error && <ErrorState title="Not recorded" message={runner.error} />}
-                      {runner.ok && <Notice>{runner.ok}</Notice>}
-                      <Button type="submit" loading={runner.busy}>Record mortality</Button>
-                    </div>
-                  </form>
-                </Card>
-              )}
-              {deaths.length === 0 ? <EmptyState title="No mortality recorded" /> : (
+              {can && <DeathsForm farm={farm} />}
+              {runner.error && <ErrorState message={runner.error} />}
+              {runner.ok && <Notice>{runner.ok}</Notice>}
+              {deaths.length === 0 ? <EmptyState title="No deaths recorded" /> : (
                 <Card className="p-0">
                   <ul className="divide-y divide-ink/10 text-sm">
                     {deaths.slice(0, 50).map((e) => (

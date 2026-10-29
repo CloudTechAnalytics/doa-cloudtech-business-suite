@@ -21,6 +21,8 @@ export interface PermissionDefinition {
 export interface NavSection {
   label: string
   modules: ModuleCode[]
+  /** A listed module that is the same page as another: it is shown only when that other one is not usable, so it never appears twice. */
+  sameAs?: Partial<Record<ModuleCode, ModuleCode>>
 }
 
 /** Binds an industry-owned module to its page component. The path comes from the module definition. */

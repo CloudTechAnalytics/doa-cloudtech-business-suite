@@ -40,7 +40,7 @@ describe('multi-select', () => {
     const names = includedModuleNames(INDUSTRIES.farm)
     expect(names.slice(0, 3)).toEqual(['Dashboard', 'Staff & Roles', 'Settings'])
     expect(new Set(names).size).toBe(names.length)
-    expect(names).toContain('Farm Batches')
+    expect(names).toContain('Flocks & Batches')
     expect(includedModuleNames(INDUSTRIES.pharmacy)).toEqual(expect.arrayContaining(['Medicines', 'Batches & Expiry', 'Prescriptions']))
   })
 

@@ -70,18 +70,18 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
   it('orders apps: dashboard first, the industry app next, settings last', () => {
     const apps = buildApps('farm', usableFor('farm'))
     expect(apps[0].id).toBe('dashboard')
-    expect(apps[1].label).toBe('Overview')
-    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Overview', 'Farm operations', 'Production', 'Sales and customers', 'Stock and procurement', 'Finance', 'People and administration', 'Invoices', 'Calendar'])
+    expect(apps[1].label).toBe('Daily work')
+    expect(apps.map((a) => a.label)).toEqual(['Dashboard', 'Daily work', 'My farm', 'Selling', 'Buying and stock', 'Money', 'People and settings', 'Invoices', 'Calendar'])
   })
 
   it('gives each app a menu of its own modules and finds the open app from the URL', () => {
     const apps = buildApps('farm', usableFor('farm'))
-    const stock = apps.find((a) => a.label === 'Stock and procurement')!.modules.map((m) => m.code)
+    const stock = apps.find((a) => a.label === 'Buying and stock')!.modules.map((m) => m.code)
     expect(stock).toEqual(expect.arrayContaining(['inventory', 'suppliers', 'purchases', 'farm-purchase-requests', 'farm-supplier-bills']))
     expect(apps.map((a) => a.id)).not.toContain('purchase') // claimed by the farm's own sections, not repeated
-    expect(findCurrentApp(apps, '/app/farm/mortality')?.label).toBe('Production')
-    expect(findCurrentApp(apps, '/app/purchases')?.label).toBe('Stock and procurement')
-    expect(findCurrentApp(apps, '/app/inventory/anything')?.label).toBe('Stock and procurement')
+    expect(findCurrentApp(apps, '/app/farm/mortality')?.label).toBe('Daily work')
+    expect(findCurrentApp(apps, '/app/purchases')?.label).toBe('Buying and stock')
+    expect(findCurrentApp(apps, '/app/inventory/anything')?.label).toBe('Buying and stock')
     expect(findCurrentApp(apps, '/app')).toBeNull()
   })
 
@@ -92,20 +92,21 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
     expect(entries.some((e) => e.kind === 'heading' && e.label === 'Dashboard')).toBe(false)
     expect(entries[0]).toMatchObject({ kind: 'link', module: { code: 'dashboard' } })
     expect(link('farm-overview')).toBe(-1) // the Dashboard shows the overview
-    expect(link('farm-alerts')).toBe(1) // a one-module section is a plain link right after Dashboard
-    expect(heading('Farm operations')).toBeLessThan(link('farm-daily'))
+    expect(heading('Daily work')).toBe(1) // the day's work comes straight after Dashboard
+    expect(link('farm-daily')).toBe(2) // Record Today is the first thing in it
     expect(link('farm-daily')).toBeLessThan(link('farm-tasks'))
-    expect(heading('Production')).toBeLessThan(link('farm-batches'))
-    expect(heading('Stock and procurement')).toBeLessThan(link('inventory'))
+    expect(heading('My farm')).toBeLessThan(link('farm-batches'))
+    expect(heading('Buying and stock')).toBeLessThan(link('inventory'))
     expect(link('inventory')).toBeLessThan(link('suppliers'))
-    expect(heading('Sales and customers')).toBeLessThan(link('farm-products'))
+    expect(heading('Selling')).toBeLessThan(link('farm-products'))
     expect(link('customers')).toBeLessThan(link('sales')) // customers and selling come before stock
     expect(link('sales')).toBeLessThan(link('farm-products'))
-    expect(heading('Sales and customers')).toBeLessThan(heading('Stock and procurement'))
-    expect(heading('Finance')).toBeLessThan(link('farm-cashbook'))
+    expect(heading('Selling')).toBeLessThan(heading('Buying and stock'))
+    expect(heading('Money')).toBeLessThan(link('farm-cashbook'))
+    expect(link('expenses')).toBe(-1) // the farm's own Expenses is the same page, so the shared one is not listed twice
     // workers, staff and settings are in the account menu (top right), not the sidebar
     for (const code of ['farm-workers', 'staff', 'settings']) expect(link(code), code).toBe(-1)
-    expect(entries.some((e) => e.kind === 'heading' && e.label === 'People and administration')).toBe(false)
+    expect(entries.some((e) => e.kind === 'heading' && e.label === 'People and settings')).toBe(false)
     // an optional shared app sits after the industry's own sections (Invoices lists its own parts: Invoices, Payments, Statements, Ageing; Calendar its views)
     const code = (e: (typeof entries)[number]) => (e.kind === 'heading' ? '' : e.module.code)
     expect(entries.slice(-4).map(code)).toEqual(['calendar', 'calendar', 'calendar', 'calendar']) // the last optional app
@@ -115,10 +116,10 @@ describe('apps, the navbar menu and the Record menu follow the industry and the 
 
   it('offers industry workflows in the Record menu only when their module is usable', () => {
     const all = buildQuickActions('farm', usableFor('farm')).map((a) => a.label)
-    expect(all).toContain('Record mortality')
+    expect(all).toContain('Record deaths')
     expect(all).toContain('New sale')
     const usable = usableFor('farm'); usable.delete('farm-mortality')
-    expect(buildQuickActions('farm', usable).map((a) => a.label)).not.toContain('Record mortality')
+    expect(buildQuickActions('farm', usable).map((a) => a.label)).not.toContain('Record deaths')
   })
 })
 
