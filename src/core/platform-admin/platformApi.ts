@@ -1,5 +1,5 @@
 import * as pl from '@/demo/demoPlatform'
-import type { PAdmin, PAppAdoption, PAppActivity, PAppEvent, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus } from '@/demo/demoPlatform'
+import type { BusinessState, PAdmin, PAppAdoption, PAppActivity, PAppEvent, PAuditRow, PBusinessDetail, PBusinessRow, PHealth, PPlan, POverview, PUsage, PUserRow, PlatformRole, SubStatus } from '@/demo/demoPlatform'
 import { env, isDemoMode } from '@/shared/utilities/env'
 import { supabase } from '@/shared/utilities/supabase'
 import type { PlanCode } from '@/shared/types/domain'
@@ -64,12 +64,18 @@ export async function loadBusiness(id: string): Promise<PBusinessDetail> {
     appEvents: ((x.app_events as Row[]) ?? []).map((e) => ({ at: String(e.at), module: String(e.module), action: e.action as PAppEvent['action'], by: s(e.by) })),
   }
 }
+const toUser = (r: Row): PUserRow => ({
+  id: String(r.id), name: String(r.name ?? ''), email: String(r.email ?? ''), createdAt: s(r.created_at), lastSignIn: s(r.last_sign_in), platformRole: s(r.platform_role) as PlatformRole | null,
+  businesses: ((r.businesses as Row[]) ?? []).map((b) => ({ businessId: String(b.business_id), business: String(b.business), role: String(b.role), status: String(b.status), joinedAt: s(b.joined_at), isOwner: !!b.is_owner, businessStatus: (s(b.business_status) ?? 'active') as BusinessState })),
+})
 export async function loadUsers(search = ''): Promise<PUserRow[]> {
   if (isDemoMode) return pl.demoPlatformUsers(search)
-  return (await rpc<Row[]>('platform_users', { p_search: search.trim() || null })).map((r) => ({
-    id: String(r.id), name: String(r.name ?? ''), email: String(r.email ?? ''), createdAt: s(r.created_at), lastSignIn: s(r.last_sign_in), platformRole: s(r.platform_role) as PlatformRole | null,
-    businesses: ((r.businesses as Row[]) ?? []).map((b) => ({ businessId: String(b.business_id), business: String(b.business), role: String(b.role), status: String(b.status) })),
-  }))
+  return (await rpc<Row[]>('platform_users', { p_search: search.trim() || null })).map(toUser)
+}
+/** One person and every business they belong to, for the user details page. */
+export async function loadUser(id: string): Promise<PUserRow> {
+  if (isDemoMode) return pl.demoPlatformUser(id)
+  return toUser(await rpc<Row>('platform_user', { p_user: id }))
 }
 export async function loadPlans(): Promise<PPlan[]> {
   if (isDemoMode) return pl.demoPlatformPlans()
@@ -118,6 +124,14 @@ export async function transferOwnership(businessId: string, email: string, reaso
 export async function setMemberStatus(businessId: string, userId: string, status: 'active' | 'suspended' | 'revoked', reason: string): Promise<string | null> {
   if (isDemoMode) return pl.demoPlatformSetMemberStatus(businessId, userId, status, reason)
   return msg('platform_set_member_status', { p_business: businessId, p_user: userId, p_status: status, p_reason: reason })
+}
+/** Takes a person out of every business they belong to, except ones they own. Their account and records stay. Returns an error message, or what was done. */
+export async function removeUserEverywhere(userId: string, reason: string): Promise<{ removed: number; keptOwned: string | null } | string> {
+  if (isDemoMode) return pl.demoPlatformRemoveUserEverywhere(userId, reason)
+  const { data, error } = await supabase!.rpc('platform_remove_user_everywhere', { p_user: userId, p_reason: reason })
+  if (error) return error.message
+  const x = data as Row
+  return { removed: n(x.removed), keptOwned: s(x.kept_owned) }
 }
 /** Deletes a user account for good (and their memberships). Platform owners only; refused for yourself, the platform team and anyone who owns a business. */
 export async function deleteUser(userId: string, confirmEmail: string, reason: string): Promise<string | null> {

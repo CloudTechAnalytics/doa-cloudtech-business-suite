@@ -34,7 +34,7 @@ export interface PBusinessDetail {
   modules: string[]; activity: { at: string; action: string; entity: string }[]; platformActions: { at: string; action: string; by: string | null; reason: string | null }[]
   startedWithApp: string | null; apps: string[]; appActivity: Record<string, PAppActivity>; appEvents: PAppEvent[]
 }
-export interface PUserRow { id: string; name: string; email: string; createdAt: string | null; lastSignIn: string | null; platformRole: PlatformRole | null; businesses: { businessId: string; business: string; role: string; status: string }[] }
+export interface PUserRow { id: string; name: string; email: string; createdAt: string | null; lastSignIn: string | null; platformRole: PlatformRole | null; businesses: { businessId: string; business: string; role: string; status: string; joinedAt: string | null; isOwner: boolean; businessStatus: BusinessState }[] }
 export interface PPlan { code: string; name: string; price: number; currency: string; interval: string; maxMembers: number; maxBranches: number; businesses: number }
 export interface PAuditRow { id: string; at: string; action: string; by: string | null; businessId: string | null; business: string | null; reason: string | null }
 export interface PHealth { checkedAt: string; checks: { name: string; ok: boolean; detail: string }[]; businessChanges24h: number; platformActions24h: number }
@@ -158,8 +158,15 @@ export function demoPlatformUsers(search = ''): PUserRow[] {
   need('read'); const q = search.trim().toLowerCase(); const st = getDemoState()
   return st.users.map((u): PUserRow => ({
     id: u.id, name: u.name, email: u.email, createdAt: null, lastSignIn: null, platformRole: state.admins.find((a) => a.userId === u.id)?.role ?? null,
-    businesses: st.members.filter((m) => m.userId === u.id).map((m) => ({ businessId: m.businessId, business: st.businesses.find((b) => b.id === m.businessId)?.name ?? '', role: m.role, status: m.status })),
+    businesses: st.members.filter((m) => m.userId === u.id).map((m) => {
+      const b = st.businesses.find((x) => x.id === m.businessId)
+      return { businessId: m.businessId, business: b?.name ?? '', role: m.role, status: m.status, joinedAt: null, isOwner: m.role === 'owner', businessStatus: (b?.archived ? 'archived' : b?.suspended ? 'suspended' : 'active') as BusinessState }
+    }).sort((a, b) => a.business.localeCompare(b.business)),
   })).filter((u) => !q || (u.name + u.email).toLowerCase().includes(q))
+}
+export function demoPlatformUser(id: string): PUserRow {
+  const u = demoPlatformUsers().find((x) => x.id === id); if (!u) throw new Error('user not found')
+  return u
 }
 export function demoPlatformPlans(): PPlan[] {
   need('read'); const st = getDemoState()
@@ -306,6 +313,25 @@ export function demoPlatformSetMemberStatus(businessId: string, userId: string, 
     log(s, 'member.' + status, businessId, why, { userId, from: m.status, to: status })
     demoPlatformPatchMembers(businessId, (x) => (x.id === m.id ? { ...x, status } : x))
   })
+}
+/** Mirrors platform_remove_user_everywhere(): every membership is revoked except in businesses the person owns; refused when they own them all. */
+export function demoPlatformRemoveUserEverywhere(userId: string, why: string): { removed: number; keptOwned: string | null } | string {
+  let out: { removed: number; keptOwned: string | null } = { removed: 0, keptOwned: null }
+  const err = run((s) => {
+    need('write'); reason(why)
+    const st = getDemoState(); if (!st.users.some((u) => u.id === userId)) throw new Error('user not found')
+    if (userId === st.userId) throw new Error('you cannot remove yourself')
+    const live = st.members.filter((m) => m.userId === userId && m.status !== 'revoked' && st.businesses.some((b) => b.id === m.businessId && !b.archived))
+    const owned = live.filter((m) => m.role === 'owner').map((m) => st.businesses.find((b) => b.id === m.businessId)!.name).sort().join(', ') || null
+    const doomed = live.filter((m) => m.role !== 'owner')
+    if (!doomed.length && owned) throw new Error(`this person owns ${owned}. Transfer the ownership before removing them`)
+    for (const m of doomed) {
+      log(s, 'member.revoked', m.businessId, why, { userId, from: m.status, to: 'revoked', everywhere: true })
+      demoPlatformPatchMembers(m.businessId, (x) => (x.id === m.id ? { ...x, status: 'revoked' } : x))
+    }
+    out = { removed: doomed.length, keptOwned: owned }
+  })
+  return err ?? out
 }
 export function demoPlatformArchiveBusiness(businessId: string, why: string): string | null {
   return run((s) => {

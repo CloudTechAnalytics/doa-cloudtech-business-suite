@@ -1,100 +1,185 @@
-import { Ban, CheckCircle2, Database, Eye, HardDrive, MoreHorizontal, RefreshCw, Trash2, UserCheck, XCircle } from 'lucide-react'
+import { Ban, CheckCircle2, Database, Eye, HardDrive, MoreHorizontal, RefreshCw, Trash2, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card, EmptyState, ErrorState, Notice, PageHeader, SelectField, Spinner, TextField } from '@/shared/components'
 import { Dialog } from '@/shared/components/dialog'
 import { Menu } from '@/shared/components/menu'
 import { useAsync } from '@/shared/hooks/useAsync'
 import { useFormRunner } from '@/shared/hooks/useFormRunner'
 import { label, naira } from '@/shared/utilities/format'
-import { addAdmin, deleteUser, loadAudit, loadHealth, loadPlans, loadTeam, loadUsage, loadUsers, probeServices, removeAdmin, setMemberStatus } from './platformApi'
+import { addAdmin, deleteUser, loadAudit, loadHealth, loadPlans, loadTeam, loadUsage, loadUser, loadUsers, probeServices, removeAdmin, removeUserEverywhere, setMemberStatus } from './platformApi'
 import type { ServiceCheck } from './platformApi'
-import type { PlatformRole } from './platformApi'
+import type { PUserRow, PlatformRole } from './platformApi'
 import { Kpi, day, usePlatform, when } from './platformUi'
 
-type MemberRow = { key: string; userId: string; name: string; email: string; platformRole: PlatformRole | null; businessId: string | null; business: string | null; role: string | null; status: string | null; lastSignIn: string | null }
+type UserRow = PUserRow
+type Membership = UserRow['businesses'][number]
 
-/** One row per person per business, like the people lists inside a business, with what the platform team can do to each membership. */
+/** A person's overall standing across their businesses, for the one-row-per-person list. */
+function overall(u: UserRow): { text: string; tone: 'success' | 'info' | 'neutral' | 'warning' } {
+  const live = u.businesses.filter((b) => b.businessStatus !== 'archived')
+  if (!live.length) return { text: 'No business', tone: 'neutral' }
+  if (live.some((b) => b.status === 'active')) return { text: 'Active', tone: 'success' }
+  if (live.some((b) => b.status === 'suspended')) return { text: 'Inactive', tone: 'warning' }
+  if (live.some((b) => b.status === 'invited')) return { text: 'Invited', tone: 'info' }
+  return { text: 'Removed everywhere', tone: 'neutral' }
+}
+/** Memberships the platform team can still take away: not already removed, in a business that still exists, and not one the person owns. */
+const removable = (u: UserRow) => u.businesses.filter((b) => b.status !== 'revoked' && b.businessStatus !== 'archived' && !b.isOwner)
+
+/** One row per person, however many businesses they are in. Open a person to see each business, their role there, and act on one business or all. */
 export function PlatformUsers() {
   const { canWrite, isOwner } = usePlatform()
-  const [deleting, setDeleting] = useState<MemberRow | null>(null)
+  const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [bizFilter, setBizFilter] = useState('')
   const list = useAsync(() => loadUsers(q), [q])
-  const [acting, setActing] = useState<{ row: MemberRow; status: 'active' | 'suspended' | 'revoked' } | null>(null)
-  const rows: MemberRow[] = (list.data ?? []).flatMap((u): MemberRow[] => u.businesses.length
-    ? u.businesses.map((b) => ({ key: u.id + b.businessId, userId: u.id, name: u.name, email: u.email, platformRole: u.platformRole, businessId: b.businessId, business: b.business, role: b.role, status: b.status, lastSignIn: u.lastSignIn }))
-    : [{ key: u.id, userId: u.id, name: u.name, email: u.email, platformRole: u.platformRole, businessId: null, business: null, role: null, status: null, lastSignIn: u.lastSignIn }])
-  const businesses = [...new Map(rows.filter((r) => r.businessId).map((r) => [r.businessId!, r.business!])).entries()]
-  const shown = rows.filter((r) => !bizFilter || r.businessId === bizFilter)
+  const [deleting, setDeleting] = useState<UserRow | null>(null)
+  const [removing, setRemoving] = useState<UserRow | null>(null)
+  const users = list.data ?? []
+  const businesses = [...new Map(users.flatMap((u) => u.businesses.map((b) => [b.businessId, b.business] as const))).entries()].sort((x, y) => x[1].localeCompare(y[1]))
+  const shown = users.filter((u) => !bizFilter || u.businesses.some((b) => b.businessId === bizFilter))
   return (
     <>
-      <PageHeader title="Users" description="Everyone with an account, and the businesses they belong to." />
+      <PageHeader title="Users" description="Everyone with an account, once each. Open a person to see every business they belong to and their role there." />
       <Notice>People are added to a business by that business's own owner or admin. Stopping someone here is a support action, for when a business cannot do it itself (for example to free a seat). Ownership is moved from the Businesses page.</Notice>
       <div className="my-4 flex flex-wrap items-end gap-3">
         <div className="w-72"><TextField label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or email" /></div>
         <div className="w-60"><SelectField label="Business" value={bizFilter} onChange={(e) => setBizFilter(e.target.value)}><option value="">All businesses</option>{businesses.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</SelectField></div>
-        <p className="pb-2 text-sm text-ink/60">{new Set(shown.map((r) => r.userId)).size} users</p>
+        <p className="pb-2 text-sm text-ink/60">{shown.length} {shown.length === 1 ? 'user' : 'users'}</p>
       </div>
       {list.error && <ErrorState message={list.error} />}
       {list.loading && !list.data ? <Spinner /> : !shown.length ? <Card><EmptyState title="No users match" /></Card> : (
         <Card className="overflow-x-auto p-0">
-          <table className="w-full text-sm"><thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">User</th><th className="p-3">Business</th><th className="p-3">Role</th><th className="p-3">Status</th><th className="p-3">Last signed in</th><th className="p-3 text-right">Actions</th></tr></thead>
-            <tbody className="divide-y divide-ink/10">{shown.map((r) => (
-              <tr key={r.key}>
-                <td className="p-3 font-medium">{r.name || '–'} {r.platformRole && <Badge tone="info">Platform {r.platformRole}</Badge>}<div className="text-xs font-normal text-ink/60">{r.email}</div></td>
-                <td className="p-3">{r.businessId ? <Link to={`/platform/businesses/${r.businessId}`} className="hover:underline">{r.business}</Link> : <span className="text-ink/50">None</span>}</td>
-                <td className="p-3">{r.role ? label(r.role) : '–'}</td>
-                <td className="p-3">{r.status ? <Badge tone={r.status === 'active' ? 'success' : r.status === 'invited' ? 'info' : 'neutral'}>{label(r.status)}</Badge> : '–'}</td>
-                <td className="p-3 text-ink/70">{r.lastSignIn ? when(r.lastSignIn) : '–'}</td>
-                <td className="p-3 text-right">{((r.businessId && r.status !== 'invited' && canWrite) || (isOwner && !r.platformRole)) && <Menu label={`Actions for ${r.name || r.email}`}
-                  trigger={({ toggle }) => <button type="button" onClick={toggle} aria-haspopup="menu" aria-label={`Actions for ${r.name || r.email}`} className="grid size-8 place-items-center rounded-md text-ink/60 hover:bg-surface hover:text-ink"><MoreHorizontal className="size-5" aria-hidden /></button>}
-                  items={[
-                    { label: r.name || r.email, heading: true },
-                    ...(r.businessId ? [{ label: 'View business', to: `/platform/businesses/${r.businessId}`, icon: <Eye className="size-4" /> }] : []),
-                    ...(r.businessId && canWrite && r.status === 'active' ? [{ label: 'Set inactive', icon: <Ban className="size-4" />, onSelect: () => setActing({ row: r, status: 'suspended' }), divider: true }] : []),
-                    ...(r.businessId && canWrite && r.status === 'suspended' ? [{ label: 'Set active again', icon: <UserCheck className="size-4" />, onSelect: () => setActing({ row: r, status: 'active' }), divider: true }] : []),
-                    ...(r.businessId && canWrite && r.status !== 'revoked' ? [{ label: 'Remove from business', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setActing({ row: r, status: 'revoked' }) }] : []),
-                    ...(isOwner && !r.platformRole ? [{ label: 'Delete user', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setDeleting(r), divider: true }] : []),
-                  ]} />}</td>
-              </tr>))}</tbody></table>
+          <table className="w-full text-sm"><thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">User</th><th className="p-3">Businesses</th><th className="p-3">Status</th><th className="p-3">Last signed in</th><th className="p-3 text-right">Actions</th></tr></thead>
+            <tbody className="divide-y divide-ink/10">{shown.map((u) => {
+              const st = overall(u); const live = u.businesses.filter((b) => b.businessStatus !== 'archived'); const canRemove = canWrite && removable(u).length > 0
+              return (
+                <tr key={u.id} className="cursor-pointer hover:bg-surface/60" onClick={() => navigate(`/platform/users/${u.id}`)}>
+                  <td className="p-3 font-medium"><Link to={`/platform/users/${u.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{u.name || '–'}</Link> {u.platformRole && <Badge tone="info">Platform {u.platformRole}</Badge>}<div className="text-xs font-normal text-ink/60">{u.email}</div></td>
+                  <td className="p-3">{live.length ? <span className="flex flex-wrap items-center gap-1">{live.slice(0, 3).map((b) => <Badge key={b.businessId} tone={b.status === 'revoked' ? 'neutral' : 'info'}>{b.business}{b.isOwner ? ' (owner)' : ''}</Badge>)}{live.length > 3 && <span className="text-xs text-ink/60">+{live.length - 3} more</span>}</span> : <span className="text-ink/50">None</span>}</td>
+                  <td className="p-3"><Badge tone={st.tone}>{st.text}</Badge></td>
+                  <td className="p-3 text-ink/70">{u.lastSignIn ? when(u.lastSignIn) : '–'}</td>
+                  <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}><Menu label={`Actions for ${u.name || u.email}`}
+                    trigger={({ toggle }) => <button type="button" onClick={toggle} aria-haspopup="menu" aria-label={`Actions for ${u.name || u.email}`} className="grid size-8 place-items-center rounded-md text-ink/60 hover:bg-surface hover:text-ink"><MoreHorizontal className="size-5" aria-hidden /></button>}
+                    items={[
+                      { label: u.name || u.email, heading: true },
+                      { label: 'View details', to: `/platform/users/${u.id}`, icon: <Eye className="size-4" /> },
+                      ...(canRemove ? [{ label: 'Remove from all businesses', icon: <Ban className="size-4 text-danger" />, onSelect: () => setRemoving(u), divider: true }] : []),
+                      ...(isOwner && !u.platformRole ? [{ label: 'Delete user', icon: <Trash2 className="size-4 text-danger" />, onSelect: () => setDeleting(u), divider: !canRemove }] : []),
+                    ]} /></td>
+                </tr>)
+            })}</tbody></table>
         </Card>
       )}
-      {deleting && <DeleteUserDialog row={deleting} onClose={() => setDeleting(null)} onDone={async () => { setDeleting(null); await list.refresh() }} />}
-      {acting && <MemberDialog row={acting.row} status={acting.status} onClose={() => setActing(null)} onDone={async () => { setActing(null); await list.refresh() }} />}
+      {deleting && <DeleteUserDialog user={deleting} onClose={() => setDeleting(null)} onDone={async () => { setDeleting(null); await list.refresh() }} />}
+      {removing && <RemoveEverywhereDialog user={removing} onClose={() => setRemoving(null)} onDone={async () => { setRemoving(null); await list.refresh() }} />}
     </>
   )
 }
 
-function DeleteUserDialog({ row, onClose, onDone }: { row: MemberRow; onClose: () => void; onDone: () => Promise<void> }) {
-  const runner = useFormRunner(onDone)
-  const [why, setWhy] = useState(''); const [typed, setTyped] = useState('')
-  const ready = why.trim().length >= 3 && typed.trim().toLowerCase() === row.email.toLowerCase()
+/** One person: their account, and every business they belong to with their role, status and what can be done to that one membership. */
+export function PlatformUserPage() {
+  const { id = '' } = useParams()
+  const navigate = useNavigate()
+  const { canWrite, isOwner } = usePlatform()
+  const d = useAsync(() => loadUser(id), [id])
+  const [acting, setActing] = useState<{ m: Membership; status: 'active' | 'suspended' | 'revoked' } | null>(null)
+  const [removing, setRemoving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [done, setDone] = useState<string | null>(null)
+  if (d.loading && !d.data) return <Spinner />
+  if (d.error || !d.data) return <div className="space-y-3"><ErrorState message={d.error ?? 'User not found'} /><Link to="/platform/users" className="underline">Back to users</Link></div>
+  const u = d.data; const st = overall(u); const canRemoveAll = canWrite && removable(u).length > 0
+  const owned = u.businesses.filter((b) => b.isOwner && b.businessStatus !== 'archived')
   return (
-    <Dialog title={`Delete user: ${row.name || row.email}`} onClose={onClose}>
+    <>
+      <p className="mb-2 text-sm"><Link to="/platform/users" className="text-ink/60 hover:text-ink">Users</Link> <span className="text-ink/40">/</span> {u.name || u.email}</p>
+      <PageHeader title={u.name || u.email} description={`${u.email}${u.createdAt ? ` · joined ${day(u.createdAt)}` : ''} · last signed in ${u.lastSignIn ? when(u.lastSignIn) : 'never'}`}
+        actions={<div className="flex flex-wrap items-center gap-2">{u.platformRole && <Badge tone="info">Platform {u.platformRole}</Badge>}<Badge tone={st.tone}>{st.text}</Badge>
+          {canRemoveAll && <Button variant="secondary" onClick={() => setRemoving(true)}><Ban className="size-4" aria-hidden /> Remove from all businesses</Button>}
+          {isOwner && !u.platformRole && <Button variant="secondary" onClick={() => setDeleting(true)}><Trash2 className="size-4 text-danger" aria-hidden /> Delete user</Button>}</div>} />
+      {done && <div className="mt-3"><Notice>{done}</Notice></div>}
+      {owned.length > 0 && <div className="mt-3"><Notice>{u.name || 'This person'} owns {owned.map((b) => b.business).join(', ')}. They cannot be removed from a business they own: move the ownership from that business's page first.</Notice></div>}
+      <Card className="mt-4 overflow-x-auto p-0">
+        <h2 className="px-4 pt-4 font-semibold">Businesses ({u.businesses.length})</h2>
+        {!u.businesses.length ? <div className="p-4"><EmptyState title="Not in any business" /></div> : (
+          <table className="mt-2 w-full text-sm"><thead className="bg-surface text-left text-xs font-semibold text-ink/70"><tr><th className="p-3">Business</th><th className="p-3">Role</th><th className="p-3">Status</th><th className="p-3">Joined</th><th className="p-3 text-right">Actions</th></tr></thead>
+            <tbody className="divide-y divide-ink/10">{u.businesses.map((m) => {
+              const gone = m.businessStatus === 'archived'; const can = canWrite && !gone && !m.isOwner && m.status !== 'invited'
+              return (
+                <tr key={m.businessId}>
+                  <td className="p-3 font-medium"><Link to={`/platform/businesses/${m.businessId}`} className="hover:underline">{m.business}</Link>{gone && <span className="ml-2"><Badge>Business deleted</Badge></span>}{m.businessStatus === 'suspended' && <span className="ml-2"><Badge tone="danger">Business suspended</Badge></span>}</td>
+                  <td className="p-3">{label(m.role)}{m.isOwner && m.role !== 'owner' && <span className="ml-2"><Badge tone="info">Owner</Badge></span>}</td>
+                  <td className="p-3"><Badge tone={m.status === 'active' ? 'success' : m.status === 'invited' ? 'info' : m.status === 'suspended' ? 'warning' : 'neutral'}>{m.status === 'suspended' ? 'Inactive' : m.status === 'revoked' ? 'Removed' : label(m.status)}</Badge></td>
+                  <td className="p-3 text-ink/70">{day(m.joinedAt)}</td>
+                  <td className="p-3 text-right">{can ? (
+                    <span className="inline-flex flex-wrap justify-end gap-2">
+                      {m.status === 'active' && <Button variant="secondary" onClick={() => setActing({ m, status: 'suspended' })}>Set inactive</Button>}
+                      {m.status === 'suspended' && <Button variant="secondary" onClick={() => setActing({ m, status: 'active' })}>Set active again</Button>}
+                      {m.status !== 'revoked' && <Button variant="secondary" onClick={() => setActing({ m, status: 'revoked' })}><Trash2 className="size-4 text-danger" aria-hidden /> Remove</Button>}
+                    </span>) : m.isOwner && !gone ? <Link to={`/platform/businesses/${m.businessId}`} className="text-xs text-ink/60 underline">Move ownership first</Link> : null}</td>
+                </tr>)
+            })}</tbody></table>
+        )}
+      </Card>
+      {acting && <MemberDialog user={u} m={acting.m} status={acting.status} onClose={() => setActing(null)} onDone={async () => { setActing(null); setDone(null); await d.refresh() }} />}
+      {removing && <RemoveEverywhereDialog user={u} onClose={() => setRemoving(false)} onDone={async (msg) => { setRemoving(false); setDone(msg ?? null); await d.refresh() }} />}
+      {deleting && <DeleteUserDialog user={u} onClose={() => setDeleting(false)} onDone={async () => { setDeleting(false); navigate('/platform/users') }} />}
+    </>
+  )
+}
+
+function RemoveEverywhereDialog({ user, onClose, onDone }: { user: UserRow; onClose: () => void; onDone: (msg?: string) => Promise<void> }) {
+  const [why, setWhy] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null)
+  const goes = removable(user); const kept = user.businesses.filter((b) => b.isOwner && b.businessStatus !== 'archived')
+  async function go() {
+    setBusy(true); const r = await removeUserEverywhere(user.id, why); setBusy(false)
+    if (typeof r === 'string') { setError(r); return }
+    await onDone(`Removed from ${r.removed} ${r.removed === 1 ? 'business' : 'businesses'}.${r.keptOwned ? ` Still the owner of ${r.keptOwned}.` : ''}`)
+  }
+  return (
+    <Dialog title={`Remove from all businesses: ${user.name || user.email}`} onClose={onClose}>
       <div className="space-y-3">
-        <div role="alert" className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"><b>This cannot be undone.</b> The account is erased: they can no longer sign in, and they are taken out of every business they belong to. Records they made in a business are not erased, and an account that has recorded sales, payments or stock movements cannot be deleted at all (remove them from the business instead). Someone who owns a business, or is on the platform team, cannot be deleted until that is dealt with.</div>
-        <TextField label={`Type "${row.email}" to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
-        <TextField label="Reason (kept in the audit log)" value={why} onChange={(e) => setWhy(e.target.value)} />
-        {runner.error && <ErrorState title="Not deleted" message={runner.error} />}
-        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!ready} loading={runner.busy} onClick={() => void runner.run(async () => deleteUser(row.userId, typed, why), 'User deleted.')}>Delete user for good</Button></div>
+        <p className="text-sm">They will no longer be able to use {goes.length === 1 ? 'this business' : `these ${goes.length} businesses`}: <b>{goes.map((b) => b.business).join(', ')}</b>. Their account stays and their past records stay. To bring them back, a business must invite them again.</p>
+        {kept.length > 0 && <Notice>They own {kept.map((b) => b.business).join(', ')}, so they stay there. Move the ownership first to remove them from it.</Notice>}
+        <TextField label="Reason (kept in the audit log)" value={why} onChange={(e) => setWhy(e.target.value)} autoFocus />
+        {error && <ErrorState title="Not done" message={error} />}
+        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={why.trim().length < 3} loading={busy} onClick={() => void go()}>Remove from all</Button></div>
       </div>
     </Dialog>
   )
 }
 
-function MemberDialog({ row, status, onClose, onDone }: { row: MemberRow; status: 'active' | 'suspended' | 'revoked'; onClose: () => void; onDone: () => Promise<void> }) {
+function DeleteUserDialog({ user, onClose, onDone }: { user: UserRow; onClose: () => void; onDone: () => Promise<void> }) {
+  const runner = useFormRunner(onDone)
+  const [why, setWhy] = useState(''); const [typed, setTyped] = useState('')
+  const ready = why.trim().length >= 3 && typed.trim().toLowerCase() === user.email.toLowerCase()
+  return (
+    <Dialog title={`Delete user: ${user.name || user.email}`} onClose={onClose}>
+      <div className="space-y-3">
+        <div role="alert" className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"><b>This cannot be undone.</b> The account is erased: they can no longer sign in, and they are taken out of every business they belong to. Records they made in a business are not erased, and an account that has recorded sales, payments or stock movements cannot be deleted at all (use Remove from all businesses instead). Someone who owns a business, or is on the platform team, cannot be deleted until that is dealt with.</div>
+        <TextField label={`Type "${user.email}" to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
+        <TextField label="Reason (kept in the audit log)" value={why} onChange={(e) => setWhy(e.target.value)} />
+        {runner.error && <ErrorState title="Not deleted" message={runner.error} />}
+        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!ready} loading={runner.busy} onClick={() => void runner.run(async () => deleteUser(user.id, typed, why), 'User deleted.')}>Delete user for good</Button></div>
+      </div>
+    </Dialog>
+  )
+}
+
+function MemberDialog({ user, m, status, onClose, onDone }: { user: UserRow; m: Membership; status: 'active' | 'suspended' | 'revoked'; onClose: () => void; onDone: () => Promise<void> }) {
   const runner = useFormRunner(onDone)
   const [why, setWhy] = useState('')
   const verb = status === 'active' ? 'Set active again' : status === 'suspended' ? 'Set inactive' : 'Remove from business'
   return (
-    <Dialog title={`${verb}: ${row.name || row.email}`} onClose={onClose}>
+    <Dialog title={`${verb}: ${user.name || user.email}`} onClose={onClose}>
       <div className="space-y-3">
-        <p className="text-sm">{status === 'active' ? 'They can use' : 'They will no longer be able to use'} <b>{row.business}</b>{status === 'active' ? ' again.' : '. Their past records stay.'}{status === 'revoked' && ' To bring them back, the business must invite them again.'}</p>
+        <p className="text-sm">{status === 'active' ? 'They can use' : 'They will no longer be able to use'} <b>{m.business}</b>{status === 'active' ? ' again.' : '. Their past records stay, and their other businesses are not affected.'}{status === 'revoked' && ' To bring them back, the business must invite them again.'}</p>
         <TextField label="Reason (kept in the audit log)" value={why} onChange={(e) => setWhy(e.target.value)} autoFocus />
         {runner.error && <ErrorState title="Not done" message={runner.error} />}
-        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={why.trim().length < 3} loading={runner.busy} onClick={() => void runner.run(async () => setMemberStatus(row.businessId!, row.userId, status, why), 'Done.')}>{verb}</Button></div>
+        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={why.trim().length < 3} loading={runner.busy} onClick={() => void runner.run(async () => setMemberStatus(m.businessId, user.id, status, why), 'Done.')}>{verb}</Button></div>
       </div>
     </Dialog>
   )

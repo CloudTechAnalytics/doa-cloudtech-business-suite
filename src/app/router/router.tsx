@@ -23,7 +23,7 @@ import { PlatformBusinessPage, PlatformBusinesses } from '@/core/platform-admin/
 import { PlatformSubscriptions } from '@/core/platform-admin/PlatformSubscriptions'
 import { PlatformDashboard } from '@/core/platform-admin/PlatformDashboard'
 import { PlatformLayout } from '@/core/platform-admin/PlatformLayout'
-import { PlatformAudit, PlatformHealth, PlatformPlans, PlatformTeam, PlatformUsers } from '@/core/platform-admin/PlatformMore'
+import { PlatformAudit, PlatformHealth, PlatformPlans, PlatformTeam, PlatformUserPage, PlatformUsers } from '@/core/platform-admin/PlatformMore'
 import { EmptyState, Spinner } from '@/shared/components'
 
 // Built once from the shared modules and the industry registry; adding an industry adds its routes here with no router edits.
@@ -88,6 +88,7 @@ export function AppRoutes() {
         <Route path="businesses/:id" element={<PlatformBusinessPage />} />
         <Route path="subscriptions" element={<PlatformSubscriptions />} />
         <Route path="users" element={<PlatformUsers />} />
+        <Route path="users/:id" element={<PlatformUserPage />} />
         <Route path="plans" element={<PlatformPlans />} />
         <Route path="team" element={<PlatformTeam />} />
         <Route path="audit" element={<PlatformAudit />} />
